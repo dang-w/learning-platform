@@ -1,0 +1,131 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  HomeIcon,
+  BookOpenIcon,
+  AcademicCapIcon,
+  ClockIcon,
+  DocumentTextIcon,
+  ChartBarIcon,
+  Bars3Icon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Resources', href: '/resources', icon: BookOpenIcon },
+  { name: 'Learning Path', href: '/learning-path', icon: AcademicCapIcon },
+  { name: 'Reviews', href: '/reviews', icon: ClockIcon },
+  { name: 'Concepts', href: '/concepts', icon: DocumentTextIcon },
+  { name: 'Progress', href: '/progress', icon: ChartBarIcon },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  return (
+    <>
+      {/* Mobile menu button */}
+      <div className="lg:hidden fixed top-0 left-0 z-20 m-4">
+        <button
+          type="button"
+          className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          <span className="sr-only">Open sidebar</span>
+          {isMobileMenuOpen ? (
+            <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+          ) : (
+            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+          )}
+        </button>
+      </div>
+
+      {/* Mobile menu */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-10 lg:hidden">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="fixed inset-y-0 left-0 max-w-xs w-full bg-white shadow-xl">
+            <div className="h-full flex flex-col py-6 overflow-y-auto">
+              <div className="px-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-indigo-600">AI/ML Learning</h2>
+                <button
+                  type="button"
+                  className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <span className="sr-only">Close sidebar</span>
+                  <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                </button>
+              </div>
+              <nav className="mt-6 px-4 space-y-1">
+                {navigation.map((item) => {
+                  const isActive = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`${
+                        isActive
+                          ? 'bg-indigo-50 text-indigo-600'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <item.icon
+                        className={`${
+                          isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                        } mr-4 h-6 w-6`}
+                        aria-hidden="true"
+                      />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex lg:flex-shrink-0">
+        <div className="flex flex-col w-64 border-r border-gray-200 bg-white">
+          <div className="h-0 flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+            <div className="flex items-center flex-shrink-0 px-4">
+              <h2 className="text-xl font-bold text-indigo-600">AI/ML Learning</h2>
+            </div>
+            <nav className="mt-5 flex-1 px-4 space-y-1">
+              {navigation.map((item) => {
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-600'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                  >
+                    <item.icon
+                      className={`${
+                        isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                      } mr-3 h-5 w-5`}
+                      aria-hidden="true"
+                    />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

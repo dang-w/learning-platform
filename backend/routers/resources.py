@@ -1,0 +1,383 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+import motor.motor_asyncio
+
+from main import get_current_active_user, User, db
+
+router = APIRouter()
+
+# Models
+class ResourceBase(BaseModel):
+    title: str
+    url: str
+    topics: List[str]
+    difficulty: str
+    estimated_time: int
+
+class ResourceCreate(ResourceBase):
+    pass
+
+class Resource(ResourceBase):
+    id: int
+    completed: bool = False
+    date_added: str
+    completion_date: Optional[str] = None
+    notes: str = ""
+
+class ResourceUpdate(BaseModel):
+    title: Optional[str] = None
+    url: Optional[str] = None
+    topics: Optional[List[str]] = None
+    difficulty: Optional[str] = None
+    estimated_time: Optional[int] = None
+    notes: Optional[str] = None
+
+class ResourceComplete(BaseModel):
+    notes: Optional[str] = None
+
+# Helper functions
+async def get_next_resource_id(user_id: str, resource_type: str):
+    user = await db.users.find_one({"username": user_id})
+    if not user or "resources" not in user or resource_type not in user["resources"]:
+        return 1
+    return len(user["resources"][resource_type]) + 1
+
+# Routes
+@router.get("/", response_model=Dict[str, List[Resource]])
+async def get_all_resources(current_user: User = Depends(get_current_active_user)):
+    """Get all resources for the current user."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user:
+        return {"articles": [], "videos": [], "courses": [], "books": []}
+    return user["resources"]
+
+@router.get("/{resource_type}", response_model=List[Resource])
+async def get_resources_by_type(
+    resource_type: str,
+    completed: Optional[bool] = None,
+    topic: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get resources of a specific type with optional filtering."""
+    if resource_type not in ["articles", "videos", "courses", "books"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid resource type: {resource_type}"
+        )
+
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user or resource_type not in user["resources"]:
+        return []
+
+    resources = user["resources"][resource_type]
+
+    # Filter by completion status if specified
+    if completed is not None:
+        resources = [r for r in resources if r.get("completed", False) == completed]
+
+    # Filter by topic if specified
+    if topic:
+        resources = [
+            r for r in resources
+            if any(t.lower() == topic.lower() for t in r.get("topics", []))
+        ]
+
+    return resources
+
+@router.post("/{resource_type}", response_model=Resource, status_code=status.HTTP_201_CREATED)
+async def create_resource(
+    resource_type: str,
+    resource: ResourceCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new resource."""
+    if resource_type not in ["articles", "videos", "courses", "books"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid resource type: {resource_type}"
+        )
+
+    # Generate new resource ID
+    new_id = await get_next_resource_id(current_user.username, resource_type)
+
+    # Create resource object
+    resource_dict = resource.dict()
+    resource_dict["id"] = new_id
+    resource_dict["completed"] = False
+    resource_dict["date_added"] = datetime.now().isoformat()
+    resource_dict["completion_date"] = None
+    resource_dict["notes"] = ""
+
+    # Add to user's resources
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$push": {f"resources.{resource_type}": resource_dict}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create resource"
+        )
+
+    return resource_dict
+
+@router.put("/{resource_type}/{resource_id}", response_model=Resource)
+async def update_resource(
+    resource_type: str,
+    resource_id: int,
+    resource_update: ResourceUpdate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update an existing resource."""
+    if resource_type not in ["articles", "videos", "courses", "books"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid resource type: {resource_type}"
+        )
+
+    # Get user's resources
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user or resource_type not in user["resources"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resources not found"
+        )
+
+    # Find the resource to update
+    resources = user["resources"][resource_type]
+    resource_index = None
+    for i, r in enumerate(resources):
+        if r.get("id") == resource_id:
+            resource_index = i
+            break
+
+    if resource_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resource with ID {resource_id} not found"
+        )
+
+    # Update resource fields
+    update_data = {k: v for k, v in resource_update.dict().items() if v is not None}
+    for key, value in update_data.items():
+        resources[resource_index][key] = value
+
+    # Save updated resources
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {f"resources.{resource_type}": resources}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update resource"
+        )
+
+    return resources[resource_index]
+
+@router.post("/{resource_type}/{resource_id}/complete", response_model=Resource)
+async def mark_resource_completed(
+    resource_type: str,
+    resource_id: int,
+    completion_data: ResourceComplete,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Mark a resource as completed."""
+    if resource_type not in ["articles", "videos", "courses", "books"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid resource type: {resource_type}"
+        )
+
+    # Get user's resources
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user or resource_type not in user["resources"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resources not found"
+        )
+
+    # Find the resource to mark as completed
+    resources = user["resources"][resource_type]
+    resource_index = None
+    for i, r in enumerate(resources):
+        if r.get("id") == resource_id:
+            resource_index = i
+            break
+
+    if resource_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resource with ID {resource_id} not found"
+        )
+
+    # Update resource
+    resources[resource_index]["completed"] = True
+    resources[resource_index]["completion_date"] = datetime.now().isoformat()
+    if completion_data.notes:
+        resources[resource_index]["notes"] = completion_data.notes
+
+    # Save updated resources
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {f"resources.{resource_type}": resources}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark resource as completed"
+        )
+
+    return resources[resource_index]
+
+@router.delete("/{resource_type}/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resource(
+    resource_type: str,
+    resource_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a resource."""
+    if resource_type not in ["articles", "videos", "courses", "books"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid resource type: {resource_type}"
+        )
+
+    # Get user's resources
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user or resource_type not in user["resources"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resources not found"
+        )
+
+    # Find the resource to delete
+    resources = user["resources"][resource_type]
+    resource_index = None
+    for i, r in enumerate(resources):
+        if r.get("id") == resource_id:
+            resource_index = i
+            break
+
+    if resource_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resource with ID {resource_id} not found"
+        )
+
+    # Remove resource
+    resources.pop(resource_index)
+
+    # Save updated resources
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {f"resources.{resource_type}": resources}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete resource"
+        )
+
+@router.get("/next", response_model=List[Resource])
+async def get_next_resources(
+    count: int = 5,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get the next N uncompleted resources."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user:
+        return []
+
+    # Collect all uncompleted resources
+    uncompleted = []
+    for resource_type in ["articles", "videos", "courses", "books"]:
+        if resource_type in user["resources"]:
+            for resource in user["resources"][resource_type]:
+                if not resource.get("completed", False):
+                    resource_copy = resource.copy()
+                    resource_copy["type"] = resource_type  # Add type for frontend display
+                    uncompleted.append(resource_copy)
+
+    # Sort by date added (newest first)
+    uncompleted.sort(key=lambda x: x.get("date_added", ""), reverse=True)
+
+    # Return up to 'count' resources
+    return uncompleted[:count]
+
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_resource_statistics(current_user: User = Depends(get_current_active_user)):
+    """Get statistics about the user's resources."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user:
+        return {
+            "total": 0,
+            "completed": 0,
+            "completion_percentage": 0,
+            "by_type": {},
+            "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
+            "by_topic": {},
+            "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
+        }
+
+    # Initialize statistics
+    stats = {
+        "total": 0,
+        "completed": 0,
+        "by_type": {},
+        "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
+        "by_topic": {},
+        "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
+    }
+
+    # Calculate statistics
+    for resource_type in ["articles", "videos", "courses", "books"]:
+        if resource_type not in user["resources"]:
+            continue
+
+        resources = user["resources"][resource_type]
+        type_count = len(resources)
+        type_completed = sum(1 for r in resources if r.get("completed", False))
+
+        stats["total"] += type_count
+        stats["completed"] += type_completed
+
+        stats["by_type"][resource_type] = {
+            "total": type_count,
+            "completed": type_completed
+        }
+
+        # Accumulate time statistics and counts by difficulty/topic
+        for resource in resources:
+            time = resource.get("estimated_time", 0)
+            stats["estimated_time"]["total"] += time
+
+            if resource.get("completed", False):
+                stats["estimated_time"]["completed"] += time
+            else:
+                stats["estimated_time"]["remaining"] += time
+
+            # Count by difficulty
+            difficulty = resource.get("difficulty", "")
+            if difficulty in stats["by_difficulty"]:
+                stats["by_difficulty"][difficulty] += 1
+
+            # Count by topic
+            for topic in resource.get("topics", []):
+                if topic not in stats["by_topic"]:
+                    stats["by_topic"][topic] = 0
+                stats["by_topic"][topic] += 1
+
+    # Calculate completion percentage
+    if stats["total"] > 0:
+        stats["completion_percentage"] = (stats["completed"] / stats["total"]) * 100
+    else:
+        stats["completion_percentage"] = 0
+
+    return stats
