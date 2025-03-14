@@ -172,6 +172,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Progress tracking for each resource
 - **URL Metadata Extraction**: Automatically extract title, description, and other metadata from resource URLs
 
+### Knowledge Management
+- **Concept Notes**: Create and organize knowledge concepts
+- **Spaced Repetition**: Review concepts using scientifically-proven spaced repetition techniques
+- **Confidence Tracking**: Rate your confidence level for each concept
+- **Review Sessions**: Structured review sessions for efficient learning
+- **Topic Organization**: Organize concepts by topics and difficulty levels
+
 ### Learning Path Management
 - Goal setting and tracking
 - Milestone creation and management
