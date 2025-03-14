@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { LearningPath } from '@/types/learning-path';
 
 export interface Milestone {
   id: string;
@@ -207,6 +208,11 @@ const learningPathApi = {
   // Progress
   getLearningPathProgress: async (): Promise<LearningPathProgress> => {
     const response = await apiClient.get<LearningPathProgress>('/api/learning-path/progress');
+    return response.data;
+  },
+
+  getLearningPath: async (): Promise<LearningPath> => {
+    const response = await apiClient.get<LearningPath>('/api/learning-path');
     return response.data;
   },
 };
