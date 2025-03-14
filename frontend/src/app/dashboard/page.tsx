@@ -8,7 +8,10 @@ import {
   LearningProgress,
   ActivityFeed,
   QuickActions,
-  ResourceStats
+  ResourceStats,
+  StudyMetrics,
+  ReviewStats,
+  LearningPathProgress
 } from '@/components/dashboard';
 import { Spinner } from '@/components/ui/feedback'
 
@@ -75,7 +78,7 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Learning Progress Overview */}
         <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
           <LearningProgress />
@@ -90,8 +93,29 @@ export default function DashboardPage() {
         <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
           <ResourceStats />
         </Suspense>
+      </div>
 
-        {/* Recent Activity */}
+      {/* Study Metrics (Full Width) */}
+      <div className="mb-8">
+        <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
+          <StudyMetrics />
+        </Suspense>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Review Statistics */}
+        <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
+          <ReviewStats />
+        </Suspense>
+
+        {/* Learning Path Progress */}
+        <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
+          <LearningPathProgress />
+        </Suspense>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="mb-8">
         <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
           <ActivityFeed />
         </Suspense>

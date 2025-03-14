@@ -10,6 +10,34 @@ This platform provides a structured approach to learning AI/ML concepts with:
 - Knowledge management with spaced repetition
 - Progress monitoring and analytics
 - Focus and productivity tools
+- Interactive data visualizations
+
+## Features
+
+### Resource Management
+- Add and organize learning resources (articles, videos, courses, books)
+- Track completion status and notes
+- Extract metadata from URLs for easy resource addition
+
+### Knowledge Management System
+- Create and organize knowledge concepts
+- Review concepts using spaced repetition
+- Filter concepts by topic and difficulty
+- Track confidence levels over time
+
+### Data Visualization Dashboard
+- Interactive charts for learning progress
+- Study metrics visualization with time-based filtering
+- Review statistics with confidence trends
+- Learning path progress tracking
+- Resource completion statistics by type
+- Topic distribution analysis
+
+### Learning Path Tracking
+- Create custom learning paths
+- Track progress through learning paths
+- Visualize completion percentages
+- Get recommendations for next resources to study
 
 ## Architecture
 
@@ -163,29 +191,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Features
-
-### Resource Management
-- Curated collection of learning resources
-- Resource categorization and filtering
-- Progress tracking for each resource
-- **URL Metadata Extraction**: Automatically extract title, description, and other metadata from resource URLs
-
-### Knowledge Management
-- **Concept Notes**: Create and organize knowledge concepts
-- **Spaced Repetition**: Review concepts using scientifically-proven spaced repetition techniques
-- **Confidence Tracking**: Rate your confidence level for each concept
-- **Review Sessions**: Structured review sessions for efficient learning
-- **Topic Organization**: Organize concepts by topics and difficulty levels
-
-### Learning Path Management
-- Goal setting and tracking
-- Milestone creation and management
-- Progress visualization
-- Roadmap planning
-
-### Authentication System
-- Secure user authentication with JWT
-- Profile management
-- Password reset functionality
