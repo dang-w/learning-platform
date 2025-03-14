@@ -4,10 +4,24 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import os
 import json
+from dotenv import load_dotenv
+import motor.motor_asyncio
 
-from main import get_current_active_user, User, db
+# Load environment variables
+load_dotenv()
 
+# MongoDB connection
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
+db = client.learning_platform_db
+
+# Create router
 router = APIRouter()
+
+# Import authentication functions from main
+# This will be imported in main.py after the router is created
+# to avoid circular imports
+from main import get_current_active_user, User
 
 # Models
 class ConceptBase(BaseModel):

@@ -185,15 +185,6 @@ async def create_user(user: UserCreate):
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
-# Import API routers
-from routers import resources, progress, reviews, learning_path
-
-# Include routers
-app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
-app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
-app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
-app.include_router(learning_path.router, prefix="/api/learning-path", tags=["learning-path"])
-
 # Root endpoint
 @app.get("/")
 def read_root():
@@ -203,6 +194,17 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+# Import API routers
+# Import routers after defining authentication functions to avoid circular imports
+from routers import resources, progress, reviews, learning_path, url_extractor
+
+# Include routers
+app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
+app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
+app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
+app.include_router(learning_path.router, prefix="/api/learning-path", tags=["learning-path"])
+app.include_router(url_extractor.router, prefix="/api/url", tags=["url"])
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
