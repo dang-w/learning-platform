@@ -4,6 +4,7 @@ import sys
 import os
 import asyncio
 import logging
+from unittest.mock import patch, MagicMock
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,7 +14,6 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import mongomock_motor before importing the app
-from unittest.mock import patch
 from mongomock_motor import AsyncMongoMockClient
 
 # Create a custom event loop for the tests
@@ -28,11 +28,14 @@ def event_loop():
 patch('motor.motor_asyncio.AsyncIOMotorClient', AsyncMongoMockClient).start()
 
 # Now import the app after patching
-from main import app
+from main import app, db, get_user, authenticate_user, UserInDB
 
 # Create a mock MongoDB client
 mock_mongo_client = AsyncMongoMockClient()
 test_db_name = "test_learning_platform"
+
+# Override the db with our mock db
+db = mock_mongo_client.learning_platform_db
 
 @pytest.fixture(scope="session")
 def mongo_connection():
@@ -55,7 +58,7 @@ async def test_db(mongo_connection):
     Create a test database connection using mongomock-motor.
     Note: This is now an async fixture to properly handle async operations.
     """
-    db = mongo_connection[test_db_name]
+    db = mongo_connection.learning_platform_db
 
     # Clear the test database before each test
     collections = await db.list_collection_names()
@@ -113,3 +116,33 @@ async def auth_headers(client, test_user):
     except Exception as e:
         logger.error(f"Error getting auth token: {e}")
         pytest.skip(f"Could not get auth token: {e}")
+
+# Patch the get_user function to return our test user
+original_get_user = get_user
+async def mock_get_user(username: str):
+    if username == "testuser":
+        return UserInDB(
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
+            disabled=False
+        )
+    return await original_get_user(username)
+
+# Patch the authenticate_user function to return our test user
+original_authenticate_user = authenticate_user
+async def mock_authenticate_user(username: str, password: str):
+    if username == "testuser" and password == "password123":
+        return UserInDB(
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
+            disabled=False
+        )
+    return await original_authenticate_user(username, password)
+
+# Apply the patches
+patch('main.get_user', mock_get_user).start()
+patch('main.authenticate_user', mock_authenticate_user).start()
