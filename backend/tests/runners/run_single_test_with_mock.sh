@@ -58,7 +58,7 @@ pip install pytest pytest-asyncio mongomock mongomock-motor --quiet
 
 # Copy the mock conftest to the tests directory
 echo "Setting up mock MongoDB configuration..."
-cp ../config/conftest_mock.py ../conftest.py
+cp conftest_mock.py ../conftest.py
 
 # Create a pytest.ini file with asyncio mode set to auto
 echo "Creating pytest.ini with asyncio mode..."

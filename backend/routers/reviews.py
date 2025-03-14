@@ -54,6 +54,23 @@ class ReviewSession(BaseModel):
     concepts: List[Dict[str, Any]]
     new_concepts: List[Dict[str, Any]]
 
+# Add these models for resource reviews
+class ResourceReviewBase(BaseModel):
+    resource_type: str
+    resource_id: str
+    rating: int
+    content: str
+    difficulty_rating: int
+    topics: List[str]
+
+class ResourceReviewCreate(ResourceReviewBase):
+    pass
+
+class ResourceReview(ResourceReviewBase):
+    id: str
+    user_id: str
+    date: str
+
 # Helper functions
 def calculate_next_review_date(review_count, confidence_level=3):
     """
@@ -458,3 +475,156 @@ async def get_review_statistics(
         stats["average_confidence"] = total_confidence / total_reviews
 
     return stats
+
+# Add these routes for resource reviews
+@router.get("/", response_model=List[ResourceReview])
+async def get_reviews(current_user: User = Depends(get_current_active_user)):
+    """Get all reviews created by the user."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "reviews" not in user:
+        return []
+    return user["reviews"]
+
+@router.post("/", response_model=ResourceReview, status_code=status.HTTP_201_CREATED)
+async def create_review(
+    review: ResourceReviewCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new review for a resource."""
+    # Validate rating
+    if not (1 <= review.rating <= 5):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Rating must be between 1 and 5"
+        )
+
+    # Validate difficulty rating
+    if not (1 <= review.difficulty_rating <= 5):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Difficulty rating must be between 1 and 5"
+        )
+
+    # Create review object
+    review_dict = review.dict()
+    review_dict["id"] = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{review.resource_id}"
+    review_dict["user_id"] = current_user.username
+    review_dict["date"] = datetime.now().isoformat()
+
+    # Add to user's reviews
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$push": {"reviews": review_dict}}
+    )
+
+    if result.modified_count == 0:
+        # If the reviews array doesn't exist yet, create it
+        result = await db.users.update_one(
+            {"username": current_user.username},
+            {"$set": {"reviews": [review_dict]}}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create review"
+            )
+
+    return review_dict
+
+@router.get("/resource/{resource_type}/{resource_id}", response_model=List[ResourceReview])
+async def get_reviews_by_resource(
+    resource_type: str,
+    resource_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get reviews for a specific resource."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "reviews" not in user:
+        return []
+
+    # Filter reviews by resource type and ID
+    reviews = [
+        r for r in user["reviews"]
+        if r.get("resource_type") == resource_type and r.get("resource_id") == resource_id
+    ]
+
+    return reviews
+
+@router.put("/{review_id}", response_model=ResourceReview)
+async def update_review(
+    review_id: str,
+    review_update: ResourceReviewCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update a review."""
+    # Validate rating
+    if not (1 <= review_update.rating <= 5):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Rating must be between 1 and 5"
+        )
+
+    # Validate difficulty rating
+    if not (1 <= review_update.difficulty_rating <= 5):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Difficulty rating must be between 1 and 5"
+        )
+
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "reviews" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reviews not found"
+        )
+
+    # Find the review to update
+    reviews = user["reviews"]
+    review_index = None
+    for i, r in enumerate(reviews):
+        if r.get("id") == review_id:
+            review_index = i
+            break
+
+    if review_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Review with ID {review_id} not found"
+        )
+
+    # Update review fields
+    update_data = review_update.dict()
+    for key, value in update_data.items():
+        reviews[review_index][key] = value
+
+    # Save updated reviews
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {"reviews": reviews}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update review"
+        )
+
+    return reviews[review_index]
+
+@router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_review(
+    review_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a review."""
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$pull": {"reviews": {"id": review_id}}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Review with ID {review_id} not found"
+        )

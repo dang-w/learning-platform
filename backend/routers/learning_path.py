@@ -91,6 +91,32 @@ class RoadmapUpdate(BaseModel):
     description: Optional[str] = None
     phases: Optional[List[Dict[str, Any]]] = None
 
+# Add these models for learning paths
+class ResourceInPath(BaseModel):
+    id: str
+    title: str
+    url: str
+    type: str
+    completed: bool = False
+    completion_date: Optional[str] = None
+    notes: Optional[str] = None
+
+class LearningPathBase(BaseModel):
+    title: str
+    description: str
+    topics: List[str]
+    difficulty: str
+    estimated_time: int
+    resources: List[ResourceInPath] = []
+
+class LearningPathCreate(LearningPathBase):
+    pass
+
+class LearningPath(LearningPathBase):
+    id: str
+    created_at: str
+    updated_at: str
+
 # Routes for Milestones
 @router.post("/milestones", response_model=Milestone, status_code=status.HTTP_201_CREATED)
 async def create_milestone(
@@ -659,3 +685,425 @@ async def get_learning_path_progress(
             progress["roadmap"]["phases"] = phases
 
     return progress
+
+# Add these routes for learning paths
+@router.get("/", response_model=List[LearningPath])
+async def get_learning_paths(
+    topic: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all learning paths with optional filtering."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "learning_paths" not in user:
+        return []
+
+    learning_paths = user["learning_paths"]
+
+    # Filter by topic if specified
+    if topic:
+        learning_paths = [
+            lp for lp in learning_paths
+            if any(t.lower() == topic.lower() for t in lp.get("topics", []))
+        ]
+
+    # Filter by difficulty if specified
+    if difficulty:
+        learning_paths = [
+            lp for lp in learning_paths
+            if lp.get("difficulty", "").lower() == difficulty.lower()
+        ]
+
+    return learning_paths
+
+@router.post("/", response_model=LearningPath, status_code=status.HTTP_201_CREATED)
+async def create_learning_path(
+    learning_path: LearningPathCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new learning path."""
+    # Create learning path object
+    now = datetime.now().isoformat()
+    learning_path_dict = learning_path.dict()
+    learning_path_dict["id"] = f"{now}_{learning_path.title.lower().replace(' ', '_')}"
+    learning_path_dict["created_at"] = now
+    learning_path_dict["updated_at"] = now
+
+    # Add to user's learning paths
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$push": {"learning_paths": learning_path_dict}}
+    )
+
+    if result.modified_count == 0:
+        # If the learning_paths array doesn't exist yet, create it
+        result = await db.users.update_one(
+            {"username": current_user.username},
+            {"$set": {"learning_paths": [learning_path_dict]}}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create learning path"
+            )
+
+    return learning_path_dict
+
+@router.get("/{learning_path_id}", response_model=LearningPath)
+async def get_learning_path(
+    learning_path_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get a specific learning path by ID."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "learning_paths" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learning paths not found"
+        )
+
+    # Find the learning path
+    for lp in user["learning_paths"]:
+        if lp.get("id") == learning_path_id:
+            return lp
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Learning path with ID {learning_path_id} not found"
+    )
+
+@router.put("/{learning_path_id}", response_model=LearningPath)
+async def update_learning_path(
+    learning_path_id: str,
+    learning_path_update: LearningPathCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update a learning path."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "learning_paths" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learning paths not found"
+        )
+
+    # Find the learning path to update
+    learning_paths = user["learning_paths"]
+    lp_index = None
+    for i, lp in enumerate(learning_paths):
+        if lp.get("id") == learning_path_id:
+            lp_index = i
+            break
+
+    if lp_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Learning path with ID {learning_path_id} not found"
+        )
+
+    # Update learning path fields
+    update_data = learning_path_update.dict()
+    for key, value in update_data.items():
+        if key != "resources":  # Don't overwrite resources
+            learning_paths[lp_index][key] = value
+
+    # Update timestamp
+    learning_paths[lp_index]["updated_at"] = datetime.now().isoformat()
+
+    # Save updated learning paths
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {"learning_paths": learning_paths}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update learning path"
+        )
+
+    return learning_paths[lp_index]
+
+@router.delete("/{learning_path_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_learning_path(
+    learning_path_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a learning path."""
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$pull": {"learning_paths": {"id": learning_path_id}}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Learning path with ID {learning_path_id} not found"
+        )
+
+@router.post("/{learning_path_id}/resources", response_model=LearningPath)
+async def add_resource_to_learning_path(
+    learning_path_id: str,
+    resource: ResourceInPath,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Add a resource to a learning path."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "learning_paths" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learning paths not found"
+        )
+
+    # Find the learning path
+    learning_paths = user["learning_paths"]
+    lp_index = None
+    for i, lp in enumerate(learning_paths):
+        if lp.get("id") == learning_path_id:
+            lp_index = i
+            break
+
+    if lp_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Learning path with ID {learning_path_id} not found"
+        )
+
+    # Add resource to learning path
+    if "resources" not in learning_paths[lp_index]:
+        learning_paths[lp_index]["resources"] = []
+
+    # Check if resource already exists
+    for existing_resource in learning_paths[lp_index]["resources"]:
+        if existing_resource.get("id") == resource.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Resource with ID {resource.id} already exists in this learning path"
+            )
+
+    # Add resource
+    learning_paths[lp_index]["resources"].append(resource.dict())
+
+    # Update timestamp
+    learning_paths[lp_index]["updated_at"] = datetime.now().isoformat()
+
+    # Save updated learning paths
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {"learning_paths": learning_paths}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add resource to learning path"
+        )
+
+    return learning_paths[lp_index]
+
+@router.put("/{learning_path_id}/resources/{resource_id}", response_model=LearningPath)
+async def update_resource_in_learning_path(
+    learning_path_id: str,
+    resource_id: str,
+    resource_update: ResourceInPath,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update a resource in a learning path."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "learning_paths" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learning paths not found"
+        )
+
+    # Find the learning path
+    learning_paths = user["learning_paths"]
+    lp_index = None
+    for i, lp in enumerate(learning_paths):
+        if lp.get("id") == learning_path_id:
+            lp_index = i
+            break
+
+    if lp_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Learning path with ID {learning_path_id} not found"
+        )
+
+    # Find the resource
+    if "resources" not in learning_paths[lp_index]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No resources found in learning path with ID {learning_path_id}"
+        )
+
+    resource_index = None
+    for i, r in enumerate(learning_paths[lp_index]["resources"]):
+        if r.get("id") == resource_id:
+            resource_index = i
+            break
+
+    if resource_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resource with ID {resource_id} not found in learning path"
+        )
+
+    # Update resource
+    update_data = resource_update.dict()
+    for key, value in update_data.items():
+        learning_paths[lp_index]["resources"][resource_index][key] = value
+
+    # Update timestamp
+    learning_paths[lp_index]["updated_at"] = datetime.now().isoformat()
+
+    # Save updated learning paths
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {"learning_paths": learning_paths}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update resource in learning path"
+        )
+
+    return learning_paths[lp_index]
+
+@router.post("/{learning_path_id}/resources/{resource_id}/complete", response_model=LearningPath)
+async def mark_resource_completed_in_learning_path(
+    learning_path_id: str,
+    resource_id: str,
+    notes: Optional[Dict[str, str]] = None,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Mark a resource as completed in a learning path."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "learning_paths" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learning paths not found"
+        )
+
+    # Find the learning path
+    learning_paths = user["learning_paths"]
+    lp_index = None
+    for i, lp in enumerate(learning_paths):
+        if lp.get("id") == learning_path_id:
+            lp_index = i
+            break
+
+    if lp_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Learning path with ID {learning_path_id} not found"
+        )
+
+    # Find the resource
+    if "resources" not in learning_paths[lp_index]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No resources found in learning path with ID {learning_path_id}"
+        )
+
+    resource_index = None
+    for i, r in enumerate(learning_paths[lp_index]["resources"]):
+        if r.get("id") == resource_id:
+            resource_index = i
+            break
+
+    if resource_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resource with ID {resource_id} not found in learning path"
+        )
+
+    # Mark as completed
+    learning_paths[lp_index]["resources"][resource_index]["completed"] = True
+    learning_paths[lp_index]["resources"][resource_index]["completion_date"] = datetime.now().isoformat()
+
+    # Add notes if provided
+    if notes and "notes" in notes:
+        learning_paths[lp_index]["resources"][resource_index]["notes"] = notes["notes"]
+
+    # Update timestamp
+    learning_paths[lp_index]["updated_at"] = datetime.now().isoformat()
+
+    # Save updated learning paths
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {"learning_paths": learning_paths}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark resource as completed"
+        )
+
+    return learning_paths[lp_index]
+
+@router.delete("/{learning_path_id}/resources/{resource_id}", response_model=LearningPath)
+async def remove_resource_from_learning_path(
+    learning_path_id: str,
+    resource_id: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Remove a resource from a learning path."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "learning_paths" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Learning paths not found"
+        )
+
+    # Find the learning path
+    learning_paths = user["learning_paths"]
+    lp_index = None
+    for i, lp in enumerate(learning_paths):
+        if lp.get("id") == learning_path_id:
+            lp_index = i
+            break
+
+    if lp_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Learning path with ID {learning_path_id} not found"
+        )
+
+    # Find the resource
+    if "resources" not in learning_paths[lp_index]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No resources found in learning path with ID {learning_path_id}"
+        )
+
+    # Remove resource
+    resources = learning_paths[lp_index]["resources"]
+    resources_filtered = [r for r in resources if r.get("id") != resource_id]
+
+    if len(resources) == len(resources_filtered):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resource with ID {resource_id} not found in learning path"
+        )
+
+    learning_paths[lp_index]["resources"] = resources_filtered
+
+    # Update timestamp
+    learning_paths[lp_index]["updated_at"] = datetime.now().isoformat()
+
+    # Save updated learning paths
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$set": {"learning_paths": learning_paths}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to remove resource from learning path"
+        )
+
+    return learning_paths[lp_index]

@@ -52,11 +52,23 @@ class ResourceComplete(BaseModel):
     notes: Optional[str] = None
 
 # Helper functions
-async def get_next_resource_id(user_id: str, resource_type: str):
-    user = await db.users.find_one({"username": user_id})
+async def get_next_resource_id(db, username, resource_type):
+    """Get the next available ID for a resource."""
+    user = await db.users.find_one({"username": username})
     if not user or "resources" not in user or resource_type not in user["resources"]:
         return 1
-    return len(user["resources"][resource_type]) + 1
+
+    resources = user["resources"][resource_type]
+    if not resources:
+        return 1
+
+    # Find the highest ID
+    max_id = 0
+    for resource in resources:
+        if "id" in resource and isinstance(resource["id"], int) and resource["id"] > max_id:
+            max_id = resource["id"]
+
+    return max_id + 1
 
 # Routes
 @router.get("/", response_model=Dict[str, List[Resource]])
@@ -107,34 +119,51 @@ async def create_resource(
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new resource."""
+    # Validate resource type
     if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid resource type: {resource_type}"
         )
 
-    # Generate new resource ID
-    new_id = await get_next_resource_id(current_user.username, resource_type)
-
     # Create resource object
     resource_dict = resource.dict()
-    resource_dict["id"] = new_id
-    resource_dict["completed"] = False
+    resource_dict["id"] = await get_next_resource_id(db, current_user.username, resource_type)
     resource_dict["date_added"] = datetime.now().isoformat()
-    resource_dict["completion_date"] = None
-    resource_dict["notes"] = ""
+    resource_dict["completed"] = False
 
     # Add to user's resources
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": current_user.username, f"resources.{resource_type}": {"$exists": True}},
         {"$push": {f"resources.{resource_type}": resource_dict}}
     )
 
     if result.modified_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create resource"
+        # If the resources array doesn't exist yet, create it
+        update_query = {
+            "$set": {f"resources.{resource_type}": [resource_dict]}
+        }
+
+        # If the resources object doesn't exist, initialize it
+        if not await db.users.find_one({"username": current_user.username, "resources": {"$exists": True}}):
+            update_query["$set"]["resources"] = {
+                "articles": [],
+                "videos": [],
+                "courses": [],
+                "books": []
+            }
+            update_query["$set"][f"resources.{resource_type}"] = [resource_dict]
+
+        result = await db.users.update_one(
+            {"username": current_user.username},
+            update_query
         )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create resource"
+            )
 
     return resource_dict
 

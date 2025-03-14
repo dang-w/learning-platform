@@ -49,6 +49,32 @@ class WeeklyReport(BaseModel):
     focus_plot_url: Optional[str] = None
     topic_plot_url: Optional[str] = None
 
+# Add these models for study sessions and reviews
+class StudySessionBase(BaseModel):
+    date: str
+    duration: int
+    topics: List[str]
+    resources: List[str] = []
+    notes: Optional[str] = ""
+
+class StudySessionCreate(StudySessionBase):
+    pass
+
+class StudySession(StudySessionBase):
+    id: str
+
+class ReviewSessionBase(BaseModel):
+    date: str
+    topics: List[str]
+    resources: List[str] = []
+    notes: Optional[str] = ""
+
+class ReviewSessionCreate(ReviewSessionBase):
+    pass
+
+class ReviewSession(ReviewSessionBase):
+    id: str
+
 # Helper functions
 def fig_to_base64(fig):
     """Convert matplotlib figure to base64 string for embedding in HTML/frontend."""
@@ -510,3 +536,312 @@ async def delete_metric(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Metric with ID {metric_id} not found"
         )
+
+# Add these routes for study sessions, reviews, and progress summary
+@router.post("/study-session", response_model=StudySession, status_code=status.HTTP_201_CREATED)
+async def add_study_session(
+    session: StudySessionCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Add a study session."""
+    # Validate date format
+    try:
+        date = datetime.strptime(session.date, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d")
+    except ValueError:
+        try:
+            date = datetime.strptime(session.date, "%Y-%m-%d").strftime("%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Date must be in ISO format or YYYY-MM-DD format"
+            )
+
+    # Create session object
+    session_dict = session.dict()
+    session_dict["id"] = f"{date}_{datetime.now().strftime('%H%M%S')}"
+
+    # Add to user's study sessions
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$push": {"progress.study_sessions": session_dict}}
+    )
+
+    if result.modified_count == 0:
+        # If the study_sessions array doesn't exist yet, create it
+        result = await db.users.update_one(
+            {"username": current_user.username},
+            {"$set": {"progress.study_sessions": [session_dict]}}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to add study session"
+            )
+
+    return session_dict
+
+@router.get("/study-session", response_model=List[StudySession])
+async def get_study_sessions(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get study sessions with optional date filtering."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "progress" not in user or "study_sessions" not in user["progress"]:
+        return []
+
+    sessions = user["progress"]["study_sessions"]
+
+    # Filter by date range if specified
+    if start_date or end_date:
+        filtered_sessions = []
+        for session in sessions:
+            session_date = session.get("date", "").split("T")[0]  # Extract date part
+
+            if start_date and session_date < start_date:
+                continue
+
+            if end_date and session_date > end_date:
+                continue
+
+            filtered_sessions.append(session)
+
+        return filtered_sessions
+
+    return sessions
+
+@router.post("/review", response_model=ReviewSession, status_code=status.HTTP_201_CREATED)
+async def add_review_session(
+    session: ReviewSessionCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Add a review session."""
+    # Validate date format
+    try:
+        date = datetime.strptime(session.date, "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d")
+    except ValueError:
+        try:
+            date = datetime.strptime(session.date, "%Y-%m-%d").strftime("%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Date must be in ISO format or YYYY-MM-DD format"
+            )
+
+    # Create session object
+    session_dict = session.dict()
+    session_dict["id"] = f"{date}_{datetime.now().strftime('%H%M%S')}"
+
+    # Add to user's review sessions
+    result = await db.users.update_one(
+        {"username": current_user.username},
+        {"$push": {"progress.review_sessions": session_dict}}
+    )
+
+    if result.modified_count == 0:
+        # If the review_sessions array doesn't exist yet, create it
+        result = await db.users.update_one(
+            {"username": current_user.username},
+            {"$set": {"progress.review_sessions": [session_dict]}}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to add review session"
+            )
+
+    return session_dict
+
+@router.get("/review", response_model=List[ReviewSession])
+async def get_review_sessions(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get review sessions with optional date filtering."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "progress" not in user or "review_sessions" not in user["progress"]:
+        return []
+
+    sessions = user["progress"]["review_sessions"]
+
+    # Filter by date range if specified
+    if start_date or end_date:
+        filtered_sessions = []
+        for session in sessions:
+            session_date = session.get("date", "").split("T")[0]  # Extract date part
+
+            if start_date and session_date < start_date:
+                continue
+
+            if end_date and session_date > end_date:
+                continue
+
+            filtered_sessions.append(session)
+
+        return filtered_sessions
+
+    return sessions
+
+@router.get("/summary", response_model=Dict[str, Any])
+async def get_progress_summary(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get a summary of the user's progress."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "progress" not in user:
+        return {
+            "study_time": {
+                "total_hours": 0,
+                "last_7_days": 0,
+                "last_30_days": 0
+            },
+            "topics": [],
+            "consistency": {
+                "days_studied_last_30": 0,
+                "streak": 0
+            }
+        }
+
+    # Initialize summary
+    summary = {
+        "study_time": {
+            "total_hours": 0,
+            "last_7_days": 0,
+            "last_30_days": 0
+        },
+        "topics": [],
+        "consistency": {
+            "days_studied_last_30": 0,
+            "streak": 0
+        }
+    }
+
+    # Calculate study time
+    if "study_sessions" in user["progress"]:
+        sessions = user["progress"]["study_sessions"]
+
+        # Calculate total hours
+        total_hours = sum(session.get("duration", 0) for session in sessions) / 60
+        summary["study_time"]["total_hours"] = total_hours
+
+        # Calculate hours in last 7 and 30 days
+        now = datetime.now()
+        last_7_days = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+        last_30_days = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+
+        hours_last_7 = sum(
+            session.get("duration", 0) for session in sessions
+            if session.get("date", "").split("T")[0] >= last_7_days
+        ) / 60
+
+        hours_last_30 = sum(
+            session.get("duration", 0) for session in sessions
+            if session.get("date", "").split("T")[0] >= last_30_days
+        ) / 60
+
+        summary["study_time"]["last_7_days"] = hours_last_7
+        summary["study_time"]["last_30_days"] = hours_last_30
+
+        # Calculate consistency
+        study_days = set(session.get("date", "").split("T")[0] for session in sessions)
+        days_last_30 = set(
+            session.get("date", "").split("T")[0] for session in sessions
+            if session.get("date", "").split("T")[0] >= last_30_days
+        )
+
+        summary["consistency"]["days_studied_last_30"] = len(days_last_30)
+
+        # Calculate streak
+        if study_days:
+            sorted_days = sorted(study_days, reverse=True)
+            current_date = datetime.now().strftime("%Y-%m-%d")
+
+            # Check if studied today
+            if sorted_days[0] == current_date:
+                streak = 1
+                prev_date = datetime.strptime(current_date, "%Y-%m-%d")
+
+                for day in sorted_days[1:]:
+                    day_date = datetime.strptime(day, "%Y-%m-%d")
+                    days_diff = (prev_date - day_date).days
+
+                    if days_diff == 1:
+                        streak += 1
+                        prev_date = day_date
+                    elif days_diff > 1:
+                        break
+
+                summary["consistency"]["streak"] = streak
+
+    # Calculate top topics
+    topic_counts = {}
+
+    if "study_sessions" in user["progress"]:
+        for session in user["progress"]["study_sessions"]:
+            for topic in session.get("topics", []):
+                if topic in topic_counts:
+                    topic_counts[topic] += 1
+                else:
+                    topic_counts[topic] = 1
+
+    if "review_sessions" in user["progress"]:
+        for session in user["progress"]["review_sessions"]:
+            for topic in session.get("topics", []):
+                if topic in topic_counts:
+                    topic_counts[topic] += 1
+                else:
+                    topic_counts[topic] = 1
+
+    # Get top 5 topics
+    top_topics = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    summary["topics"] = [{"name": topic, "count": count} for topic, count in top_topics]
+
+    return summary
+
+@router.get("/recommended-reviews", response_model=List[Dict[str, Any]])
+async def get_recommended_reviews(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get recommended topics for review based on study history."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "progress" not in user or "study_sessions" not in user["progress"]:
+        return []
+
+    # Get study sessions
+    study_sessions = user["progress"].get("study_sessions", [])
+    if not study_sessions:
+        return []
+
+    # Calculate days since last study for each topic
+    topic_last_studied = {}
+    now = datetime.now()
+
+    for session in study_sessions:
+        session_date_str = session.get("date", "").split("T")[0]
+        try:
+            session_date = datetime.strptime(session_date_str, "%Y-%m-%d")
+            days_ago = (now - session_date).days
+
+            for topic in session.get("topics", []):
+                if topic not in topic_last_studied or days_ago < topic_last_studied[topic]["days_ago"]:
+                    topic_last_studied[topic] = {
+                        "topic": topic,
+                        "last_studied": session_date_str,
+                        "days_ago": days_ago
+                    }
+        except ValueError:
+            continue
+
+    # Sort topics by days since last studied (older first)
+    recommended = sorted(
+        topic_last_studied.values(),
+        key=lambda x: x["days_ago"],
+        reverse=True
+    )
+
+    # Return top 5 topics that need review
+    return recommended[:5]
