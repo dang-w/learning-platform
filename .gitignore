@@ -29,6 +29,7 @@ ENV/
 .idea/
 .vscode/
 *.swp
+*.swc
 *.swo
 .DS_Store
 
