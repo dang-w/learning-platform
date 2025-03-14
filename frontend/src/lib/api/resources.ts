@@ -21,7 +21,7 @@ export interface ResourceStatistics {
     completed: number
     completion_percentage: number
   }>
-  recent_completions: Resource[]
+  recent_completions: (Resource & { resource_type: string })[]
 }
 
 class ResourcesApi {
