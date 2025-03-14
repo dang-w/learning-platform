@@ -163,3 +163,22 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Features
+
+### Resource Management
+- Curated collection of learning resources
+- Resource categorization and filtering
+- Progress tracking for each resource
+- **URL Metadata Extraction**: Automatically extract title, description, and other metadata from resource URLs
+
+### Learning Path Management
+- Goal setting and tracking
+- Milestone creation and management
+- Progress visualization
+- Roadmap planning
+
+### Authentication System
+- Secure user authentication with JWT
+- Profile management
+- Password reset functionality

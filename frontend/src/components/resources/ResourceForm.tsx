@@ -54,7 +54,10 @@ export const ResourceForm = ({
 
   const extractMetadata = async () => {
     const url = watch('url')
-    if (!url) return
+    if (!url) {
+      setExtractionError('Please enter a URL first')
+      return
+    }
 
     setIsExtracting(true)
     setExtractionError(null)
@@ -69,20 +72,21 @@ export const ResourceForm = ({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to extract metadata')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to extract metadata')
       }
 
       const metadata = await response.json()
 
       // Auto-fill form fields with extracted metadata
-      setValue('title', metadata.title)
-      setValue('description', metadata.description)
-      setValue('resourceType', metadata.resource_type)
-      setValue('estimated_time', metadata.estimated_time)
-      setValue('difficulty', metadata.difficulty)
-      setValue('topics', metadata.topics)
+      if (metadata.title) setValue('title', metadata.title)
+      if (metadata.description) setValue('description', metadata.description)
+      if (metadata.resource_type) setValue('resourceType', metadata.resource_type)
+      if (metadata.estimated_time) setValue('estimated_time', metadata.estimated_time)
+      if (metadata.difficulty) setValue('difficulty', metadata.difficulty)
+      if (metadata.topics && metadata.topics.length > 0) setValue('topics', metadata.topics)
     } catch (err) {
-      setExtractionError('Failed to extract metadata from URL')
+      setExtractionError(err instanceof Error ? err.message : 'Failed to extract metadata from URL')
       console.error('Metadata extraction error:', err)
     } finally {
       setIsExtracting(false)
