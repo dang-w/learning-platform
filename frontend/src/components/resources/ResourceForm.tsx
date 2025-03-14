@@ -1,5 +1,23 @@
-import { useState, useEffect } from 'react'
-import { Resource, ResourceCreateInput, DifficultyLevel } from '@/types/resources'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Button } from '../ui/buttons'
+import { Input, FormGroup, Label, FormError } from '../ui/forms'
+import { Alert } from '../ui/feedback'
+import { Resource, ResourceCreateInput } from '@/types/resources'
+
+const resourceSchema = z.object({
+  url: z.string().url('Please enter a valid URL'),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional(),
+  resourceType: z.enum(['articles', 'videos', 'courses', 'books'] as const),
+  estimated_time: z.number().min(1, 'Estimated time is required'),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced'] as const),
+  topics: z.array(z.string()).min(1, 'At least one topic is required'),
+})
+
+type ResourceFormData = z.infer<typeof resourceSchema>
 
 interface ResourceFormProps {
   resource?: Resource
@@ -9,209 +27,189 @@ interface ResourceFormProps {
 
 export const ResourceForm = ({
   resource,
-  onSubmit,
+  onSubmit: submitHandler,
   onCancel,
 }: ResourceFormProps) => {
-  const [formData, setFormData] = useState<ResourceCreateInput>({
-    title: '',
-    url: '',
-    topics: [],
-    difficulty: 'beginner',
-    estimated_time: 30,
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractionError, setExtractionError] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<ResourceFormData>({
+    resolver: zodResolver(resourceSchema),
+    defaultValues: resource ? {
+      url: resource.url,
+      title: resource.title,
+      description: resource.notes || '',
+      resourceType: 'articles',
+      estimated_time: resource.estimated_time,
+      difficulty: resource.difficulty,
+      topics: resource.topics,
+    } : undefined
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [topicInput, setTopicInput] = useState('')
 
-  useEffect(() => {
-    if (resource) {
-      setFormData({
-        title: resource.title,
-        url: resource.url,
-        topics: resource.topics,
-        difficulty: resource.difficulty,
-        estimated_time: resource.estimated_time,
-      })
-    }
-  }, [resource])
+  const extractMetadata = async () => {
+    const url = watch('url')
+    if (!url) return
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setError(null)
+    setIsExtracting(true)
+    setExtractionError(null)
 
     try {
-      await onSubmit(formData)
+      const response = await fetch('/api/url/extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to extract metadata')
+      }
+
+      const metadata = await response.json()
+
+      // Auto-fill form fields with extracted metadata
+      setValue('title', metadata.title)
+      setValue('description', metadata.description)
+      setValue('resourceType', metadata.resource_type)
+      setValue('estimated_time', metadata.estimated_time)
+      setValue('difficulty', metadata.difficulty)
+      setValue('topics', metadata.topics)
+    } catch (err) {
+      setExtractionError('Failed to extract metadata from URL')
+      console.error('Metadata extraction error:', err)
+    } finally {
+      setIsExtracting(false)
+    }
+  }
+
+  const onSubmitForm = async (data: ResourceFormData) => {
+    try {
+      const createInput: ResourceCreateInput = {
+        url: data.url,
+        title: data.title,
+        estimated_time: data.estimated_time,
+        difficulty: data.difficulty,
+        topics: data.topics,
+      }
+      await submitHandler(createInput)
       onCancel()
     } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setIsSubmitting(false)
+      console.error('Form submission error:', err)
     }
-  }
-
-  const handleAddTopic = () => {
-    if (topicInput.trim() && !formData.topics.includes(topicInput.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        topics: [...prev.topics, topicInput.trim()],
-      }))
-      setTopicInput('')
-    }
-  }
-
-  const handleRemoveTopic = (topic: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      topics: prev.topics.filter((t) => t !== topic),
-    }))
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="p-3 text-sm text-red-800 bg-red-50 rounded-lg">
-          {error}
+    <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-6">
+      <FormGroup>
+        <Label htmlFor="url">URL</Label>
+        <div className="flex gap-2">
+          <Input
+            id="url"
+            {...register('url')}
+            type="url"
+            placeholder="Enter resource URL"
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            onClick={extractMetadata}
+            disabled={isExtracting}
+            variant="secondary"
+          >
+            {isExtracting ? 'Extracting...' : 'Extract Metadata'}
+          </Button>
         </div>
+        {errors.url && <FormError>{errors.url.message}</FormError>}
+      </FormGroup>
+
+      {extractionError && (
+        <Alert variant="error">{extractionError}</Alert>
       )}
 
-      <div className="space-y-4">
-        <div>
-          <label
-            htmlFor="title"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Title
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={formData.title}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, title: e.target.value }))
-            }
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
+      <FormGroup>
+        <Label htmlFor="title">Title</Label>
+        <Input
+          id="title"
+          {...register('title')}
+          placeholder="Resource title"
+        />
+        {errors.title && <FormError>{errors.title.message}</FormError>}
+      </FormGroup>
 
-        <div>
-          <label htmlFor="url" className="block text-sm font-medium text-gray-700">
-            URL
-          </label>
-          <input
-            type="url"
-            id="url"
-            value={formData.url}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, url: e.target.value }))
-            }
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
+      <FormGroup>
+        <Label htmlFor="description">Description</Label>
+        <textarea
+          id="description"
+          {...register('description')}
+          placeholder="Resource description"
+          className="w-full h-32 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {errors.description && <FormError>{errors.description.message}</FormError>}
+      </FormGroup>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Topics</label>
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              type="text"
-              value={topicInput}
-              onChange={(e) => setTopicInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTopic())}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              placeholder="Add a topic"
-            />
-            <button
-              type="button"
-              onClick={handleAddTopic}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Add
-            </button>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {formData.topics.map((topic) => (
-              <span
-                key={topic}
-                className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-gray-100"
-              >
-                {topic}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTopic(topic)}
-                  className="ml-1 text-gray-500 hover:text-gray-700"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
+      <FormGroup>
+        <Label htmlFor="resourceType">Resource Type</Label>
+        <select
+          id="resourceType"
+          {...register('resourceType')}
+          className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select Resource Type</option>
+          <option value="articles">Article</option>
+          <option value="videos">Video</option>
+          <option value="courses">Course</option>
+          <option value="books">Book</option>
+        </select>
+        {errors.resourceType && <FormError>{errors.resourceType.message}</FormError>}
+      </FormGroup>
 
-        <div>
-          <label
-            htmlFor="difficulty"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Difficulty
-          </label>
-          <select
-            id="difficulty"
-            value={formData.difficulty}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                difficulty: e.target.value as DifficultyLevel,
-              }))
-            }
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
-          </select>
-        </div>
+      <FormGroup>
+        <Label htmlFor="estimated_time">Estimated Time (minutes)</Label>
+        <Input
+          id="estimated_time"
+          {...register('estimated_time', { valueAsNumber: true })}
+          type="number"
+          placeholder="Estimated completion time"
+        />
+        {errors.estimated_time && <FormError>{errors.estimated_time.message}</FormError>}
+      </FormGroup>
 
-        <div>
-          <label
-            htmlFor="estimated_time"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Estimated Time (minutes)
-          </label>
-          <input
-            type="number"
-            id="estimated_time"
-            value={formData.estimated_time}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                estimated_time: parseInt(e.target.value) || 0,
-              }))
-            }
-            min="1"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
-      </div>
+      <FormGroup>
+        <Label htmlFor="difficulty">Difficulty Level</Label>
+        <select
+          id="difficulty"
+          {...register('difficulty')}
+          className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select Difficulty</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+        {errors.difficulty && <FormError>{errors.difficulty.message}</FormError>}
+      </FormGroup>
 
-      <div className="flex justify-end space-x-3">
-        <button
+      <div className="flex gap-4 justify-end">
+        <Button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          variant="outline"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
           disabled={isSubmitting}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
         >
-          {isSubmitting ? 'Saving...' : resource ? 'Update' : 'Create'}
-        </button>
+          {isSubmitting ? 'Saving...' : resource ? 'Update Resource' : 'Create Resource'}
+        </Button>
       </div>
     </form>
   )

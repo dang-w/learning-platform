@@ -34,3 +34,19 @@ export interface ResourceUpdateInput {
 export interface ResourceCompleteInput {
   notes: string
 }
+
+export interface ResourceTypeStats {
+  completed: number
+  in_progress: number
+  total: number
+}
+
+export interface ResourceStats {
+  articles: ResourceTypeStats
+  videos: ResourceTypeStats
+  courses: ResourceTypeStats
+  books: ResourceTypeStats
+  total_completed: number
+  total_in_progress: number
+  total_resources: number
+}

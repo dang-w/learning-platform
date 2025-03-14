@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios'
 import apiClient from './client'
-import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput } from '@/types/resources'
+import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resources'
 
 export interface ResourceStatistics {
   total: number
@@ -97,3 +97,8 @@ class ResourcesApi {
 
 export const resourcesApi = new ResourcesApi()
 export default resourcesApi
+
+export async function fetchResourceStats(): Promise<ResourceStats> {
+  const response = await apiClient.get<ResourceStats>('/api/resources/stats')
+  return response.data
+}

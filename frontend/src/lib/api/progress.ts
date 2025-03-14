@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { LearningProgress } from '@/types/progress';
 
 export interface Metric {
   id: string;
@@ -82,6 +83,11 @@ const progressApi = {
 
   deleteMetric: async (metricId: string): Promise<void> => {
     await apiClient.delete(`/api/progress/metrics/${metricId}`);
+  },
+
+  fetchLearningProgress: async (): Promise<LearningProgress> => {
+    const response = await apiClient.get<LearningProgress>('/api/progress');
+    return response.data;
   },
 };
 
