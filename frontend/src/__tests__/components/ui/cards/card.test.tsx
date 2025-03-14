@@ -15,16 +15,16 @@ describe('Card Components', () => {
     it('renders correctly with default props', () => {
       render(<Card>Card Content</Card>);
 
-      const card = screen.getByText('Card Content');
+      const card = screen.getByText('Card Content').closest('div');
       expect(card).toBeInTheDocument();
-      expect(card.parentElement).toHaveClass('bg-white rounded-lg shadow');
+      expect(card).toHaveClass('bg-white rounded-lg shadow');
     });
 
     it('applies custom className correctly', () => {
       render(<Card className="custom-class">Card Content</Card>);
 
-      const card = screen.getByText('Card Content');
-      expect(card.parentElement).toHaveClass('custom-class');
+      const card = screen.getByText('Card Content').closest('div');
+      expect(card).toHaveClass('custom-class');
     });
 
     it('forwards additional props to the div element', () => {
@@ -39,16 +39,16 @@ describe('Card Components', () => {
     it('renders correctly with default props', () => {
       render(<CardHeader>Header Content</CardHeader>);
 
-      const header = screen.getByText('Header Content');
+      const header = screen.getByText('Header Content').closest('div');
       expect(header).toBeInTheDocument();
-      expect(header.parentElement).toHaveClass('px-4 py-5 sm:px-6 border-b border-gray-200');
+      expect(header).toHaveClass('px-4 py-5 sm:px-6 border-b border-gray-200');
     });
 
     it('applies custom className correctly', () => {
       render(<CardHeader className="custom-header">Header Content</CardHeader>);
 
-      const header = screen.getByText('Header Content');
-      expect(header.parentElement).toHaveClass('custom-header');
+      const header = screen.getByText('Header Content').closest('div');
+      expect(header).toHaveClass('custom-header');
     });
   });
 
@@ -90,16 +90,16 @@ describe('Card Components', () => {
     it('renders correctly with default props', () => {
       render(<CardContent>Content</CardContent>);
 
-      const content = screen.getByText('Content');
+      const content = screen.getByText('Content').closest('div');
       expect(content).toBeInTheDocument();
-      expect(content.parentElement).toHaveClass('px-4 py-5 sm:p-6');
+      expect(content).toHaveClass('px-4 py-5 sm:p-6');
     });
 
     it('applies custom className correctly', () => {
       render(<CardContent className="custom-content">Content</CardContent>);
 
-      const content = screen.getByText('Content');
-      expect(content.parentElement).toHaveClass('custom-content');
+      const content = screen.getByText('Content').closest('div');
+      expect(content).toHaveClass('custom-content');
     });
   });
 
@@ -107,16 +107,16 @@ describe('Card Components', () => {
     it('renders correctly with default props', () => {
       render(<CardFooter>Footer Content</CardFooter>);
 
-      const footer = screen.getByText('Footer Content');
+      const footer = screen.getByText('Footer Content').closest('div');
       expect(footer).toBeInTheDocument();
-      expect(footer.parentElement).toHaveClass('px-4 py-4 sm:px-6 border-t border-gray-200');
+      expect(footer).toHaveClass('px-4 py-4 sm:px-6 border-t border-gray-200');
     });
 
     it('applies custom className correctly', () => {
       render(<CardFooter className="custom-footer">Footer Content</CardFooter>);
 
-      const footer = screen.getByText('Footer Content');
-      expect(footer.parentElement).toHaveClass('custom-footer');
+      const footer = screen.getByText('Footer Content').closest('div');
+      expect(footer).toHaveClass('custom-footer');
     });
   });
 

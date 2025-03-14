@@ -11,7 +11,7 @@ export const Spinner = ({ size = 'md', className = '' }: SpinnerProps) => {
   }
 
   return (
-    <div className={`${className} flex items-center justify-center`}>
+    <div className={`${className} flex items-center justify-center`} role="status">
       <div
         className={`${sizeClasses[size]} animate-spin rounded-full border-2 border-gray-300 border-t-blue-600`}
       />

@@ -81,6 +81,11 @@ describe('Resource Store', () => {
       // Render the hook
       const { result } = renderHook(() => useResourceStore());
 
+      // Set initial resources to empty array
+      act(() => {
+        result.current.resources = [];
+      });
+
       // Fetch resources with error
       await act(async () => {
         await result.current.fetchResources();

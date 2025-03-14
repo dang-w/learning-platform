@@ -20,8 +20,12 @@ describe('Auth Store', () => {
     // Reset the store state before each test
     const { result } = renderHook(() => useAuthStore());
     act(() => {
-      result.current.logout = jest.fn().mockResolvedValue(undefined);
-      result.current.logout();
+      // Reset the store state directly instead of calling logout
+      result.current.isAuthenticated = false;
+      result.current.isLoading = false;
+      result.current.user = null;
+      result.current.token = null;
+      result.current.error = null;
     });
   });
 
@@ -89,19 +93,17 @@ describe('Auth Store', () => {
   describe('logout', () => {
     it('should clear state on logout', async () => {
       // Setup initial authenticated state
-      const mockToken = { access_token: 'test-token', token_type: 'bearer' };
-      const mockUser = { username: 'testuser', email: 'test@example.com', full_name: 'Test User', disabled: false };
-
-      (authApi.login as jest.Mock).mockResolvedValue(mockToken);
-      (authApi.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
-      (authApi.logout as jest.Mock).mockResolvedValue(undefined);
-
-      // Render the hook and login
       const { result } = renderHook(() => useAuthStore());
 
-      await act(async () => {
-        await result.current.login('testuser', 'password');
+      // Manually set authenticated state
+      act(() => {
+        result.current.isAuthenticated = true;
+        result.current.user = { username: 'testuser', email: 'test@example.com', full_name: 'Test User', disabled: false };
+        result.current.token = 'test-token';
       });
+
+      // Mock logout API
+      (authApi.logout as jest.Mock).mockResolvedValue(undefined);
 
       // Verify logged in state
       expect(result.current.isAuthenticated).toBe(true);
@@ -153,6 +155,13 @@ describe('Auth Store', () => {
 
       // Render the hook
       const { result } = renderHook(() => useAuthStore());
+
+      // Manually set initial state to unauthenticated
+      act(() => {
+        result.current.isAuthenticated = false;
+        result.current.token = null;
+        result.current.user = null;
+      });
 
       // Perform token refresh with failure
       let refreshResult;

@@ -4,37 +4,40 @@ import '@testing-library/jest-dom';
 import { Modal } from '@/components/ui/layout/modal';
 
 // Mock Headless UI's Dialog component
-jest.mock('@headlessui/react', () => ({
-  Dialog: function Dialog(props: { children?: ReactNode; open?: boolean; onClose?: () => void; [key: string]: unknown }) {
-    if (!props.open) return null;
+jest.mock('@headlessui/react', () => {
+  const Dialog = function Dialog(props: { children?: ReactNode; className?: string; onClose?: () => void; as?: string }) {
     return (
       <div role="dialog" aria-modal="true">
         {props.children}
       </div>
     );
-  },
-  Transition: {
-    Root: function Root(props: { children?: ReactNode; show?: boolean; as?: ElementType }) {
-      if (!props.show) return null;
-      return <div>{props.children}</div>;
-    },
-    Child: function Child(props: { children?: ReactNode; as?: ElementType }) {
-      return <div>{props.children}</div>;
-    }
-  }
-}));
+  };
 
-// Add Dialog subcomponents
-const mockDialog = jest.requireMock('@headlessui/react').Dialog;
-mockDialog.Panel = function Panel(props: { children?: ReactNode; className?: string; [key: string]: unknown }) {
-  return <div data-testid="dialog-panel" className={props.className}>{props.children}</div>;
-};
-mockDialog.Title = function Title(props: { children?: ReactNode }) {
-  return <h3 data-testid="dialog-title">{props.children}</h3>;
-};
-mockDialog.Description = function Description(props: { children?: ReactNode }) {
-  return <p data-testid="dialog-description">{props.children}</p>;
-};
+  Dialog.Panel = function Panel(props: { children?: ReactNode; className?: string }) {
+    return <div data-testid="dialog-panel" className={props.className}>{props.children}</div>;
+  };
+
+  Dialog.Title = function Title(props: { children?: ReactNode; as?: string; className?: string }) {
+    return <h3 data-testid="dialog-title" className={props.className}>{props.children}</h3>;
+  };
+
+  Dialog.Description = function Description(props: { children?: ReactNode; className?: string }) {
+    return <p data-testid="dialog-description" className={props.className}>{props.children}</p>;
+  };
+
+  return {
+    Dialog,
+    Transition: {
+      Root: function Root({ show, children }: { show: boolean; children: ReactNode; as?: ElementType }) {
+        if (!show) return null;
+        return <>{children}</>;
+      },
+      Child: function Child({ children }: { children: ReactNode; as?: ElementType }) {
+        return <>{children}</>;
+      }
+    }
+  };
+});
 
 describe('Modal Component', () => {
   it('renders nothing when isOpen is false', () => {

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AuthGuard from '@/components/auth/auth-guard';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { useRouter, usePathname } from 'next/navigation';
 
 // Define a partial auth store type for testing
 interface PartialAuthState {
@@ -15,11 +16,21 @@ jest.mock('@/lib/store/auth-store', () => ({
   useAuthStore: jest.fn(),
 }));
 
+// Mock Next.js navigation hooks
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  usePathname: jest.fn(),
+}));
+
 describe('AuthGuard Component', () => {
-  const mockUseRouter = jest.requireMock('next/navigation').useRouter;
+  const pushMock = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useRouter as jest.Mock).mockReturnValue({
+      push: pushMock,
+    });
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
   });
 
   it('should render loading spinner when authentication is loading', () => {
@@ -64,11 +75,6 @@ describe('AuthGuard Component', () => {
       isLoading: false,
     } as PartialAuthState);
 
-    const pushMock = jest.fn();
-    mockUseRouter.mockReturnValue({
-      push: pushMock,
-    });
-
     render(
       <AuthGuard>
         <div>Protected Content</div>
@@ -76,7 +82,7 @@ describe('AuthGuard Component', () => {
     );
 
     // Check if redirect was called
-    expect(pushMock).toHaveBeenCalledWith(expect.stringContaining('/auth/login?callbackUrl='));
+    expect(pushMock).toHaveBeenCalledWith('/auth/login?callbackUrl=%2Fdashboard');
 
     // Check that children are not rendered
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
