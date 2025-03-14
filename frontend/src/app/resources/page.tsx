@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ResourceList } from '@/components/resources/ResourceList'
 import { ResourceForm } from '@/components/resources/ResourceForm'
-import { ResourceType, ResourceCreate } from '@/lib/api/resources'
+import { ResourceType, ResourceCreateInput } from '@/types/resources'
 import { useResources } from '@/lib/hooks/useResources'
 
 export default function ResourcesPage() {
@@ -11,7 +11,7 @@ export default function ResourcesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const { addResource } = useResources(selectedType)
 
-  const handleCreateResource = async (data: ResourceCreate) => {
+  const handleCreateResource = async (data: ResourceCreateInput) => {
     await addResource(data)
     setIsFormOpen(false)
   }

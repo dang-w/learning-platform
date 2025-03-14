@@ -1,25 +1,36 @@
-export type ResourceType = 'article' | 'video' | 'course' | 'book' | 'documentation'
+export type ResourceType = 'articles' | 'videos' | 'courses' | 'books'
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced'
 
 export interface Resource {
-  _id: string
+  id: string
   title: string
-  description: string
   url: string
-  type: ResourceType
-  tags: string[]
-  createdAt: string
-  updatedAt: string
-  createdBy: string
-  isCompleted?: boolean
-  completedAt?: string
-  metadata?: {
-    author?: string
-    duration?: number
-    difficulty?: 'beginner' | 'intermediate' | 'advanced'
-    rating?: number
-  }
+  topics: string[]
+  difficulty: DifficultyLevel
+  estimated_time: number
+  completed: boolean
+  date_added: string
+  completion_date: string | null
+  notes: string
 }
 
-export interface ResourceCreateInput extends Omit<Resource, '_id' | 'createdAt' | 'updatedAt' | 'createdBy'> {}
+export interface ResourceCreateInput {
+  title: string
+  url: string
+  topics: string[]
+  difficulty: DifficultyLevel
+  estimated_time: number
+}
 
-export interface ResourceUpdateInput extends Partial<ResourceCreateInput> {}
+export interface ResourceUpdateInput {
+  title?: string
+  url?: string
+  topics?: string[]
+  difficulty?: DifficultyLevel
+  estimated_time?: number
+  notes?: string
+}
+
+export interface ResourceCompleteInput {
+  notes: string
+}

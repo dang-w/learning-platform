@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { ResourceCreate, Resource } from '@/lib/api/resources'
+import { Resource, ResourceCreateInput, DifficultyLevel } from '@/types/resources'
 
 interface ResourceFormProps {
   resource?: Resource
-  onSubmit: (data: ResourceCreate) => Promise<void>
+  onSubmit: (data: ResourceCreateInput) => Promise<void>
   onCancel: () => void
 }
 
@@ -12,7 +12,7 @@ export const ResourceForm = ({
   onSubmit,
   onCancel,
 }: ResourceFormProps) => {
-  const [formData, setFormData] = useState<ResourceCreate>({
+  const [formData, setFormData] = useState<ResourceCreateInput>({
     title: '',
     url: '',
     topics: [],
@@ -162,7 +162,7 @@ export const ResourceForm = ({
             onChange={(e) =>
               setFormData((prev) => ({
                 ...prev,
-                difficulty: e.target.value as ResourceCreate['difficulty'],
+                difficulty: e.target.value as DifficultyLevel,
               }))
             }
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"

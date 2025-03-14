@@ -1,5 +1,5 @@
 import { useResources } from '@/lib/hooks/useResources'
-import { ResourceType } from '@/lib/api/resources'
+import { ResourceType } from '@/types/resources'
 import { Spinner } from '../ui/Spinner'
 import { Alert } from '../ui/Alert'
 
@@ -82,7 +82,7 @@ export const ResourceList = ({
                     </a>
                   </h3>
                   <div className="mt-1 text-sm text-gray-500">
-                    {resource.topics.map((topic) => (
+                    {resource.topics.map((topic: string) => (
                       <span
                         key={topic}
                         className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-2"
