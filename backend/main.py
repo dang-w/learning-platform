@@ -11,21 +11,47 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import uvicorn
 from dotenv import load_dotenv
+from pymongo.errors import DuplicateKeyError
+import logging
+
+# Import authentication from auth module
+from auth import (
+    User, Token, get_current_active_user, get_current_user,
+    authenticate_user, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+)
+
+# Import database connection
+from database import db
+
+# Import routers
+from routers import (
+    resources,
+    progress,
+    reviews,
+    learning_path,
+    url_extractor
+)
 
 # Load environment variables
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Initialize FastAPI app
 app = FastAPI(
-    title="AI/ML Learning Platform API",
-    description="Backend API for the AI/ML Learning Platform",
-    version="1.0.0"
+    title="Learning Platform API",
+    description="API for the Learning Platform application",
+    version="0.1.0",
 )
 
 # Configure CORS
 origins = [
-    "http://localhost:3000",  # Local Next.js development server
-    "https://learning-platform.vercel.app",  # Production Vercel deployment
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:8080",
 ]
 
 app.add_middleware(
@@ -44,7 +70,6 @@ db = client.learning_platform_db
 # Authentication settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -142,9 +167,17 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/users/", response_model=User)
+@app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate):
-    # Check if user already exists
+    """
+    Create a new user.
+
+    - Check if username already exists
+    - Hash the password
+    - Create user document with empty arrays for resources, etc.
+    - Insert into database
+    """
+    # Check if username already exists
     existing_user = await db.users.find_one({"username": user.username})
     if existing_user:
         raise HTTPException(
@@ -152,34 +185,43 @@ async def create_user(user: UserCreate):
             detail="Username already registered"
         )
 
-    # Create new user
-    hashed_password = get_password_hash(user.password)
-    user_dict = user.dict()
-    user_dict.pop("password")
-    user_dict["hashed_password"] = hashed_password
-    user_dict["disabled"] = False
+    # Hash the password
+    hashed_password = pwd_context.hash(user.password)
 
-    # Initialize user data structures
-    user_dict["resources"] = {
-        "articles": [],
-        "videos": [],
-        "courses": [],
-        "books": []
+    # Create user document
+    user_data = {
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "hashed_password": hashed_password,
+        "disabled": False,
+        "resources": [],
+        "study_sessions": [],
+        "review_sessions": [],
+        "learning_paths": [],
+        "reviews": [],
+        "concepts": [],
     }
-    user_dict["metrics"] = []
-    user_dict["review_log"] = {}
 
-    # Insert user into database
-    await db.users.insert_one(user_dict)
+    try:
+        # Insert user into database
+        await db.users.insert_one(user_data)
+    except DuplicateKeyError:
+        # This is a fallback in case the first check fails
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    except Exception as e:
+        logger.error(f"Error creating user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
 
-    # Return user without hashed_password
-    created_user = User(
-        username=user.username,
-        email=user.email,
-        full_name=user.full_name,
-        disabled=False
-    )
-    return created_user
+    # Return user without hashed password
+    user_data.pop("hashed_password")
+    return user_data
 
 @app.get("/users/me/", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
@@ -187,24 +229,44 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 
 # Root endpoint
 @app.get("/")
-def read_root():
-    return {"message": "Welcome to the AI/ML Learning Platform API"}
+async def root():
+    return {"message": "Welcome to the Learning Platform API"}
 
 # Health check endpoint
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-# Import API routers
-# Import routers after defining authentication functions to avoid circular imports
-from routers import resources, progress, reviews, learning_path, url_extractor
-
 # Include routers
-app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
-app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
-app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
-app.include_router(learning_path.router, prefix="/api/learning-path", tags=["learning-path"])
-app.include_router(url_extractor.router, prefix="/api/url", tags=["url"])
+app.include_router(
+    resources.router,
+    prefix="/api/resources",
+    tags=["resources"],
+)
+
+app.include_router(
+    progress.router,
+    prefix="/api/progress",
+    tags=["progress"],
+)
+
+app.include_router(
+    reviews.router,
+    prefix="/api/reviews",
+    tags=["reviews"],
+)
+
+app.include_router(
+    learning_path.router,
+    prefix="/api/learning-path",
+    tags=["learning-path"],
+)
+
+app.include_router(
+    url_extractor.router,
+    prefix="/api/url",
+    tags=["url"],
+)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

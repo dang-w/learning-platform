@@ -57,7 +57,7 @@ class ReviewSession(BaseModel):
 # Add these models for resource reviews
 class ResourceReviewBase(BaseModel):
     resource_type: str
-    resource_id: str
+    resource_id: int
     rating: int
     content: str
     difficulty_rating: int
@@ -389,108 +389,109 @@ async def generate_review_session(
 async def get_review_statistics(
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get statistics about the review system."""
+    """Get statistics about the user's reviews."""
     user = await db.users.find_one({"username": current_user.username})
-    if not user or "concepts" not in user:
-        return {
-            "total_concepts": 0,
-            "reviewed_concepts": 0,
-            "due_reviews": 0,
-            "new_concepts": 0,
-            "review_counts": {},
-            "average_confidence": 0,
-            "review_history": {
-                "last_7_days": 0,
-                "last_30_days": 0,
-                "all_time": 0
-            },
-            "confidence_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-        }
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
 
-    concepts = user["concepts"]
-    now = datetime.now()
+    reviews = user.get("reviews", [])
 
     # Initialize statistics
     stats = {
-        "total_concepts": len(concepts),
-        "reviewed_concepts": 0,
+        "total_reviews": len(reviews),
+        "average_rating": 0,
+        "average_difficulty": 0,
+        "rating_distribution": {str(i): 0 for i in range(1, 6)},
+        "difficulty_distribution": {str(i): 0 for i in range(1, 6)},
+        "topics": {},
+        "resource_types": {},
+        "recent_reviews": [],
         "due_reviews": 0,
         "new_concepts": 0,
-        "review_counts": {},
         "average_confidence": 0,
-        "review_history": {
-            "last_7_days": 0,
-            "last_30_days": 0,
-            "all_time": 0
-        },
-        "confidence_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        "confidence_distribution": {str(i): 0 for i in range(1, 6)}
     }
 
-    # Count reviews by confidence level
-    total_confidence = 0
-    total_reviews = 0
+    if not reviews:
+        return stats
 
-    # Calculate time thresholds
-    last_7_days = (now - timedelta(days=7)).isoformat()
-    last_30_days = (now - timedelta(days=30)).isoformat()
+    # Calculate statistics
+    total_rating = 0
+    total_difficulty = 0
 
-    for concept in concepts:
-        reviews = concept.get("reviews", [])
-        review_count = len(reviews)
+    for review in reviews:
+        # Rating distribution
+        rating = review.get("rating", 0)
+        if 1 <= rating <= 5:
+            total_rating += rating
+            stats["rating_distribution"][str(rating)] += 1
 
-        # Count reviewed vs new concepts
-        if review_count > 0:
-            stats["reviewed_concepts"] += 1
+        # Difficulty distribution
+        difficulty = review.get("difficulty_rating", 0)
+        if 1 <= difficulty <= 5:
+            total_difficulty += difficulty
+            stats["difficulty_distribution"][str(difficulty)] += 1
 
-            # Count by review count
-            if review_count not in stats["review_counts"]:
-                stats["review_counts"][review_count] = 0
-            stats["review_counts"][review_count] += 1
+        # Topics
+        for topic in review.get("topics", []):
+            if topic in stats["topics"]:
+                stats["topics"][topic] += 1
+            else:
+                stats["topics"][topic] = 1
+
+        # Resource types
+        resource_type = review.get("resource_type", "unknown")
+        if resource_type in stats["resource_types"]:
+            stats["resource_types"][resource_type] += 1
         else:
-            stats["new_concepts"] += 1
+            stats["resource_types"][resource_type] = 1
 
-        # Count due reviews
-        if concept.get("next_review") and concept.get("next_review") <= now.isoformat():
-            stats["due_reviews"] += 1
+    # Calculate averages
+    if reviews:
+        stats["average_rating"] = total_rating / len(reviews)
+        stats["average_difficulty"] = total_difficulty / len(reviews)
 
-        # Process individual reviews
-        for review in reviews:
-            total_reviews += 1
+    # Get recent reviews (last 5)
+    sorted_reviews = sorted(
+        reviews,
+        key=lambda x: x.get("date", ""),
+        reverse=True
+    )
 
-            # Count by confidence
-            confidence = review.get("confidence", 3)
-            stats["confidence_distribution"][confidence] += 1
-            total_confidence += confidence
+    stats["recent_reviews"] = sorted_reviews[:5]
 
-            # Count by time period
-            review_date = review.get("date", "")
-            if review_date >= last_7_days:
-                stats["review_history"]["last_7_days"] += 1
-            if review_date >= last_30_days:
-                stats["review_history"]["last_30_days"] += 1
+    # Convert topic counts to list for easier frontend processing
+    stats["topics"] = [
+        {"name": topic, "count": count}
+        for topic, count in sorted(stats["topics"].items(), key=lambda x: x[1], reverse=True)
+    ]
 
-    # Calculate average confidence
-    stats["review_history"]["all_time"] = total_reviews
-    if total_reviews > 0:
-        stats["average_confidence"] = total_confidence / total_reviews
+    # Convert resource type counts to list
+    stats["resource_types"] = [
+        {"type": resource_type, "count": count}
+        for resource_type, count in sorted(stats["resource_types"].items(), key=lambda x: x[1], reverse=True)
+    ]
 
     return stats
 
 # Add these routes for resource reviews
-@router.get("/", response_model=List[ResourceReview])
-async def get_reviews(current_user: User = Depends(get_current_active_user)):
-    """Get all reviews created by the user."""
-    user = await db.users.find_one({"username": current_user.username})
-    if not user or "reviews" not in user:
-        return []
-    return user["reviews"]
-
 @router.post("/", response_model=ResourceReview, status_code=status.HTTP_201_CREATED)
 async def create_review(
     review: ResourceReviewCreate,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create a new review for a resource."""
+    """Create a new resource review."""
+    # Check if user exists
+    user = await db.users.find_one({"username": current_user.username})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
     # Validate rating
     if not (1 <= review.rating <= 5):
         raise HTTPException(
@@ -507,35 +508,52 @@ async def create_review(
 
     # Create review object
     review_dict = review.dict()
-    review_dict["id"] = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{review.resource_id}"
+    review_dict["id"] = f"review_{datetime.now().strftime('%Y%m%d%H%M%S')}"
     review_dict["user_id"] = current_user.username
     review_dict["date"] = datetime.now().isoformat()
 
     # Add to user's reviews
-    result = await db.users.update_one(
-        {"username": current_user.username},
-        {"$push": {"reviews": review_dict}}
-    )
-
-    if result.modified_count == 0:
-        # If the reviews array doesn't exist yet, create it
+    try:
         result = await db.users.update_one(
             {"username": current_user.username},
-            {"$set": {"reviews": [review_dict]}}
+            {"$push": {"reviews": review_dict}}
         )
 
         if result.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create review"
+            # If the reviews array doesn't exist yet, create it
+            result = await db.users.update_one(
+                {"username": current_user.username},
+                {"$set": {"reviews": [review_dict]}}
             )
 
+            if result.modified_count == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create review"
+                )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create review: {str(e)}"
+        )
+
     return review_dict
+
+@router.get("/", response_model=List[ResourceReview])
+async def get_reviews(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all reviews created by the user."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "reviews" not in user:
+        return []
+
+    return user["reviews"]
 
 @router.get("/resource/{resource_type}/{resource_id}", response_model=List[ResourceReview])
 async def get_reviews_by_resource(
     resource_type: str,
-    resource_id: str,
+    resource_id: int,
     current_user: User = Depends(get_current_active_user)
 ):
     """Get reviews for a specific resource."""
@@ -545,8 +563,8 @@ async def get_reviews_by_resource(
 
     # Filter reviews by resource type and ID
     reviews = [
-        r for r in user["reviews"]
-        if r.get("resource_type") == resource_type and r.get("resource_id") == resource_id
+        review for review in user["reviews"]
+        if review.get("resource_type") == resource_type and review.get("resource_id") == resource_id
     ]
 
     return reviews
@@ -572,6 +590,7 @@ async def update_review(
             detail="Difficulty rating must be between 1 and 5"
         )
 
+    # Get user and find review
     user = await db.users.find_one({"username": current_user.username})
     if not user or "reviews" not in user:
         raise HTTPException(
@@ -579,11 +598,11 @@ async def update_review(
             detail="Reviews not found"
         )
 
-    # Find the review to update
     reviews = user["reviews"]
     review_index = None
-    for i, r in enumerate(reviews):
-        if r.get("id") == review_id:
+
+    for i, review in enumerate(reviews):
+        if review.get("id") == review_id:
             review_index = i
             break
 
@@ -593,10 +612,13 @@ async def update_review(
             detail=f"Review with ID {review_id} not found"
         )
 
-    # Update review fields
+    # Update review
     update_data = review_update.dict()
     for key, value in update_data.items():
         reviews[review_index][key] = value
+
+    # Update date
+    reviews[review_index]["date"] = datetime.now().isoformat()
 
     # Save updated reviews
     result = await db.users.update_one(

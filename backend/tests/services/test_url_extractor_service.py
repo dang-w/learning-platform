@@ -36,7 +36,7 @@ async def test_extract_metadata_from_url(mock_client):
     # Verify the result
     assert result["title"] == "Test Title"
     assert result["description"] == "Test Description"
-    assert set(result["topics"]) == {"python", "machine", "learning", "ai"}
+    assert set(result["topics"]) == {"python", "machine learning", "ai"}
     assert "estimated_time" in result
     assert "difficulty" in result
 

@@ -1,25 +1,28 @@
 import httpx
 import re
 from bs4 import BeautifulSoup
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 import logging
+from pydantic import HttpUrl
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def extract_metadata_from_url(url: str) -> Dict[str, Any]:
+async def extract_metadata_from_url(url: Union[str, HttpUrl]) -> Dict[str, Any]:
     """
     Extract metadata from a URL including title, description, and estimated reading time.
 
     Args:
-        url: The URL to extract metadata from
+        url: The URL to extract metadata from (can be a string or Pydantic HttpUrl)
 
     Returns:
         A dictionary containing the extracted metadata
     """
     try:
-        logger.info(f"Extracting metadata from URL: {url}")
+        # Convert URL to string if it's a Pydantic URL object
+        url_str = str(url)
+        logger.info(f"Extracting metadata from URL: {url_str}")
 
         # Initialize default metadata
         metadata = {
@@ -32,7 +35,7 @@ async def extract_metadata_from_url(url: str) -> Dict[str, Any]:
 
         # Fetch the URL content
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(url)
+            response = await client.get(url_str)
             response.raise_for_status()
 
             # Parse HTML content
@@ -101,31 +104,38 @@ async def extract_metadata_from_url(url: str) -> Dict[str, Any]:
             else:
                 metadata["difficulty"] = "beginner"
 
-        logger.info(f"Successfully extracted metadata from URL: {url}")
+        logger.info(f"Successfully extracted metadata from URL: {url_str}")
+        # Add the URL to the metadata
+        metadata["url"] = url_str
         return metadata
 
     except Exception as e:
         logger.error(f"Error extracting metadata from URL {url}: {str(e)}")
         # Return basic metadata with the URL as title
+        url_str = str(url)
         return {
-            "title": url,
+            "title": url_str,
             "description": "No description available",
             "estimated_time": 30,  # default 30 minutes
             "topics": [],
-            "difficulty": "intermediate"
+            "difficulty": "intermediate",
+            "url": url_str
         }
 
-async def detect_resource_type(url: str) -> str:
+async def detect_resource_type(url: Union[str, HttpUrl]) -> str:
     """
     Detect the type of resource based on the URL.
 
     Args:
-        url: The URL to analyze
+        url: The URL to analyze (can be a string or Pydantic HttpUrl)
 
     Returns:
         Resource type: 'article', 'video', 'course', or 'book'
     """
     try:
+        # Convert URL to string if it's a Pydantic URL object
+        url_str = str(url)
+
         # Video platforms
         video_patterns = [
             r'youtube\.com', r'youtu\.be', r'vimeo\.com', r'dailymotion\.com',
@@ -146,17 +156,17 @@ async def detect_resource_type(url: str) -> str:
 
         # Check for video
         for pattern in video_patterns:
-            if re.search(pattern, url, re.IGNORECASE):
+            if re.search(pattern, url_str, re.IGNORECASE):
                 return 'video'
 
         # Check for course
         for pattern in course_patterns:
-            if re.search(pattern, url, re.IGNORECASE):
+            if re.search(pattern, url_str, re.IGNORECASE):
                 return 'course'
 
         # Check for book
         for pattern in book_patterns:
-            if re.search(pattern, url, re.IGNORECASE):
+            if re.search(pattern, url_str, re.IGNORECASE):
                 return 'book'
 
         # Default to article

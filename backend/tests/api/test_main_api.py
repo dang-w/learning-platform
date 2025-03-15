@@ -7,7 +7,7 @@ def test_read_root(client):
     assert response.status_code == 200
     data = response.json()
     assert "message" in data
-    assert "Welcome to the AI/ML Learning Platform API" in data["message"]
+    assert "Welcome to the Learning Platform API" in data["message"]
 
 def test_health_check(client):
     """Test the health check endpoint."""
