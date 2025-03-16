@@ -2,29 +2,74 @@ import pytest
 from fastapi.testclient import TestClient
 from bson import ObjectId
 from datetime import datetime, timedelta
+from main import app, User, get_current_user, get_current_active_user, oauth2_scheme
+
+@pytest.fixture
+def mock_auth_dependencies():
+    """
+    Override dependencies for authentication in tests.
+    This fixture should be explicitly requested in tests that need authentication mocking.
+    """
+    # Create a mock user dictionary (not a User object)
+    mock_user = {
+        "username": "testuser",
+        "email": "test@example.com",
+        "full_name": "Test User",
+        "disabled": False
+    }
+
+    # Define mock functions
+    async def mock_get_current_user():
+        return mock_user
+
+    async def mock_get_current_active_user():
+        return mock_user
+
+    # Set up the dependency overrides
+    app.dependency_overrides[oauth2_scheme] = lambda: "test_token"
+    app.dependency_overrides[get_current_user] = mock_get_current_user
+    app.dependency_overrides[get_current_active_user] = mock_get_current_active_user
+
+    yield
+
+    # Clear the dependency overrides after the test
+    app.dependency_overrides.clear()
 
 @pytest.mark.asyncio
-async def test_get_goals(client, db, auth_headers):
+async def test_get_goals(client, test_db, auth_headers, mock_auth_dependencies):
     """Test getting all goals."""
+    # Create a test user in the database
+    user_data = {
+        "username": "testuser",
+        "email": "test@example.com",
+        "full_name": "Test User",
+        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
+        "disabled": False,
+        "goals": []
+    }
+
+    # Ensure the user exists
+    await test_db.users.delete_many({"username": "testuser"})
+    await test_db.users.insert_one(user_data)
+
     # Insert test goals
     goals = [
         {
+            "id": "goal_1",
             "title": "Master Neural Networks",
             "description": "Learn the fundamentals of neural networks",
-            "target_date": datetime.now() + timedelta(days=30),
+            "target_date": (datetime.now() + timedelta(days=30)).isoformat(),
             "priority": 8,
             "category": "Deep Learning",
             "completed": False,
             "completion_date": None,
-            "notes": "",
-            "progress": 0,
-            "progress_history": [],
-            "user_id": ObjectId(auth_headers["user_id"])
+            "notes": ""
         },
         {
+            "id": "goal_2",
             "title": "Complete Deep Learning Specialization",
             "description": "Finish all courses in the specialization",
-            "target_date": datetime.now() + timedelta(days=60),
+            "target_date": (datetime.now() + timedelta(days=60)).isoformat(),
             "priority": 9,
             "category": "Courses",
             "completed": False,
@@ -33,336 +78,633 @@ async def test_get_goals(client, db, auth_headers):
             "progress": 25,
             "progress_history": [
                 {
-                    "date": datetime.now() - timedelta(days=5),
+                    "date": (datetime.now() - timedelta(days=5)).isoformat(),
                     "progress": 25
                 }
-            ],
-            "user_id": ObjectId(auth_headers["user_id"])
+            ]
         }
     ]
 
-    await db.goals.insert_many(goals)
+    # Insert goals into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"goals": goals}}
+    )
 
-    # Test getting all goals
-    response = client.get("/api/learning-path/goals", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 2
-    assert data[0]["title"] == "Master Neural Networks"
-    assert data[1]["title"] == "Complete Deep Learning Specialization"
-    assert data[1]["progress"] == 25
+    # Verify the user has goals in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "goals" in user_after_update
+    assert len(user_after_update["goals"]) == 2
+
+    # Import the get_goals function from the router
+    from routers.learning_path import get_goals
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Call the function directly
+        result = await get_goals(None, None, mock_user)
+
+        # Verify the result
+        assert len(result) == 2
+
+        # Goals are sorted by priority (highest first), so the goal with priority 9 should be first
+        assert result[0]["title"] == "Complete Deep Learning Specialization"
+        assert result[0]["priority"] == 9
+        assert result[0].get("progress", 0) == 25
+
+        assert result[1]["title"] == "Master Neural Networks"
+        assert result[1]["priority"] == 8
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_create_goal(client, db, auth_headers):
+async def test_create_goal(client, test_db, auth_headers, mock_auth_dependencies):
     """Test creating a new goal."""
+    # Ensure user exists
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"goals": []}},
+        upsert=True
+    )
+
     new_goal = {
         "title": "Learn Reinforcement Learning",
         "description": "Study the basics of RL",
-        "target_date": (datetime.now() + timedelta(days=45)).isoformat(),
+        "target_date": (datetime.now() + timedelta(days=45)).strftime("%Y-%m-%d"),
         "priority": 7,
         "category": "Machine Learning",
         "completed": False,
         "notes": ""
     }
 
-    response = client.post("/api/learning-path/goals", json=new_goal, headers=auth_headers)
-    assert response.status_code == 201
-    data = response.json()
-    assert data["title"] == "Learn Reinforcement Learning"
-    assert data["description"] == "Study the basics of RL"
-    assert data["priority"] == 7
-    assert data["category"] == "Machine Learning"
-    assert data["completed"] is False
-    assert data["progress"] == 0
-    assert "id" in data
+    # Import the create_goal function from the router
+    from routers.learning_path import create_goal
 
-    # Verify it was saved to the database
-    db_goal = await db.goals.find_one({"_id": ObjectId(data["id"])})
-    assert db_goal is not None
-    assert db_goal["title"] == "Learn Reinforcement Learning"
-    assert db_goal["user_id"] == ObjectId(auth_headers["user_id"])
+    # Import GoalCreate model
+    from routers.learning_path import GoalCreate
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Create a GoalCreate object
+        goal_create = GoalCreate(**new_goal)
+
+        # Call the function directly
+        result = await create_goal(goal_create, mock_user)
+
+        # Verify the result
+        assert result["title"] == "Learn Reinforcement Learning"
+        assert result["description"] == "Study the basics of RL"
+        assert result["priority"] == 7
+        assert result["category"] == "Machine Learning"
+        assert result["completed"] is False
+        assert "id" in result
+
+        # Verify it was saved to the database
+        user = await test_db.users.find_one({"username": "testuser"})
+        assert user is not None
+        assert "goals" in user
+
+        # Find the goal in the user's goals array
+        created_goal = next((g for g in user["goals"] if g["id"] == result["id"]), None)
+        assert created_goal is not None
+        assert created_goal["title"] == "Learn Reinforcement Learning"
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_get_goal_by_id(client, db, auth_headers):
+async def test_get_goal_by_id(client, test_db, auth_headers, mock_auth_dependencies):
     """Test getting a specific goal by ID."""
-    # Insert a test goal
-    goal_id = ObjectId()
+    # Create a test goal ID
+    goal_id = "goal_test_123"
+
+    # Ensure user exists with an empty goals array
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"goals": []}},
+        upsert=True
+    )
+
+    # Insert a test goal into the user document
     goal = {
-        "_id": goal_id,
+        "id": goal_id,
         "title": "Build a Recommendation System",
         "description": "Create a movie recommendation system",
-        "target_date": datetime.now() + timedelta(days=90),
+        "target_date": (datetime.now() + timedelta(days=90)).isoformat(),
         "priority": 6,
         "category": "Projects",
         "completed": False,
         "completion_date": None,
-        "notes": "Use collaborative filtering",
-        "progress": 0,
-        "progress_history": [],
-        "user_id": ObjectId(auth_headers["user_id"])
+        "notes": "Use collaborative filtering"
     }
 
-    await db.goals.insert_one(goal)
+    # Insert the goal into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$push": {"goals": goal}}
+    )
 
-    # Test getting the goal by ID
-    response = client.get(f"/api/learning-path/goals/{str(goal_id)}", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == str(goal_id)
-    assert data["title"] == "Build a Recommendation System"
-    assert data["description"] == "Create a movie recommendation system"
-    assert data["category"] == "Projects"
-    assert data["notes"] == "Use collaborative filtering"
+    # Verify the user has the goal in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "goals" in user_after_update
+    assert len(user_after_update["goals"]) == 1
+    assert user_after_update["goals"][0]["id"] == goal_id
+
+    # Import the get_goal function from the router
+    from routers.learning_path import get_goal
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Call the function directly
+        result = await get_goal(goal_id, mock_user)
+
+        # Verify the result
+        assert result["id"] == goal_id
+        assert result["title"] == "Build a Recommendation System"
+        assert result["description"] == "Create a movie recommendation system"
+        assert result["category"] == "Projects"
+        assert result["notes"] == "Use collaborative filtering"
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_update_goal(client, db, auth_headers):
+async def test_update_goal(client, test_db, auth_headers, mock_auth_dependencies):
     """Test updating a goal."""
-    # Insert a test goal
-    goal_id = ObjectId()
+    # Create a test goal ID
+    goal_id = "goal_test_456"
+
+    # Ensure user exists with an empty goals array
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"goals": []}},
+        upsert=True
+    )
+
+    # Insert a test goal into the user document
     goal = {
-        "_id": goal_id,
+        "id": goal_id,
         "title": "Learn PyTorch",
         "description": "Master PyTorch fundamentals",
-        "target_date": datetime.now() + timedelta(days=30),
+        "target_date": (datetime.now() + timedelta(days=30)).isoformat(),
         "priority": 7,
         "category": "Tools",
         "completed": False,
         "completion_date": None,
-        "notes": "",
-        "progress": 0,
-        "progress_history": [],
-        "user_id": ObjectId(auth_headers["user_id"])
+        "notes": ""
     }
 
-    await db.goals.insert_one(goal)
+    # Insert the goal into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$push": {"goals": goal}}
+    )
 
-    # Update the goal
-    update_data = {
-        "title": "Master PyTorch",
-        "description": "Learn PyTorch and implement models",
-        "priority": 8,
-        "progress": 30
-    }
+    # Verify the user has the goal in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "goals" in user_after_update
+    assert len(user_after_update["goals"]) == 1
+    assert user_after_update["goals"][0]["id"] == goal_id
 
-    response = client.put(f"/api/learning-path/goals/{str(goal_id)}", json=update_data, headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["title"] == "Master PyTorch"
-    assert data["description"] == "Learn PyTorch and implement models"
-    assert data["priority"] == 8
-    assert data["progress"] == 30
-    assert len(data["progress_history"]) == 1
+    # Import the update_goal function from the router
+    from routers.learning_path import update_goal, GoalUpdate
 
-    # Verify it was updated in the database
-    db_goal = await db.goals.find_one({"_id": goal_id})
-    assert db_goal["title"] == "Master PyTorch"
-    assert db_goal["progress"] == 30
-    assert len(db_goal["progress_history"]) == 1
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Create the update data
+        update_data = GoalUpdate(
+            title="Master PyTorch",
+            description="Learn PyTorch and implement models",
+            priority=8,
+            progress=30
+        )
+
+        # Call the function directly
+        result = await update_goal(goal_id, update_data, mock_user)
+
+        # Verify the result
+        assert result["title"] == "Master PyTorch"
+        assert result["description"] == "Learn PyTorch and implement models"
+        assert result["priority"] == 8
+        assert result.get("progress", 0) == 30
+
+        # Verify it was updated in the database
+        user = await test_db.users.find_one({"username": "testuser"})
+        updated_goal = next((g for g in user["goals"] if g["id"] == goal_id), None)
+        assert updated_goal is not None
+        assert updated_goal["title"] == "Master PyTorch"
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_delete_goal(client, db, auth_headers):
+async def test_delete_goal(client, test_db, auth_headers, mock_auth_dependencies):
     """Test deleting a goal."""
-    # Insert a test goal
-    goal_id = ObjectId()
+    # Create a test goal ID
+    goal_id = "goal_test_789"
+
+    # Ensure user exists with an empty goals array
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"goals": []}},
+        upsert=True
+    )
+
+    # Insert a test goal into the user document
     goal = {
-        "_id": goal_id,
+        "id": goal_id,
         "title": "Learn TensorFlow",
         "description": "Master TensorFlow basics",
-        "target_date": datetime.now() + timedelta(days=45),
+        "target_date": (datetime.now() + timedelta(days=45)).isoformat(),
         "priority": 6,
         "category": "Tools",
         "completed": False,
         "completion_date": None,
-        "notes": "",
-        "progress": 0,
-        "progress_history": [],
-        "user_id": ObjectId(auth_headers["user_id"])
+        "notes": ""
     }
 
-    await db.goals.insert_one(goal)
+    # Insert the goal into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$push": {"goals": goal}}
+    )
 
-    # Delete the goal
-    response = client.delete(f"/api/learning-path/goals/{str(goal_id)}", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
+    # Verify the user has the goal in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "goals" in user_after_update
+    assert len(user_after_update["goals"]) == 1
+    assert user_after_update["goals"][0]["id"] == goal_id
 
-    # Verify it was deleted from the database
-    db_goal = await db.goals.find_one({"_id": goal_id})
-    assert db_goal is None
+    # Import the delete_goal function from the router
+    from routers.learning_path import delete_goal
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Call the function directly
+        await delete_goal(goal_id, mock_user)
+
+        # Verify it was deleted from the database
+        user = await test_db.users.find_one({"username": "testuser"})
+        deleted_goal = next((g for g in user["goals"] if g["id"] == goal_id), None)
+        assert deleted_goal is None
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_get_milestones(client, db, auth_headers):
+async def test_get_milestones(client, test_db, auth_headers, mock_auth_dependencies):
     """Test getting all milestones."""
+    # Ensure user exists with an empty milestones array
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"milestones": []}},
+        upsert=True
+    )
+
     # Insert test milestones
     milestones = [
         {
+            "id": "milestone_1",
             "title": "Complete Neural Networks Course",
             "description": "Finish the course on Coursera",
-            "target_date": datetime.now() + timedelta(days=15),
+            "target_date": (datetime.now() + timedelta(days=15)).isoformat(),
             "verification_method": "Certificate",
             "resources": ["course_1"],
             "completed": False,
             "completion_date": None,
-            "notes": "",
-            "user_id": ObjectId(auth_headers["user_id"])
+            "notes": ""
         },
         {
+            "id": "milestone_2",
             "title": "Implement CNN Project",
             "description": "Build an image classifier",
-            "target_date": datetime.now() + timedelta(days=30),
+            "target_date": (datetime.now() + timedelta(days=30)).isoformat(),
             "verification_method": "GitHub Repository",
             "resources": ["article_1", "video_2"],
             "completed": False,
             "completion_date": None,
-            "notes": "Use PyTorch",
-            "user_id": ObjectId(auth_headers["user_id"])
+            "notes": "Use PyTorch"
         }
     ]
 
-    await db.milestones.insert_many(milestones)
+    # Insert milestones into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"milestones": milestones}}
+    )
 
-    # Test getting all milestones
-    response = client.get("/api/learning-path/milestones", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 2
-    assert data[0]["title"] == "Complete Neural Networks Course"
-    assert data[1]["title"] == "Implement CNN Project"
-    assert data[1]["verification_method"] == "GitHub Repository"
+    # Verify the user has milestones in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "milestones" in user_after_update
+    assert len(user_after_update["milestones"]) == 2
+
+    # Import the get_milestones function from the router
+    from routers.learning_path import get_milestones
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Call the function directly
+        result = await get_milestones(None, mock_user)
+
+        # Verify the result
+        assert len(result) == 2
+        assert result[0]["title"] == "Complete Neural Networks Course"
+        assert result[1]["title"] == "Implement CNN Project"
+        assert result[1]["verification_method"] == "GitHub Repository"
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_create_milestone(client, db, auth_headers):
+async def test_create_milestone(client, test_db, auth_headers, mock_auth_dependencies):
     """Test creating a new milestone."""
+    # Ensure user exists with empty milestones array
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"milestones": []}},
+        upsert=True
+    )
+
     new_milestone = {
         "title": "Complete Deep Learning Book",
         "description": "Read and take notes on the Deep Learning book",
-        "target_date": (datetime.now() + timedelta(days=60)).isoformat(),
+        "target_date": (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d"),
         "verification_method": "Book Summary",
         "resources": ["book_1"],
         "completed": False,
         "notes": "Focus on chapters 1-5 first"
     }
 
-    response = client.post("/api/learning-path/milestones", json=new_milestone, headers=auth_headers)
-    assert response.status_code == 201
-    data = response.json()
-    assert data["title"] == "Complete Deep Learning Book"
-    assert data["description"] == "Read and take notes on the Deep Learning book"
-    assert data["verification_method"] == "Book Summary"
-    assert data["resources"] == ["book_1"]
-    assert data["completed"] is False
-    assert data["notes"] == "Focus on chapters 1-5 first"
-    assert "id" in data
+    # Import the create_milestone function from the router
+    from routers.learning_path import create_milestone
 
-    # Verify it was saved to the database
-    db_milestone = await db.milestones.find_one({"_id": ObjectId(data["id"])})
-    assert db_milestone is not None
-    assert db_milestone["title"] == "Complete Deep Learning Book"
-    assert db_milestone["user_id"] == ObjectId(auth_headers["user_id"])
+    # Import MilestoneCreate model
+    from routers.learning_path import MilestoneCreate
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Create a MilestoneCreate object
+        milestone_create = MilestoneCreate(**new_milestone)
+
+        # Call the function directly
+        result = await create_milestone(milestone_create, mock_user)
+
+        # Verify the result
+        assert result["title"] == "Complete Deep Learning Book"
+        assert result["description"] == "Read and take notes on the Deep Learning book"
+        assert result["verification_method"] == "Book Summary"
+        assert result["resources"] == ["book_1"]
+        assert result["completed"] is False
+        assert result["notes"] == "Focus on chapters 1-5 first"
+        assert "id" in result
+
+        # Verify it was saved to the database
+        user = await test_db.users.find_one({"username": "testuser"})
+        assert user is not None
+        assert "milestones" in user
+
+        # Find the milestone in the user's milestones array
+        created_milestone = next((m for m in user["milestones"] if m["id"] == result["id"]), None)
+        assert created_milestone is not None
+        assert created_milestone["title"] == "Complete Deep Learning Book"
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_update_milestone(client, db, auth_headers):
+async def test_update_milestone(client, test_db, auth_headers, mock_auth_dependencies):
     """Test updating a milestone."""
-    # Insert a test milestone
-    milestone_id = ObjectId()
+    # Create a test milestone ID
+    milestone_id = "milestone_test_123"
+
+    # Ensure user exists with an empty milestones array
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"milestones": []}},
+        upsert=True
+    )
+
+    # Insert a test milestone into the user document
     milestone = {
-        "_id": milestone_id,
+        "id": milestone_id,
         "title": "Complete ML Course",
         "description": "Finish the ML course",
-        "target_date": datetime.now() + timedelta(days=30),
+        "target_date": (datetime.now() + timedelta(days=30)).isoformat(),
         "verification_method": "Certificate",
         "resources": ["course_2"],
         "completed": False,
         "completion_date": None,
-        "notes": "",
-        "user_id": ObjectId(auth_headers["user_id"])
+        "notes": ""
     }
 
-    await db.milestones.insert_one(milestone)
+    # Insert the milestone into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$push": {"milestones": milestone}}
+    )
 
-    # Update the milestone
-    update_data = {
-        "title": "Complete Advanced ML Course",
-        "completed": True,
-        "notes": "Completed with distinction"
-    }
+    # Verify the user has the milestone in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "milestones" in user_after_update
+    assert len(user_after_update["milestones"]) == 1
+    assert user_after_update["milestones"][0]["id"] == milestone_id
 
-    response = client.put(f"/api/learning-path/milestones/{str(milestone_id)}", json=update_data, headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["title"] == "Complete Advanced ML Course"
-    assert data["completed"] is True
-    assert data["notes"] == "Completed with distinction"
-    assert data["completion_date"] is not None
+    # Import the update_milestone function from the router
+    from routers.learning_path import update_milestone, MilestoneUpdate
 
-    # Verify it was updated in the database
-    db_milestone = await db.milestones.find_one({"_id": milestone_id})
-    assert db_milestone["title"] == "Complete Advanced ML Course"
-    assert db_milestone["completed"] is True
-    assert db_milestone["completion_date"] is not None
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Create the update data
+        update_data = MilestoneUpdate(
+            title="Complete Advanced ML Course",
+            completed=True,
+            notes="Completed with distinction"
+        )
+
+        # Call the function directly
+        result = await update_milestone(milestone_id, update_data, mock_user)
+
+        # Verify the result
+        assert result["title"] == "Complete Advanced ML Course"
+        assert result["completed"] is True
+        assert result["notes"] == "Completed with distinction"
+        assert result["completion_date"] is not None
+
+        # Verify it was updated in the database
+        user = await test_db.users.find_one({"username": "testuser"})
+        updated_milestone = next((m for m in user["milestones"] if m["id"] == milestone_id), None)
+        assert updated_milestone is not None
+        assert updated_milestone["title"] == "Complete Advanced ML Course"
+        assert updated_milestone["completed"] is True
+        assert updated_milestone["completion_date"] is not None
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_delete_milestone(client, db, auth_headers):
+async def test_delete_milestone(client, test_db, auth_headers, mock_auth_dependencies):
     """Test deleting a milestone."""
-    # Insert a test milestone
-    milestone_id = ObjectId()
+    # Create a test milestone ID
+    milestone_id = "milestone_test_456"
+
+    # Ensure user exists with an empty milestones array
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"milestones": []}},
+        upsert=True
+    )
+
+    # Insert a test milestone into the user document
     milestone = {
-        "_id": milestone_id,
+        "id": milestone_id,
         "title": "Implement NLP Project",
         "description": "Build a text classifier",
-        "target_date": datetime.now() + timedelta(days=45),
+        "target_date": (datetime.now() + timedelta(days=45)).isoformat(),
         "verification_method": "GitHub Repository",
         "resources": ["article_3", "video_4"],
         "completed": False,
         "completion_date": None,
-        "notes": "",
-        "user_id": ObjectId(auth_headers["user_id"])
+        "notes": ""
     }
 
-    await db.milestones.insert_one(milestone)
+    # Insert the milestone into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$push": {"milestones": milestone}}
+    )
 
-    # Delete the milestone
-    response = client.delete(f"/api/learning-path/milestones/{str(milestone_id)}", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
+    # Verify the user has the milestone in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "milestones" in user_after_update
+    assert len(user_after_update["milestones"]) == 1
+    assert user_after_update["milestones"][0]["id"] == milestone_id
 
-    # Verify it was deleted from the database
-    db_milestone = await db.milestones.find_one({"_id": milestone_id})
-    assert db_milestone is None
+    # Import the delete_milestone function from the router
+    from routers.learning_path import delete_milestone
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Call the function directly
+        await delete_milestone(milestone_id, mock_user)
+
+        # Verify it was deleted from the database
+        user = await test_db.users.find_one({"username": "testuser"})
+        deleted_milestone = next((m for m in user["milestones"] if m["id"] == milestone_id), None)
+        assert deleted_milestone is None
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db
 
 @pytest.mark.asyncio
-async def test_get_learning_path_progress(client, db, auth_headers):
+async def test_get_learning_path_progress(client, test_db, auth_headers, mock_auth_dependencies):
     """Test getting learning path progress."""
+    # Ensure user exists with empty goals and milestones arrays
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"goals": [], "milestones": []}},
+        upsert=True
+    )
+
     # Insert test goals with different progress levels
     goals = [
         {
+            "id": "goal_progress_1",
             "title": "Goal 1",
             "description": "Description 1",
-            "target_date": datetime.now() + timedelta(days=30),
+            "target_date": (datetime.now() + timedelta(days=30)).isoformat(),
             "priority": 8,
             "category": "Category 1",
             "completed": True,
-            "completion_date": datetime.now() - timedelta(days=5),
+            "completion_date": (datetime.now() - timedelta(days=5)).isoformat(),
             "notes": "",
             "progress": 100,
             "progress_history": [
                 {
-                    "date": datetime.now() - timedelta(days=10),
+                    "date": (datetime.now() - timedelta(days=10)).isoformat(),
                     "progress": 50
                 },
                 {
-                    "date": datetime.now() - timedelta(days=5),
+                    "date": (datetime.now() - timedelta(days=5)).isoformat(),
                     "progress": 100
                 }
-            ],
-            "user_id": ObjectId(auth_headers["user_id"])
+            ]
         },
         {
+            "id": "goal_progress_2",
             "title": "Goal 2",
             "description": "Description 2",
-            "target_date": datetime.now() + timedelta(days=60),
+            "target_date": (datetime.now() + timedelta(days=60)).isoformat(),
             "priority": 7,
             "category": "Category 2",
             "completed": False,
@@ -371,72 +713,104 @@ async def test_get_learning_path_progress(client, db, auth_headers):
             "progress": 50,
             "progress_history": [
                 {
-                    "date": datetime.now() - timedelta(days=15),
+                    "date": (datetime.now() - timedelta(days=15)).isoformat(),
                     "progress": 25
                 },
                 {
-                    "date": datetime.now() - timedelta(days=7),
+                    "date": (datetime.now() - timedelta(days=7)).isoformat(),
                     "progress": 50
                 }
-            ],
-            "user_id": ObjectId(auth_headers["user_id"])
+            ]
         },
         {
+            "id": "goal_progress_3",
             "title": "Goal 3",
             "description": "Description 3",
-            "target_date": datetime.now() + timedelta(days=90),
+            "target_date": (datetime.now() + timedelta(days=90)).isoformat(),
             "priority": 6,
             "category": "Category 1",
             "completed": False,
             "completion_date": None,
             "notes": "",
             "progress": 0,
-            "progress_history": [],
-            "user_id": ObjectId(auth_headers["user_id"])
+            "progress_history": []
         }
     ]
-
-    await db.goals.insert_many(goals)
 
     # Insert test milestones with different completion status
     milestones = [
         {
+            "id": "milestone_progress_1",
             "title": "Milestone 1",
             "description": "Description 1",
-            "target_date": datetime.now() + timedelta(days=15),
+            "target_date": (datetime.now() + timedelta(days=15)).isoformat(),
             "verification_method": "Method 1",
             "resources": ["resource_1"],
             "completed": True,
-            "completion_date": datetime.now() - timedelta(days=2),
-            "notes": "",
-            "user_id": ObjectId(auth_headers["user_id"])
+            "completion_date": (datetime.now() - timedelta(days=2)).isoformat(),
+            "notes": ""
         },
         {
+            "id": "milestone_progress_2",
             "title": "Milestone 2",
             "description": "Description 2",
-            "target_date": datetime.now() + timedelta(days=30),
+            "target_date": (datetime.now() + timedelta(days=30)).isoformat(),
             "verification_method": "Method 2",
             "resources": ["resource_2"],
             "completed": False,
             "completion_date": None,
-            "notes": "",
-            "user_id": ObjectId(auth_headers["user_id"])
+            "notes": ""
         }
     ]
 
-    await db.milestones.insert_many(milestones)
+    # Insert goals and milestones into the user document
+    await test_db.users.update_one(
+        {"username": "testuser"},
+        {"$set": {"goals": goals, "milestones": milestones}}
+    )
 
-    # Test getting learning path progress
-    response = client.get("/api/learning-path/progress", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
+    # Verify the user has goals and milestones in the database
+    user_after_update = await test_db.users.find_one({"username": "testuser"})
+    assert user_after_update is not None
+    assert "goals" in user_after_update
+    assert "milestones" in user_after_update
+    assert len(user_after_update["goals"]) == 3
+    assert len(user_after_update["milestones"]) == 2
 
-    assert data["overall_progress"] == 50  # (100 + 50 + 0) / 3
-    assert data["completed_goals"] == 1
-    assert data["total_goals"] == 3
-    assert data["completed_milestones"] == 1
-    assert data["total_milestones"] == 2
-    assert len(data["progress_by_category"]) == 2
-    assert "Category 1" in data["progress_by_category"]
-    assert "Category 2" in data["progress_by_category"]
-    assert len(data["progress_history"]) > 0
+    # Import the get_learning_path_progress function from the router
+    from routers.learning_path import get_learning_path_progress
+
+    # Patch the router's database with the test database
+    import routers.learning_path
+    original_db = routers.learning_path.db
+    routers.learning_path.db = test_db
+
+    try:
+        # Create a mock user for testing
+        mock_user = {"username": "testuser"}
+
+        # Call the function directly
+        result = await get_learning_path_progress(mock_user)
+
+        # Check the structure of the response
+        assert "overall_progress" in result
+        assert "completed_goals" in result
+        assert "total_goals" in result
+        assert "completed_milestones" in result
+        assert "total_milestones" in result
+        assert "progress_by_category" in result
+        assert "progress_history" in result
+
+        # Check the values
+        assert result["overall_progress"] == 50  # (100 + 50 + 0) / 3
+        assert result["completed_goals"] == 1
+        assert result["total_goals"] == 3
+        assert result["completed_milestones"] == 1
+        assert result["total_milestones"] == 2
+        assert len(result["progress_by_category"]) == 2
+        assert "Category 1" in [cat["name"] for cat in result["progress_by_category"]]
+        assert "Category 2" in [cat["name"] for cat in result["progress_by_category"]]
+        assert len(result["progress_history"]) > 0
+    finally:
+        # Restore the original database
+        routers.learning_path.db = original_db

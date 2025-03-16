@@ -79,6 +79,80 @@ async def get_all_resources(current_user: User = Depends(get_current_active_user
         return {"articles": [], "videos": [], "courses": [], "books": []}
     return user["resources"]
 
+# Statistics endpoint - moved before the resource_type parameter route
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_resource_statistics(current_user: User = Depends(get_current_active_user)):
+    """Get statistics about the user's resources."""
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user:
+        return {
+            "total": 0,
+            "completed": 0,
+            "completion_percentage": 0,
+            "by_type": {},
+            "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
+            "by_topic": {},
+            "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
+        }
+
+    # Initialize statistics
+    stats = {
+        "total": 0,
+        "completed": 0,
+        "by_type": {},
+        "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
+        "by_topic": {},
+        "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
+    }
+
+    # Calculate statistics
+    for resource_type in ["articles", "videos", "courses", "books"]:
+        if resource_type not in user["resources"]:
+            continue
+
+        resources = user["resources"][resource_type]
+        type_count = len(resources)
+        type_completed = sum(1 for r in resources if r.get("completed", False))
+
+        stats["total"] += type_count
+        stats["completed"] += type_completed
+
+        stats["by_type"][resource_type] = {
+            "total": type_count,
+            "completed": type_completed
+        }
+
+        # Accumulate time statistics and counts by difficulty/topic
+        for resource in resources:
+            # Add to difficulty stats
+            difficulty = resource.get("difficulty", "beginner")
+            if difficulty in stats["by_difficulty"]:
+                stats["by_difficulty"][difficulty] += 1
+            else:
+                stats["by_difficulty"][difficulty] = 1
+
+            # Add to topic stats
+            for topic in resource.get("topics", []):
+                if topic not in stats["by_topic"]:
+                    stats["by_topic"][topic] = 0
+                stats["by_topic"][topic] += 1
+
+            # Add to time stats
+            time = resource.get("estimated_time", 0)
+            stats["estimated_time"]["total"] += time
+            if resource.get("completed", False):
+                stats["estimated_time"]["completed"] += time
+            else:
+                stats["estimated_time"]["remaining"] += time
+
+    # Calculate completion percentage
+    if stats["total"] > 0:
+        stats["completion_percentage"] = round((stats["completed"] / stats["total"]) * 100, 1)
+    else:
+        stats["completion_percentage"] = 0
+
+    return stats
+
 @router.get("/{resource_type}", response_model=List[Resource])
 async def get_resources_by_type(
     resource_type: str,
@@ -127,7 +201,7 @@ async def create_resource(
         )
 
     # Create resource object
-    resource_dict = resource.dict()
+    resource_dict = resource.model_dump()
     resource_dict["id"] = await get_next_resource_id(db, current_user.username, resource_type)
     resource_dict["date_added"] = datetime.now().isoformat()
     resource_dict["completed"] = False
@@ -200,7 +274,7 @@ async def update_resource(
         )
 
     # Update resource fields
-    update_data = {k: v for k, v in resource_update.dict().items() if v is not None}
+    update_data = {k: v for k, v in resource_update.model_dump().items() if v is not None}
     for key, value in update_data.items():
         resources[resource_index][key] = value
 
@@ -225,7 +299,7 @@ async def mark_resource_completed(
     completion_data: ResourceComplete,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Mark a resource as completed."""
+    """Mark a resource as completed or uncompleted."""
     if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -254,11 +328,18 @@ async def mark_resource_completed(
             detail=f"Resource with ID {resource_id} not found"
         )
 
-    # Update resource
-    resources[resource_index]["completed"] = True
-    resources[resource_index]["completion_date"] = datetime.now().isoformat()
-    if completion_data.notes:
-        resources[resource_index]["notes"] = completion_data.notes
+    # Toggle completion status
+    current_status = resources[resource_index].get("completed", False)
+    resources[resource_index]["completed"] = not current_status
+
+    if not current_status:
+        # If marking as completed
+        resources[resource_index]["completion_date"] = datetime.now().isoformat()
+        if completion_data.notes:
+            resources[resource_index]["notes"] = completion_data.notes
+    else:
+        # If marking as uncompleted
+        resources[resource_index]["completion_date"] = None
 
     # Save updated resources
     result = await db.users.update_one(
@@ -269,7 +350,7 @@ async def mark_resource_completed(
     if result.modified_count == 0:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to mark resource as completed"
+            detail="Failed to update resource completion status"
         )
 
     return resources[resource_index]
@@ -353,76 +434,3 @@ async def get_next_resources(
 
     # Return up to 'count' resources
     return uncompleted[:count]
-
-@router.get("/statistics", response_model=Dict[str, Any])
-async def get_resource_statistics(current_user: User = Depends(get_current_active_user)):
-    """Get statistics about the user's resources."""
-    user = await db.users.find_one({"username": current_user.username})
-    if not user or "resources" not in user:
-        return {
-            "total": 0,
-            "completed": 0,
-            "completion_percentage": 0,
-            "by_type": {},
-            "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
-            "by_topic": {},
-            "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
-        }
-
-    # Initialize statistics
-    stats = {
-        "total": 0,
-        "completed": 0,
-        "by_type": {},
-        "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
-        "by_topic": {},
-        "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
-    }
-
-    # Calculate statistics
-    for resource_type in ["articles", "videos", "courses", "books"]:
-        if resource_type not in user["resources"]:
-            continue
-
-        resources = user["resources"][resource_type]
-        type_count = len(resources)
-        type_completed = sum(1 for r in resources if r.get("completed", False))
-
-        stats["total"] += type_count
-        stats["completed"] += type_completed
-
-        stats["by_type"][resource_type] = {
-            "total": type_count,
-            "completed": type_completed
-        }
-
-        # Accumulate time statistics and counts by difficulty/topic
-        for resource in resources:
-            # Add to difficulty stats
-            difficulty = resource.get("difficulty", "beginner")
-            if difficulty in stats["by_difficulty"]:
-                stats["by_difficulty"][difficulty] += 1
-            else:
-                stats["by_difficulty"][difficulty] = 1
-
-            # Add to topic stats
-            for topic in resource.get("topics", []):
-                if topic not in stats["by_topic"]:
-                    stats["by_topic"][topic] = 0
-                stats["by_topic"][topic] += 1
-
-            # Add to time stats
-            time = resource.get("estimated_time", 0)
-            stats["estimated_time"]["total"] += time
-            if resource.get("completed", False):
-                stats["estimated_time"]["completed"] += time
-            else:
-                stats["estimated_time"]["remaining"] += time
-
-    # Calculate completion percentage
-    if stats["total"] > 0:
-        stats["completion_percentage"] = round((stats["completed"] / stats["total"]) * 100, 1)
-    else:
-        stats["completion_percentage"] = 0
-
-    return stats

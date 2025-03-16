@@ -117,7 +117,7 @@ async def add_daily_metrics(
         )
 
     # Create metric object
-    metric_dict = metric.dict()
+    metric_dict = metric.model_dump()
     metric_dict["id"] = f"{date}_{datetime.now().strftime('%H%M%S')}"
 
     # Check if entry for this date already exists
@@ -554,7 +554,7 @@ async def add_study_session(
         )
 
     # Create session object
-    session_dict = session.dict()
+    session_dict = session.model_dump()
     session_dict["id"] = f"session_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
     # Add to user's study sessions
@@ -653,7 +653,7 @@ async def add_review_session(
         )
 
     # Create session object
-    session_dict = session.dict()
+    session_dict = session.model_dump()
     session_dict["id"] = f"review_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
     # Add to user's review sessions

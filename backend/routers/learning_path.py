@@ -31,7 +31,7 @@ class MilestoneBase(BaseModel):
     resources: List[str] = []
 
 class MilestoneCreate(MilestoneBase):
-    pass
+    notes: Optional[str] = ""
 
 class Milestone(MilestoneBase):
     id: str
@@ -72,6 +72,7 @@ class GoalUpdate(BaseModel):
     category: Optional[str] = None
     completed: Optional[bool] = None
     notes: Optional[str] = None
+    progress: Optional[int] = None
 
 class RoadmapBase(BaseModel):
     title: str
@@ -137,22 +138,25 @@ async def create_milestone(
     milestone_id = f"milestone_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
     # Create milestone object
-    milestone_dict = milestone.dict()
+    milestone_dict = milestone.model_dump()
     milestone_dict["id"] = milestone_id
     milestone_dict["completed"] = False
     milestone_dict["completion_date"] = None
-    milestone_dict["notes"] = ""
+    milestone_dict["notes"] = milestone_dict.get("notes", "")
+
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
     # Add to user's milestones
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$push": {"milestones": milestone_dict}}
     )
 
     if result.modified_count == 0:
         # If the milestones array doesn't exist yet, create it
         result = await db.users.update_one(
-            {"username": current_user.username},
+            {"username": username},
             {"$set": {"milestones": [milestone_dict]}}
         )
 
@@ -169,8 +173,11 @@ async def get_milestones(
     completed: Optional[bool] = None,
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get all milestones with optional filtering by completion status."""
-    user = await db.users.find_one({"username": current_user.username})
+    """Get all milestones with optional filtering."""
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user or "milestones" not in user:
         return []
 
@@ -181,7 +188,7 @@ async def get_milestones(
         milestones = [m for m in milestones if m.get("completed", False) == completed]
 
     # Sort by target date
-    milestones.sort(key=lambda x: x.get("target_date", ""))
+    milestones.sort(key=lambda x: (x.get("completed", False), x.get("target_date", "")))
 
     return milestones
 
@@ -215,28 +222,21 @@ async def update_milestone(
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a milestone."""
-    # Validate target date if provided
-    if milestone_update.target_date:
-        try:
-            datetime.strptime(milestone_update.target_date, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Target date must be in YYYY-MM-DD format"
-            )
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-    user = await db.users.find_one({"username": current_user.username})
+    # Get the current milestone
+    user = await db.users.find_one({"username": username})
     if not user or "milestones" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Milestones not found"
         )
 
-    # Find the milestone to update
-    milestones = user["milestones"]
+    # Find the milestone
     milestone_index = None
-    for i, m in enumerate(milestones):
-        if m.get("id") == milestone_id:
+    for i, milestone in enumerate(user["milestones"]):
+        if milestone.get("id") == milestone_id:
             milestone_index = i
             break
 
@@ -246,24 +246,24 @@ async def update_milestone(
             detail=f"Milestone with ID {milestone_id} not found"
         )
 
-    # Update milestone fields
-    update_data = {k: v for k, v in milestone_update.dict().items() if v is not None}
+    # Update the milestone
+    milestone = user["milestones"][milestone_index]
+    update_data = milestone_update.model_dump(exclude_unset=True)
 
-    # If marking as completed, set completion date
-    if "completed" in update_data and update_data["completed"] and not milestones[milestone_index].get("completed", False):
+    # Handle completion status change
+    if "completed" in update_data and update_data["completed"] and not milestone.get("completed", False):
         update_data["completion_date"] = datetime.now().isoformat()
-
-    # If marking as not completed, clear completion date
-    if "completed" in update_data and not update_data["completed"]:
+    elif "completed" in update_data and not update_data["completed"]:
         update_data["completion_date"] = None
 
+    # Update the milestone
     for key, value in update_data.items():
-        milestones[milestone_index][key] = value
+        milestone[key] = value
 
-    # Save updated milestones
+    # Save the updated milestone
     result = await db.users.update_one(
-        {"username": current_user.username},
-        {"$set": {"milestones": milestones}}
+        {"username": username},
+        {"$set": {f"milestones.{milestone_index}": milestone}}
     )
 
     if result.modified_count == 0:
@@ -272,7 +272,7 @@ async def update_milestone(
             detail="Failed to update milestone"
         )
 
-    return milestones[milestone_index]
+    return milestone
 
 @router.delete("/milestones/{milestone_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_milestone(
@@ -280,8 +280,11 @@ async def delete_milestone(
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete a milestone."""
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$pull": {"milestones": {"id": milestone_id}}}
     )
 
@@ -318,22 +321,25 @@ async def create_goal(
     goal_id = f"goal_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
     # Create goal object
-    goal_dict = goal.dict()
+    goal_dict = goal.model_dump()
     goal_dict["id"] = goal_id
     goal_dict["completed"] = False
     goal_dict["completion_date"] = None
     goal_dict["notes"] = ""
 
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
     # Add to user's goals
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$push": {"goals": goal_dict}}
     )
 
     if result.modified_count == 0:
         # If the goals array doesn't exist yet, create it
         result = await db.users.update_one(
-            {"username": current_user.username},
+            {"username": username},
             {"$set": {"goals": [goal_dict]}}
         )
 
@@ -352,7 +358,10 @@ async def get_goals(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get all goals with optional filtering."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user or "goals" not in user:
         return []
 
@@ -377,7 +386,10 @@ async def get_goal(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get a specific goal by ID."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user or "goals" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -401,35 +413,21 @@ async def update_goal(
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a goal."""
-    # Validate target date if provided
-    if goal_update.target_date:
-        try:
-            datetime.strptime(goal_update.target_date, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Target date must be in YYYY-MM-DD format"
-            )
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-    # Validate priority if provided
-    if goal_update.priority is not None and not (1 <= goal_update.priority <= 10):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Priority must be between 1 and 10"
-        )
-
-    user = await db.users.find_one({"username": current_user.username})
+    # Get the current goal
+    user = await db.users.find_one({"username": username})
     if not user or "goals" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Goals not found"
         )
 
-    # Find the goal to update
-    goals = user["goals"]
+    # Find the goal
     goal_index = None
-    for i, g in enumerate(goals):
-        if g.get("id") == goal_id:
+    for i, goal in enumerate(user["goals"]):
+        if goal.get("id") == goal_id:
             goal_index = i
             break
 
@@ -439,24 +437,24 @@ async def update_goal(
             detail=f"Goal with ID {goal_id} not found"
         )
 
-    # Update goal fields
-    update_data = {k: v for k, v in goal_update.dict().items() if v is not None}
+    # Update the goal
+    goal = user["goals"][goal_index]
+    update_data = goal_update.model_dump(exclude_unset=True)
 
-    # If marking as completed, set completion date
-    if "completed" in update_data and update_data["completed"] and not goals[goal_index].get("completed", False):
+    # Handle completion status change
+    if "completed" in update_data and update_data["completed"] and not goal.get("completed", False):
         update_data["completion_date"] = datetime.now().isoformat()
-
-    # If marking as not completed, clear completion date
-    if "completed" in update_data and not update_data["completed"]:
+    elif "completed" in update_data and not update_data["completed"]:
         update_data["completion_date"] = None
 
+    # Update the goal
     for key, value in update_data.items():
-        goals[goal_index][key] = value
+        goal[key] = value
 
-    # Save updated goals
+    # Save the updated goal
     result = await db.users.update_one(
-        {"username": current_user.username},
-        {"$set": {"goals": goals}}
+        {"username": username},
+        {"$set": {f"goals.{goal_index}": goal}}
     )
 
     if result.modified_count == 0:
@@ -465,7 +463,7 @@ async def update_goal(
             detail="Failed to update goal"
         )
 
-    return goals[goal_index]
+    return goal
 
 @router.delete("/goals/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_goal(
@@ -473,8 +471,11 @@ async def delete_goal(
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete a goal."""
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$pull": {"goals": {"id": goal_id}}}
     )
 
@@ -496,7 +497,7 @@ async def create_roadmap(
     now = datetime.now().isoformat()
 
     # Create roadmap object
-    roadmap_dict = roadmap.dict()
+    roadmap_dict = roadmap.model_dump()
     roadmap_dict["id"] = roadmap_id
     roadmap_dict["created_at"] = now
     roadmap_dict["updated_at"] = now
@@ -546,7 +547,7 @@ async def update_roadmap(
     roadmap = user["roadmap"]
 
     # Update roadmap fields
-    update_data = {k: v for k, v in roadmap_update.dict().items() if v is not None}
+    update_data = {k: v for k, v in roadmap_update.model_dump().items() if v is not None}
     for key, value in update_data.items():
         roadmap[key] = value
 
@@ -571,120 +572,78 @@ async def update_roadmap(
 async def get_learning_path_progress(
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get progress statistics for the learning path."""
-    user = await db.users.find_one({"username": current_user.username})
+    """Get learning path progress statistics."""
+    # Handle both User objects and dictionaries
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
 
-    # Initialize progress stats
-    progress = {
-        "goals": {
-            "total": 0,
-            "completed": 0,
-            "completion_percentage": 0,
-            "by_category": {}
-        },
-        "milestones": {
-            "total": 0,
-            "completed": 0,
-            "completion_percentage": 0,
-            "upcoming": []
-        },
-        "roadmap": {
-            "has_roadmap": False,
-            "phases": []
-        }
+    # Get goals and milestones
+    goals = user.get("goals", [])
+    milestones = user.get("milestones", [])
+
+    # Calculate overall progress
+    total_goals = len(goals)
+    completed_goals = sum(1 for g in goals if g.get("completed", False))
+
+    # Calculate progress percentage for each goal
+    goal_progress = [g.get("progress", 0) for g in goals]
+    overall_progress = sum(goal_progress) / max(len(goal_progress), 1)
+
+    # Calculate milestone progress
+    total_milestones = len(milestones)
+    completed_milestones = sum(1 for m in milestones if m.get("completed", False))
+
+    # Calculate progress by category
+    categories = {}
+    for goal in goals:
+        category = goal.get("category", "Uncategorized")
+        if category not in categories:
+            categories[category] = {"total": 0, "completed": 0, "progress": 0}
+
+        categories[category]["total"] += 1
+        if goal.get("completed", False):
+            categories[category]["completed"] += 1
+        categories[category]["progress"] += goal.get("progress", 0)
+
+    # Calculate average progress for each category
+    progress_by_category = []
+    for category, data in categories.items():
+        progress_by_category.append({
+            "name": category,
+            "total": data["total"],
+            "completed": data["completed"],
+            "progress": data["progress"] / data["total"] if data["total"] > 0 else 0
+        })
+
+    # Collect progress history from all goals
+    progress_history = []
+    for goal in goals:
+        for entry in goal.get("progress_history", []):
+            progress_history.append({
+                "date": entry.get("date"),
+                "progress": entry.get("progress", 0),
+                "goal_id": goal.get("id"),
+                "goal_title": goal.get("title")
+            })
+
+    # Sort progress history by date
+    progress_history.sort(key=lambda x: x.get("date", ""))
+
+    return {
+        "overall_progress": overall_progress,
+        "completed_goals": completed_goals,
+        "total_goals": total_goals,
+        "completed_milestones": completed_milestones,
+        "total_milestones": total_milestones,
+        "progress_by_category": progress_by_category,
+        "progress_history": progress_history
     }
-
-    # Calculate goals progress
-    if "goals" in user:
-        goals = user["goals"]
-        total_goals = len(goals)
-        completed_goals = sum(1 for g in goals if g.get("completed", False))
-
-        progress["goals"]["total"] = total_goals
-        progress["goals"]["completed"] = completed_goals
-
-        if total_goals > 0:
-            progress["goals"]["completion_percentage"] = (completed_goals / total_goals) * 100
-
-        # Calculate by category
-        categories = {}
-        for goal in goals:
-            category = goal.get("category", "Uncategorized")
-            if category not in categories:
-                categories[category] = {"total": 0, "completed": 0}
-
-            categories[category]["total"] += 1
-            if goal.get("completed", False):
-                categories[category]["completed"] += 1
-
-        # Calculate completion percentage for each category
-        for category, stats in categories.items():
-            if stats["total"] > 0:
-                stats["completion_percentage"] = (stats["completed"] / stats["total"]) * 100
-            else:
-                stats["completion_percentage"] = 0
-
-        progress["goals"]["by_category"] = categories
-
-    # Calculate milestones progress
-    if "milestones" in user:
-        milestones = user["milestones"]
-        total_milestones = len(milestones)
-        completed_milestones = sum(1 for m in milestones if m.get("completed", False))
-
-        progress["milestones"]["total"] = total_milestones
-        progress["milestones"]["completed"] = completed_milestones
-
-        if total_milestones > 0:
-            progress["milestones"]["completion_percentage"] = (completed_milestones / total_milestones) * 100
-
-        # Get upcoming milestones (not completed, sorted by target date)
-        upcoming = [
-            {
-                "id": m.get("id"),
-                "title": m.get("title"),
-                "target_date": m.get("target_date")
-            }
-            for m in milestones
-            if not m.get("completed", False)
-        ]
-        upcoming.sort(key=lambda x: x.get("target_date", ""))
-
-        progress["milestones"]["upcoming"] = upcoming[:3]  # Top 3 upcoming milestones
-
-    # Get roadmap progress
-    if "roadmap" in user:
-        roadmap = user["roadmap"]
-        progress["roadmap"]["has_roadmap"] = True
-
-        if "phases" in roadmap:
-            phases = []
-            for phase in roadmap["phases"]:
-                phase_progress = {
-                    "title": phase.get("title", "Unnamed Phase"),
-                    "total_items": 0,
-                    "completed_items": 0,
-                    "completion_percentage": 0
-                }
-
-                # Count items and completed items in the phase
-                if "items" in phase:
-                    phase_progress["total_items"] = len(phase["items"])
-                    phase_progress["completed_items"] = sum(1 for item in phase["items"] if item.get("completed", False))
-
-                    if phase_progress["total_items"] > 0:
-                        phase_progress["completion_percentage"] = (phase_progress["completed_items"] / phase_progress["total_items"]) * 100
-
-                phases.append(phase_progress)
-
-            progress["roadmap"]["phases"] = phases
-
-    return progress
 
 # Add these routes for learning paths
 @router.get("/", response_model=List[LearningPath])
@@ -724,7 +683,7 @@ async def create_learning_path(
     """Create a new learning path."""
     # Create learning path object
     now = datetime.now().isoformat()
-    learning_path_dict = learning_path.dict()
+    learning_path_dict = learning_path.model_dump()
     learning_path_dict["id"] = f"{now}_{learning_path.title.lower().replace(' ', '_')}"
     learning_path_dict["created_at"] = now
     learning_path_dict["updated_at"] = now
@@ -802,7 +761,7 @@ async def update_learning_path(
         )
 
     # Update learning path fields
-    update_data = learning_path_update.dict()
+    update_data = learning_path_update.model_dump()
     for key, value in update_data.items():
         if key != "resources":  # Don't overwrite resources
             learning_paths[lp_index][key] = value
@@ -882,7 +841,7 @@ async def add_resource_to_learning_path(
             )
 
     # Add resource
-    learning_paths[lp_index]["resources"].append(resource.dict())
+    learning_paths[lp_index]["resources"].append(resource.model_dump())
 
     # Update timestamp
     learning_paths[lp_index]["updated_at"] = datetime.now().isoformat()
@@ -950,7 +909,7 @@ async def update_resource_in_learning_path(
         )
 
     # Update resource
-    update_data = resource_update.dict()
+    update_data = resource_update.model_dump()
     for key, value in update_data.items():
         learning_paths[lp_index]["resources"][resource_index][key] = value
 

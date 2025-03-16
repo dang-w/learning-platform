@@ -100,25 +100,28 @@ async def create_concept(
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new concept for review."""
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
     # Generate a unique ID for the concept
     concept_id = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{concept.title.lower().replace(' ', '_')}"
 
     # Create concept object
-    concept_dict = concept.dict()
+    concept_dict = concept.model_dump()
     concept_dict["id"] = concept_id
     concept_dict["reviews"] = []
     concept_dict["next_review"] = None
 
     # Add to user's concepts
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$push": {"concepts": concept_dict}}
     )
 
     if result.modified_count == 0:
         # If the concepts array doesn't exist yet, create it
         result = await db.users.update_one(
-            {"username": current_user.username},
+            {"username": username},
             {"$set": {"concepts": [concept_dict]}}
         )
 
@@ -136,7 +139,18 @@ async def get_concepts(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get all concepts with optional topic filtering."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    print(f"DEBUG: current_user type: {type(current_user)}")
+    print(f"DEBUG: username: {username}")
+
+    user = await db.users.find_one({"username": username})
+    print(f"DEBUG: user found: {user is not None}")
+    if user:
+        print(f"DEBUG: user has concepts: {'concepts' in user}")
+        if 'concepts' in user:
+            print(f"DEBUG: number of concepts: {len(user['concepts'])}")
+
     if not user or "concepts" not in user:
         return []
 
@@ -149,6 +163,7 @@ async def get_concepts(
             if any(t.lower() == topic.lower() for t in c.get("topics", []))
         ]
 
+    print(f"DEBUG: returning {len(concepts)} concepts")
     return concepts
 
 @router.get("/concepts/{concept_id}", response_model=Concept)
@@ -157,7 +172,10 @@ async def get_concept(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get a specific concept by ID."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user or "concepts" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -181,7 +199,10 @@ async def update_concept(
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a concept."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user or "concepts" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -203,13 +224,13 @@ async def update_concept(
         )
 
     # Update concept fields
-    update_data = {k: v for k, v in concept_update.dict().items() if v is not None}
+    update_data = {k: v for k, v in concept_update.model_dump().items() if v is not None}
     for key, value in update_data.items():
         concepts[concept_index][key] = value
 
     # Save updated concepts
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$set": {"concepts": concepts}}
     )
 
@@ -227,8 +248,11 @@ async def delete_concept(
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete a concept."""
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$pull": {"concepts": {"id": concept_id}}}
     )
 
@@ -245,6 +269,9 @@ async def mark_concept_reviewed(
     current_user: User = Depends(get_current_active_user)
 ):
     """Mark a concept as reviewed with a confidence level."""
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
     # Validate confidence level
     if not (1 <= review_data.confidence <= 5):
         raise HTTPException(
@@ -252,7 +279,7 @@ async def mark_concept_reviewed(
             detail="Confidence level must be between 1 and 5"
         )
 
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": username})
     if not user or "concepts" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -292,7 +319,7 @@ async def mark_concept_reviewed(
 
     # Save updated concepts
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$set": {"concepts": concepts}}
     )
 
@@ -309,7 +336,10 @@ async def get_due_concepts(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get concepts that are due for review."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user or "concepts" not in user:
         return []
 
@@ -327,7 +357,10 @@ async def get_new_concepts(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get concepts that haven't been reviewed yet."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user or "concepts" not in user:
         return []
 
@@ -345,7 +378,10 @@ async def generate_review_session(
     current_user: User = Depends(get_current_active_user)
 ):
     """Generate a review session with due concepts and new concepts."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -390,7 +426,10 @@ async def get_review_statistics(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get statistics about the user's reviews."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -398,10 +437,14 @@ async def get_review_statistics(
         )
 
     reviews = user.get("reviews", [])
+    concepts = user.get("concepts", [])
+
+    # Count total reviews from concepts
+    total_concept_reviews = sum(len(c.get("reviews", [])) for c in concepts)
 
     # Initialize statistics
     stats = {
-        "total_reviews": len(reviews),
+        "total_reviews": total_concept_reviews,  # Use the count from concepts
         "average_rating": 0,
         "average_difficulty": 0,
         "rating_distribution": {str(i): 0 for i in range(1, 6)},
@@ -412,13 +455,19 @@ async def get_review_statistics(
         "due_reviews": 0,
         "new_concepts": 0,
         "average_confidence": 0,
-        "confidence_distribution": {str(i): 0 for i in range(1, 6)}
+        "confidence_distribution": {str(i): 0 for i in range(1, 6)},
+        # Add concept statistics
+        "total_concepts": len(concepts),
+        "concepts_with_reviews": sum(1 for c in concepts if c.get("reviews") and len(c.get("reviews", [])) > 0),
+        "concepts_without_reviews": sum(1 for c in concepts if not c.get("reviews") or len(c.get("reviews", [])) == 0),
+        "review_history": []
     }
 
-    if not reviews:
+    # If there are no reviews in concepts, return early
+    if total_concept_reviews == 0:
         return stats
 
-    # Calculate statistics
+    # Calculate statistics for resource reviews
     total_rating = 0
     total_difficulty = 0
 
@@ -449,7 +498,7 @@ async def get_review_statistics(
         else:
             stats["resource_types"][resource_type] = 1
 
-    # Calculate averages
+    # Calculate averages for resource reviews
     if reviews:
         stats["average_rating"] = total_rating / len(reviews)
         stats["average_difficulty"] = total_difficulty / len(reviews)
@@ -473,6 +522,79 @@ async def get_review_statistics(
     stats["resource_types"] = [
         {"type": resource_type, "count": count}
         for resource_type, count in sorted(stats["resource_types"].items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    # Calculate concept statistics
+    total_confidence = 0
+    confidence_counts = {i: 0 for i in range(1, 6)}
+    review_dates = []
+
+    # Collect topics from concepts
+    concept_topics = {}
+
+    for concept in concepts:
+        # Collect topics from concepts
+        for topic in concept.get("topics", []):
+            if topic in concept_topics:
+                concept_topics[topic] += 1
+            else:
+                concept_topics[topic] = 1
+
+        concept_reviews = concept.get("reviews", [])
+        if concept_reviews:
+            for review in concept_reviews:
+                confidence = review.get("confidence", 0)
+                if 1 <= confidence <= 5:
+                    total_confidence += confidence
+                    confidence_counts[confidence] += 1
+
+                # Add review date to history
+                review_date = review.get("date")
+                if review_date:
+                    review_dates.append(review_date)
+
+    # Calculate average confidence
+    if total_concept_reviews > 0:
+        stats["average_confidence"] = total_confidence / total_concept_reviews
+
+    # Update confidence distribution
+    for i in range(1, 6):
+        stats["confidence_distribution"][str(i)] = confidence_counts[i]
+
+    # Add concept topics to topics list
+    for topic, count in concept_topics.items():
+        # Check if topic already exists in the list
+        topic_exists = False
+        for topic_item in stats["topics"]:
+            if topic_item["name"] == topic:
+                topic_item["count"] += count
+                topic_exists = True
+                break
+
+        # If topic doesn't exist, add it
+        if not topic_exists:
+            stats["topics"].append({"name": topic, "count": count})
+
+    # Re-sort topics by count
+    stats["topics"] = sorted(stats["topics"], key=lambda x: x["count"], reverse=True)
+
+    # Create review history (count of reviews per day)
+    review_dates.sort()
+    date_counts = {}
+    for date_str in review_dates:
+        try:
+            date_obj = datetime.fromisoformat(date_str)
+            date_only = date_obj.date().isoformat()
+            if date_only in date_counts:
+                date_counts[date_only] += 1
+            else:
+                date_counts[date_only] = 1
+        except (ValueError, TypeError):
+            continue
+
+    stats["review_history"] = [
+        {"date": date, "count": count}
+        for date, count in sorted(date_counts.items())
     ]
 
     return stats
@@ -507,7 +629,7 @@ async def create_review(
         )
 
     # Create review object
-    review_dict = review.dict()
+    review_dict = review.model_dump()
     review_dict["id"] = f"review_{datetime.now().strftime('%Y%m%d%H%M%S')}"
     review_dict["user_id"] = current_user.username
     review_dict["date"] = datetime.now().isoformat()
@@ -613,7 +735,7 @@ async def update_review(
         )
 
     # Update review
-    update_data = review_update.dict()
+    update_data = review_update.model_dump()
     for key, value in update_data.items():
         reviews[review_index][key] = value
 

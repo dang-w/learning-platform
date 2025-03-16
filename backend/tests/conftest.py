@@ -4,6 +4,7 @@ import sys
 import os
 import asyncio
 import logging
+import pytest_asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,13 +17,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from unittest.mock import patch, MagicMock
 from mongomock_motor import AsyncMongoMockClient
 
-# Create a custom event loop for the tests
+# Use event_loop_policy fixture instead of redefining event_loop
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+def event_loop_policy():
+    """Return an event loop policy with a new event loop for each test case."""
+    policy = asyncio.get_event_loop_policy()
+    return policy
 
 # Create a mock MongoDB client
 mock_mongo_client = AsyncMongoMockClient()
@@ -130,7 +130,8 @@ def auth_headers():
     try:
         # Create a token directly using the create_access_token function
         token = create_access_token(data={"sub": "testuser"})
-        return {"Authorization": f"Bearer {token}"}
+        # Add a user_id field for tests that need it
+        return {"Authorization": f"Bearer {token}", "user_id": "000000000000000000000000"}
     except Exception as e:
         logger.error(f"Error creating auth token: {e}")
         return None
