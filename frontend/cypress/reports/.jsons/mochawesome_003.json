@@ -1,0 +1,210 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-16T19:22:25.825Z",
+    "end": "2025-03-16T19:22:40.030Z",
+    "duration": 14205,
+    "testsRegistered": 6,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 5,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "b29e9daf-3084-4043-984a-baabb1ac61d7",
+      "title": "",
+      "fullFile": "cypress/e2e/knowledge.cy.ts",
+      "file": "cypress/e2e/knowledge.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "9cbda564-84ee-4041-9572-0fa10a63c26e",
+          "title": "Knowledge Base Navigation",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display knowledge topics",
+              "fullTitle": "Knowledge Base Navigation should display knowledge topics",
+              "timedOut": null,
+              "duration": 14094,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/knowledge.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/knowledge.cy.ts/Knowledge Base Navigation -- should display knowledge topics -- before each hook (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "cy.contains('h1', 'Knowledge Base').should('be.visible');\ncy.contains('JavaScript Basics').should('be.visible');\ncy.contains('React Hooks').should('be.visible');\ncy.contains('TypeScript').should('be.visible');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 10000ms: `cy.wait()` timed out waiting `10000ms` for the 1st request to the route: `getTopics`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Knowledge Base Navigation`",
+                "estack": "CypressError: Timed out retrying after 10000ms: `cy.wait()` timed out waiting `10000ms` for the 1st request to the route: `getTopics`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Knowledge Base Navigation`\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)\nFrom Your Spec Code:\n    at Context.eval (webpack://frontend/./cypress/e2e/knowledge.cy.ts:25:0)",
+                "diff": null
+              },
+              "uuid": "b36bc4d5-cee0-4de4-b20a-b3cb6a6ddfcf",
+              "parentUUID": "9cbda564-84ee-4041-9572-0fa10a63c26e",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should navigate to a topic when clicked",
+              "fullTitle": "Knowledge Base Navigation should navigate to a topic when clicked",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.contains('JavaScript Basics').click();\ncy.url().should('include', '/knowledge/topics/1');\ncy.wait('@getTopicItems');\ncy.contains('h1', 'JavaScript Basics').should('be.visible');",
+              "err": {},
+              "uuid": "a5b4f738-50cd-4bc4-9489-0b629bff42c5",
+              "parentUUID": "9cbda564-84ee-4041-9572-0fa10a63c26e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should display topic items",
+              "fullTitle": "Knowledge Base Navigation should display topic items",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.contains('JavaScript Basics').click();\ncy.wait('@getTopicItems');\ncy.contains('Variables and Data Types').should('be.visible');\ncy.contains('Functions and Scope').should('be.visible');\ncy.contains('Arrays and Objects').should('be.visible');",
+              "err": {},
+              "uuid": "5249ef6f-2a47-451a-ad4a-60a1822606c3",
+              "parentUUID": "9cbda564-84ee-4041-9572-0fa10a63c26e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should filter topics by search",
+              "fullTitle": "Knowledge Base Navigation should filter topics by search",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.get('input[placeholder*=\"Search\"]').type('React');\ncy.contains('JavaScript Basics').should('not.be.visible');\ncy.contains('React Hooks').should('be.visible');\ncy.contains('TypeScript').should('not.be.visible');",
+              "err": {},
+              "uuid": "917c9936-996b-49a5-9edc-8586698a54d7",
+              "parentUUID": "9cbda564-84ee-4041-9572-0fa10a63c26e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should show topic details when hovering",
+              "fullTitle": "Knowledge Base Navigation should show topic details when hovering",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.contains('React Hooks').trigger('mouseover');\ncy.contains('Modern React with Hooks').should('be.visible');\ncy.contains('10 items').should('be.visible');",
+              "err": {},
+              "uuid": "310c8055-4e89-4db9-a0fd-2b99cca74b0a",
+              "parentUUID": "9cbda564-84ee-4041-9572-0fa10a63c26e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should mark items as completed",
+              "fullTitle": "Knowledge Base Navigation should mark items as completed",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Mock the API call to mark an item as completed\ncy.intercept('POST', '/api/knowledge/items/2/complete', {\n    statusCode: 200,\n    body: { success: true }\n}).as('markComplete');\ncy.contains('JavaScript Basics').click();\ncy.wait('@getTopicItems');\n// Find the \"Mark as completed\" button for the second item and click it\ncy.contains('Functions and Scope')\n    .parent()\n    .find('button[aria-label=\"Mark as completed\"]')\n    .click();\ncy.wait('@markComplete');\n// Verify the item is now marked as completed\ncy.contains('Functions and Scope')\n    .parent()\n    .find('[data-testid=\"completed-icon\"]')\n    .should('be.visible');",
+              "err": {},
+              "uuid": "b9e98c18-f47d-453d-a20c-4de3cfe4de5f",
+              "parentUUID": "9cbda564-84ee-4041-9572-0fa10a63c26e",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "b36bc4d5-cee0-4de4-b20a-b3cb6a6ddfcf"
+          ],
+          "pending": [],
+          "skipped": [
+            "a5b4f738-50cd-4bc4-9489-0b629bff42c5",
+            "5249ef6f-2a47-451a-ad4a-60a1822606c3",
+            "917c9936-996b-49a5-9edc-8586698a54d7",
+            "310c8055-4e89-4db9-a0fd-2b99cca74b0a",
+            "b9e98c18-f47d-453d-a20c-4de3cfe4de5f"
+          ],
+          "duration": 14094,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

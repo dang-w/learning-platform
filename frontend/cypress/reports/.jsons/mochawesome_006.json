@@ -1,0 +1,248 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-16T19:23:23.491Z",
+    "end": "2025-03-16T19:23:34.901Z",
+    "duration": 11410,
+    "testsRegistered": 8,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 7,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "4f54d669-27bd-48be-84a6-7eadf995f23b",
+      "title": "",
+      "fullFile": "cypress/e2e/resources.cy.ts",
+      "file": "cypress/e2e/resources.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "b9272035-8166-4701-875d-52f39543a98e",
+          "title": "Resource Browsing and Usage",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display resource categories",
+              "fullTitle": "Resource Browsing and Usage should display resource categories",
+              "timedOut": null,
+              "duration": 11279,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/resources.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/resources.cy.ts/Resource Browsing and Usage -- should display resource categories -- before each hook (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "cy.contains('h1', 'Resources').should('be.visible');\ncy.contains('Books (5)').should('be.visible');\ncy.contains('Videos (8)').should('be.visible');\ncy.contains('Articles (12)').should('be.visible');\ncy.contains('Courses (3)').should('be.visible');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 10000ms: `cy.wait()` timed out waiting `10000ms` for the 1st request to the route: `getCategories`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Resource Browsing and Usage`",
+                "estack": "CypressError: Timed out retrying after 10000ms: `cy.wait()` timed out waiting `10000ms` for the 1st request to the route: `getCategories`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Resource Browsing and Usage`\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)\nFrom Your Spec Code:\n    at Context.eval (webpack://frontend/./cypress/e2e/resources.cy.ts:80:0)",
+                "diff": null
+              },
+              "uuid": "1b6714ef-bf44-4265-9353-f650cba1ba79",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display resource list",
+              "fullTitle": "Resource Browsing and Usage should display resource list",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.contains('JavaScript: The Good Parts').should('be.visible');\ncy.contains('React Fundamentals').should('be.visible');\ncy.contains('TypeScript in 50 Lessons').should('be.visible');",
+              "err": {},
+              "uuid": "ff0e40ca-a942-4a51-85a3-80793e10d8ff",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should filter resources by category",
+              "fullTitle": "Resource Browsing and Usage should filter resources by category",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Mock filtered resources\ncy.intercept('GET', '/api/resources*category=1*', {\n    statusCode: 200,\n    body: {\n        items: [\n            {\n                id: 1,\n                title: 'JavaScript: The Good Parts',\n                type: 'book',\n                author: 'Douglas Crockford',\n                rating: 4.8,\n                completionPercentage: 75,\n                tags: ['javascript', 'programming']\n            },\n            {\n                id: 3,\n                title: 'TypeScript in 50 Lessons',\n                type: 'book',\n                author: 'Stefan Baumgartner',\n                rating: 4.7,\n                completionPercentage: 0,\n                tags: ['typescript', 'javascript']\n            }\n        ],\n        total: 2,\n        page: 1,\n        pageSize: 10,\n        totalPages: 1\n    }\n}).as('getFilteredResources');\ncy.contains('Books').click();\ncy.wait('@getFilteredResources');\ncy.contains('JavaScript: The Good Parts').should('be.visible');\ncy.contains('TypeScript in 50 Lessons').should('be.visible');\ncy.contains('React Fundamentals').should('not.exist');",
+              "err": {},
+              "uuid": "0d7a15ab-0340-4117-964a-8aa00cf42f3f",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should search resources",
+              "fullTitle": "Resource Browsing and Usage should search resources",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Mock search results\ncy.intercept('GET', '/api/resources*search=typescript*', {\n    statusCode: 200,\n    body: {\n        items: [\n            {\n                id: 3,\n                title: 'TypeScript in 50 Lessons',\n                type: 'book',\n                author: 'Stefan Baumgartner',\n                rating: 4.7,\n                completionPercentage: 0,\n                tags: ['typescript', 'javascript']\n            }\n        ],\n        total: 1,\n        page: 1,\n        pageSize: 10,\n        totalPages: 1\n    }\n}).as('getSearchResults');\ncy.get('input[placeholder*=\"Search\"]').type('typescript');\ncy.wait('@getSearchResults');\ncy.contains('TypeScript in 50 Lessons').should('be.visible');\ncy.contains('JavaScript: The Good Parts').should('not.exist');\ncy.contains('React Fundamentals').should('not.exist');",
+              "err": {},
+              "uuid": "473686f3-8353-4fec-97ff-d4a93e175a5a",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should navigate to resource details",
+              "fullTitle": "Resource Browsing and Usage should navigate to resource details",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.contains('JavaScript: The Good Parts').click();\ncy.wait('@getResourceDetails');\ncy.url().should('include', '/resources/1');\ncy.contains('h1', 'JavaScript: The Good Parts').should('be.visible');\ncy.contains('Douglas Crockford').should('be.visible');",
+              "err": {},
+              "uuid": "03c71fca-2aa4-4cf0-a7d9-26f147f4f4fd",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should display resource chapters and progress",
+              "fullTitle": "Resource Browsing and Usage should display resource chapters and progress",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.contains('JavaScript: The Good Parts').click();\ncy.wait('@getResourceDetails');\ncy.contains('Chapters').should('be.visible');\ncy.contains('Good Parts').should('be.visible');\ncy.contains('Grammar').should('be.visible');\ncy.contains('Objects').should('be.visible');\ncy.contains('Functions').should('be.visible');\ncy.contains('75%').should('be.visible');\ncy.get('[role=\"progressbar\"]').should('have.attr', 'aria-valuenow', '75');",
+              "err": {},
+              "uuid": "afced961-3800-4f9f-9372-a73f841292e3",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should mark chapter as completed",
+              "fullTitle": "Resource Browsing and Usage should mark chapter as completed",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Mock the API call to mark a chapter as completed\ncy.intercept('POST', '/api/resources/1/chapters/3/complete', {\n    statusCode: 200,\n    body: { success: true }\n}).as('markChapterComplete');\ncy.contains('JavaScript: The Good Parts').click();\ncy.wait('@getResourceDetails');\n// Find the \"Mark as completed\" button for the Objects chapter and click it\ncy.contains('Objects')\n    .parent()\n    .find('button[aria-label=\"Mark as completed\"]')\n    .click();\ncy.wait('@markChapterComplete');\n// Mock updated resource details with the chapter marked as completed\ncy.intercept('GET', '/api/resources/1', {\n    statusCode: 200,\n    body: {\n        id: 1,\n        title: 'JavaScript: The Good Parts',\n        type: 'book',\n        author: 'Douglas Crockford',\n        description: 'This book provides a developer-level introduction along with more advanced and useful features of JavaScript.',\n        rating: 4.8,\n        completionPercentage: 85,\n        tags: ['javascript', 'programming'],\n        chapters: [\n            { id: 1, title: 'Good Parts', completed: true },\n            { id: 2, title: 'Grammar', completed: true },\n            { id: 3, title: 'Objects', completed: true },\n            { id: 4, title: 'Functions', completed: false }\n        ],\n        notes: [\n            { id: 1, content: 'JavaScript has good parts and bad parts', page: 5 },\n            { id: 2, content: 'Always use === instead of ==', page: 15 }\n        ]\n    }\n}).as('getUpdatedResourceDetails');\n// Reload the page to see the updated state\ncy.reload();\ncy.wait('@getUpdatedResourceDetails');\n// Verify the chapter is now marked as completed and progress is updated\ncy.contains('Objects')\n    .parent()\n    .find('[data-testid=\"completed-icon\"]')\n    .should('be.visible');\ncy.contains('85%').should('be.visible');\ncy.get('[role=\"progressbar\"]').should('have.attr', 'aria-valuenow', '85');",
+              "err": {},
+              "uuid": "5e2b9905-e7bb-4bc7-b14c-142f0b1630a7",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should add a note to a resource",
+              "fullTitle": "Resource Browsing and Usage should add a note to a resource",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Mock the API call to add a note\ncy.intercept('POST', '/api/resources/1/notes', {\n    statusCode: 200,\n    body: {\n        id: 3,\n        content: 'Prototypal inheritance is powerful',\n        page: 42\n    }\n}).as('addNote');\ncy.contains('JavaScript: The Good Parts').click();\ncy.wait('@getResourceDetails');\ncy.contains('Notes').should('be.visible');\ncy.get('button').contains('Add Note').click();\ncy.get('textarea[name=\"content\"]').type('Prototypal inheritance is powerful');\ncy.get('input[name=\"page\"]').type('42');\ncy.get('button[type=\"submit\"]').click();\ncy.wait('@addNote');\n// Mock updated resource details with the new note\ncy.intercept('GET', '/api/resources/1', {\n    statusCode: 200,\n    body: {\n        id: 1,\n        title: 'JavaScript: The Good Parts',\n        type: 'book',\n        author: 'Douglas Crockford',\n        description: 'This book provides a developer-level introduction along with more advanced and useful features of JavaScript.',\n        rating: 4.8,\n        completionPercentage: 75,\n        tags: ['javascript', 'programming'],\n        chapters: [\n            { id: 1, title: 'Good Parts', completed: true },\n            { id: 2, title: 'Grammar', completed: true },\n            { id: 3, title: 'Objects', completed: false },\n            { id: 4, title: 'Functions', completed: false }\n        ],\n        notes: [\n            { id: 1, content: 'JavaScript has good parts and bad parts', page: 5 },\n            { id: 2, content: 'Always use === instead of ==', page: 15 },\n            { id: 3, content: 'Prototypal inheritance is powerful', page: 42 }\n        ]\n    }\n}).as('getUpdatedResourceDetails');\n// Reload the page to see the updated state\ncy.reload();\ncy.wait('@getUpdatedResourceDetails');\n// Verify the new note is displayed\ncy.contains('Prototypal inheritance is powerful').should('be.visible');\ncy.contains('Page 42').should('be.visible');",
+              "err": {},
+              "uuid": "e74a3364-58cb-4a07-a945-dd86b1c8ca09",
+              "parentUUID": "b9272035-8166-4701-875d-52f39543a98e",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "1b6714ef-bf44-4265-9353-f650cba1ba79"
+          ],
+          "pending": [],
+          "skipped": [
+            "ff0e40ca-a942-4a51-85a3-80793e10d8ff",
+            "0d7a15ab-0340-4117-964a-8aa00cf42f3f",
+            "473686f3-8353-4fec-97ff-d4a93e175a5a",
+            "03c71fca-2aa4-4cf0-a7d9-26f147f4f4fd",
+            "afced961-3800-4f9f-9372-a73f841292e3",
+            "5e2b9905-e7bb-4bc7-b14c-142f0b1630a7",
+            "e74a3364-58cb-4a07-a945-dd86b1c8ca09"
+          ],
+          "duration": 11279,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

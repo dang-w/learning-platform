@@ -1,0 +1,157 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 3,
+    "passes": 1,
+    "pending": 0,
+    "failures": 2,
+    "start": "2025-03-16T19:25:39.819Z",
+    "end": "2025-03-16T19:26:04.421Z",
+    "duration": 24602,
+    "testsRegistered": 3,
+    "passPercent": 33.33333333333333,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "cddacc67-eadb-4d63-af7c-195b6892b526",
+      "title": "",
+      "fullFile": "cypress/e2e/analytics.cy.ts",
+      "file": "cypress/e2e/analytics.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "1e6e83a1-29bd-4082-877d-27957eb27e44",
+          "title": "Analytics Viewing",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should have the correct page title",
+              "fullTitle": "Analytics Viewing should have the correct page title",
+              "timedOut": null,
+              "duration": 11395,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/analytics.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/analytics.cy.ts/Analytics Viewing -- should have the correct page title (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "cy.title().should('include', 'Analytics');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: expected 'AI/ML Learning Platform' to include 'Analytics'",
+                "estack": "AssertionError: Timed out retrying after 10000ms: expected 'AI/ML Learning Platform' to include 'Analytics'\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics.cy.ts:7:0)",
+                "diff": null
+              },
+              "uuid": "62db664e-98bc-4901-a5b2-840f0c0727d7",
+              "parentUUID": "1e6e83a1-29bd-4082-877d-27957eb27e44",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should have a navigation menu",
+              "fullTitle": "Analytics Viewing should have a navigation menu",
+              "timedOut": null,
+              "duration": 1462,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-videos-passed\",\n  \"value\": \"cypress/e2e/analytics.cy.ts\"\n}",
+              "code": "cy.get('nav').should('exist');",
+              "err": {},
+              "uuid": "487cb060-cb5a-4f63-ae5e-073c22f88292",
+              "parentUUID": "1e6e83a1-29bd-4082-877d-27957eb27e44",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should have a responsive layout",
+              "fullTitle": "Analytics Viewing should have a responsive layout",
+              "timedOut": null,
+              "duration": 11510,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/analytics.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/analytics.cy.ts/Analytics Viewing -- should have a responsive layout (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Test responsive behavior\ncy.viewport('iphone-x');\n// Check that the layout adjusts for mobile\ncy.get('nav').should('exist');\n// Menu should be collapsed on mobile\ncy.get('button[aria-label=\"Toggle menu\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `button[aria-label=\"Toggle menu\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `button[aria-label=\"Toggle menu\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics.cy.ts:18:0)",
+                "diff": null
+              },
+              "uuid": "275f3471-b7b8-4dff-b1bb-6ecdf70bb76d",
+              "parentUUID": "1e6e83a1-29bd-4082-877d-27957eb27e44",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "487cb060-cb5a-4f63-ae5e-073c22f88292"
+          ],
+          "failures": [
+            "62db664e-98bc-4901-a5b2-840f0c0727d7",
+            "275f3471-b7b8-4dff-b1bb-6ecdf70bb76d"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 24367,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

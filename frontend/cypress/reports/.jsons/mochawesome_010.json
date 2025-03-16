@@ -1,0 +1,157 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 3,
+    "passes": 1,
+    "pending": 0,
+    "failures": 2,
+    "start": "2025-03-16T19:27:14.992Z",
+    "end": "2025-03-16T19:27:47.381Z",
+    "duration": 32389,
+    "testsRegistered": 3,
+    "passPercent": 33.33333333333333,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "76810e78-e557-44b0-b76f-bd304d755e8d",
+      "title": "",
+      "fullFile": "cypress/e2e/knowledge.cy.ts",
+      "file": "cypress/e2e/knowledge.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "c77d0122-6176-499c-bfa6-d4ad3c1bb090",
+          "title": "Knowledge Base Navigation",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should have the correct page title",
+              "fullTitle": "Knowledge Base Navigation should have the correct page title",
+              "timedOut": null,
+              "duration": 14510,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/knowledge.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/knowledge.cy.ts/Knowledge Base Navigation -- should have the correct page title (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "cy.title().should('include', 'Knowledge');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: expected 'AI/ML Learning Platform' to include 'Knowledge'",
+                "estack": "AssertionError: Timed out retrying after 10000ms: expected 'AI/ML Learning Platform' to include 'Knowledge'\n    at Context.eval (webpack://frontend/./cypress/e2e/knowledge.cy.ts:7:0)",
+                "diff": null
+              },
+              "uuid": "7bf66173-795d-408e-94a0-12d787ce1e26",
+              "parentUUID": "c77d0122-6176-499c-bfa6-d4ad3c1bb090",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should have a navigation menu",
+              "fullTitle": "Knowledge Base Navigation should have a navigation menu",
+              "timedOut": null,
+              "duration": 2709,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-videos-passed\",\n  \"value\": \"cypress/e2e/knowledge.cy.ts\"\n}",
+              "code": "cy.get('nav').should('exist');",
+              "err": {},
+              "uuid": "2a3232c7-bc16-45f7-9d8d-d5c847b58cbd",
+              "parentUUID": "c77d0122-6176-499c-bfa6-d4ad3c1bb090",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should have a responsive layout",
+              "fullTitle": "Knowledge Base Navigation should have a responsive layout",
+              "timedOut": null,
+              "duration": 14760,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/knowledge.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/knowledge.cy.ts/Knowledge Base Navigation -- should have a responsive layout (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Test responsive behavior\ncy.viewport('iphone-x');\n// Check that the layout adjusts for mobile\ncy.get('nav').should('exist');\n// Menu should be collapsed on mobile\ncy.get('button[aria-label=\"Toggle menu\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `button[aria-label=\"Toggle menu\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `button[aria-label=\"Toggle menu\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/knowledge.cy.ts:18:0)",
+                "diff": null
+              },
+              "uuid": "85374ba7-1333-4475-916e-a74e682c141b",
+              "parentUUID": "c77d0122-6176-499c-bfa6-d4ad3c1bb090",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "2a3232c7-bc16-45f7-9d8d-d5c847b58cbd"
+          ],
+          "failures": [
+            "7bf66173-795d-408e-94a0-12d787ce1e26",
+            "85374ba7-1333-4475-916e-a74e682c141b"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 31979,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}
