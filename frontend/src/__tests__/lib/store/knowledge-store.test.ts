@@ -55,7 +55,10 @@ describe('useKnowledgeStore', () => {
       next_review_at: undefined,
       last_reviewed_at: undefined,
       confidence_level: 0,
-      user_id: 'user1'
+      user_id: 'user1',
+      reviews: [],
+      next_review: null,
+      updated_at: '2023-01-01T00:00:00Z'
     },
     {
       id: '2',
@@ -68,7 +71,10 @@ describe('useKnowledgeStore', () => {
       next_review_at: undefined,
       last_reviewed_at: undefined,
       confidence_level: 0,
-      user_id: 'user1'
+      user_id: 'user1',
+      reviews: [],
+      next_review: null,
+      updated_at: '2023-01-02T00:00:00Z'
     },
   ];
 
@@ -83,23 +89,30 @@ describe('useKnowledgeStore', () => {
     next_review_at: undefined,
     last_reviewed_at: undefined,
     confidence_level: 0,
-    user_id: 'user1'
+    user_id: 'user1',
+    reviews: [],
+    next_review: null,
+    updated_at: '2023-01-01T00:00:00Z'
   };
 
   const mockSession: ReviewSession = {
     id: 'session1',
     concepts: mockConcepts,
-    created_at: new Date().toISOString(),
-    user_id: 'user1'
+    date: '2023-01-01T00:00:00Z',
+    completed: false
   };
 
   const mockStatistics: ReviewStatistics = {
     total_concepts: 10,
-    concepts_due: 2,
-    concepts_by_confidence: { 1: 2, 2: 3, 3: 4, 4: 1 },
-    concepts_by_topic: { javascript: 5, typescript: 5 },
-    review_streak: 3,
-    average_confidence: 0.8
+    average_confidence: 0.8,
+    total_reviews: 20,
+    concepts_with_reviews: 10,
+    concepts_without_reviews: 0,
+    topics: ['javascript', 'typescript'],
+    review_history: [
+      { date: '2023-01-01T00:00:00Z', count: 10, average_confidence: 0.8 },
+      { date: '2023-01-02T00:00:00Z', count: 10, average_confidence: 0.8 }
+    ]
   };
 
   const mockSettings: SpacedRepetitionSettings = {
@@ -188,7 +201,10 @@ describe('useKnowledgeStore', () => {
         next_review_at: undefined,
         last_reviewed_at: undefined,
         confidence_level: 0,
-        user_id: 'user1'
+        user_id: 'user1',
+        reviews: [],
+        next_review: null,
+        updated_at: '2023-01-03T00:00:00Z'
       };
 
       (knowledgeApi.createConcept as jest.Mock).mockResolvedValue(newConcept);
@@ -229,7 +245,10 @@ describe('useKnowledgeStore', () => {
         next_review_at: undefined,
         last_reviewed_at: undefined,
         confidence_level: 0,
-        user_id: 'user1'
+        user_id: 'user1',
+        reviews: [],
+        next_review: null,
+        updated_at: '2023-01-01T00:00:00Z'
       };
 
       (knowledgeApi.updateConcept as jest.Mock).mockResolvedValue(fullUpdatedConcept);

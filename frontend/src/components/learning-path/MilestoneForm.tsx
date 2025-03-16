@@ -47,10 +47,10 @@ export function MilestoneForm({ milestone, onSubmit, onCancel, goalId }: Milesto
     defaultValues: {
       title: milestone?.title || '',
       description: milestone?.description || '',
-      status: milestone?.status || 'not_started',
+      status: milestone?.completed ? 'completed' : 'not_started',
       target_date: milestone?.target_date ? new Date(milestone.target_date) : new Date(),
       completion_date: milestone?.completion_date ? new Date(milestone.completion_date) : null,
-      goal_id: goalId || milestone?.goal_id || undefined,
+      goal_id: goalId || undefined,
     },
   });
 

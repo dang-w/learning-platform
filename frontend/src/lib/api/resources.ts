@@ -85,6 +85,15 @@ class ResourcesApi {
     }
   }
 
+  async toggleResourceCompletion(type: ResourceType, id: string): Promise<Resource> {
+    try {
+      const { data } = await apiClient.post<Resource>(`/api/resources/${type}/${id}/toggle-completion`)
+      return data
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+
   async getResourceStatistics(): Promise<ResourceStatistics> {
     try {
       const { data } = await apiClient.get<ResourceStatistics>('/api/resources/statistics')

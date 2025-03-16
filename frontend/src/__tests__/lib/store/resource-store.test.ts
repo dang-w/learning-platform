@@ -12,6 +12,7 @@ jest.mock('@/lib/api/resources', () => ({
   deleteResource: jest.fn(),
   completeResource: jest.fn(),
   getResourceStatistics: jest.fn(),
+  toggleResourceCompletion: jest.fn(),
 }));
 
 describe('Resource Store', () => {
@@ -409,6 +410,87 @@ describe('Resource Store', () => {
       });
 
       expect(result.current.selectedResource).toBeNull();
+    });
+  });
+
+  describe('toggleCompletion', () => {
+    it('should toggle resource completion status', async () => {
+      const type: ResourceType = 'articles';
+      const id = '1';
+
+      const toggledResource: Resource = {
+        ...mockResources[0],
+        completed: true,
+        completion_date: '2023-03-20T10:30:00',
+      };
+
+      (resourcesApi.toggleResourceCompletion as jest.Mock).mockResolvedValueOnce(toggledResource);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      // First set some initial resources
+      act(() => {
+        result.current.resources = [...mockResources];
+      });
+
+      await act(async () => {
+        await result.current.toggleCompletion(type, id);
+      });
+
+      expect(resourcesApi.toggleResourceCompletion).toHaveBeenCalledWith(type, id);
+      expect(result.current.resources.find(r => r.id === id)?.completed).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should handle errors when toggling completion', async () => {
+      const type: ResourceType = 'articles';
+      const id = '1';
+
+      const error = new Error('Failed to toggle completion');
+      (resourcesApi.toggleResourceCompletion as jest.Mock).mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      // First set some initial resources
+      act(() => {
+        result.current.resources = [...mockResources];
+      });
+
+      await act(async () => {
+        await result.current.toggleCompletion(type, id);
+      });
+
+      expect(resourcesApi.toggleResourceCompletion).toHaveBeenCalledWith(type, id);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(error.message);
+    });
+  });
+
+  describe('reset', () => {
+    it('should reset the store state', () => {
+      const { result } = renderHook(() => useResourceStore());
+
+      // First set some data
+      act(() => {
+        result.current.resources = [...mockResources];
+        result.current.error = 'Some error';
+        result.current.isLoading = true;
+        result.current.selectedResource = mockResources[0];
+        result.current.statistics = mockStatistics;
+      });
+
+      // Then reset
+      act(() => {
+        result.current.reset();
+      });
+
+      // Verify reset state
+      expect(result.current.resources).toEqual([]);
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.selectedResource).toBeNull();
+      expect(result.current.statistics).toBeNull();
     });
   });
 });

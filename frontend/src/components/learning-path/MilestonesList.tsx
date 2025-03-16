@@ -10,6 +10,13 @@ interface MilestonesListProps {
   milestones: Milestone[];
 }
 
+// Helper function to derive status from milestone
+const getMilestoneStatus = (milestone: Milestone): 'not_started' | 'in_progress' | 'completed' => {
+  if (milestone.completed) return 'completed';
+  // You might want to add logic for in_progress based on your requirements
+  return 'not_started';
+};
+
 export function MilestonesList({ milestones }: MilestonesListProps) {
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
@@ -40,12 +47,9 @@ export function MilestonesList({ milestones }: MilestonesListProps) {
   };
 
   const sortedMilestones = [...milestones].sort((a, b) => {
-    // Sort by status (not started, in progress, completed)
-    if (a.status !== b.status) {
-      if (a.status === 'completed') return 1;
-      if (b.status === 'completed') return -1;
-      if (a.status === 'in_progress') return -1;
-      if (b.status === 'in_progress') return 1;
+    // Sort by completion status
+    if (a.completed !== b.completed) {
+      return a.completed ? 1 : -1;
     }
 
     // Then sort by target date
@@ -84,62 +88,65 @@ export function MilestonesList({ milestones }: MilestonesListProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {sortedMilestones.map((milestone) => (
-            <Card key={milestone.id} className={milestone.status === 'completed' ? 'opacity-70' : ''}>
-              <CardContent className="p-4">
-                {editingMilestoneId === milestone.id ? (
-                  <MilestoneForm
-                    milestone={milestone}
-                    onSubmit={handleMilestoneSubmit}
-                    onCancel={handleCancelEdit}
-                  />
-                ) : (
-                  <div>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-lg font-medium">{milestone.title}</h3>
-                        <p className="text-gray-600 mt-1">{milestone.description}</p>
+          {sortedMilestones.map((milestone) => {
+            const status = getMilestoneStatus(milestone);
+            return (
+              <Card key={milestone.id} className={milestone.completed ? 'opacity-70' : ''}>
+                <CardContent className="p-4">
+                  {editingMilestoneId === milestone.id ? (
+                    <MilestoneForm
+                      milestone={milestone}
+                      onSubmit={handleMilestoneSubmit}
+                      onCancel={handleCancelEdit}
+                    />
+                  ) : (
+                    <div>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-lg font-medium">{milestone.title}</h3>
+                          <p className="text-gray-600 mt-1">{milestone.description}</p>
+                        </div>
+                        <Badge className={statusColors[status]}>
+                          {status === 'not_started' && 'Not Started'}
+                          {status === 'in_progress' && 'In Progress'}
+                          {status === 'completed' && 'Completed'}
+                        </Badge>
                       </div>
-                      <Badge className={statusColors[milestone.status]}>
-                        {milestone.status === 'not_started' && 'Not Started'}
-                        {milestone.status === 'in_progress' && 'In Progress'}
-                        {milestone.status === 'completed' && 'Completed'}
-                      </Badge>
+
+                      <div className="mt-4 flex justify-between items-center">
+                        <div className="text-sm text-gray-500">
+                          <span>Target: {new Date(milestone.target_date).toLocaleDateString()}</span>
+                          {milestone.completion_date && (
+                            <span className="ml-4">
+                              Completed: {new Date(milestone.completion_date).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditMilestone(milestone.id)}
+                            className="flex items-center"
+                          >
+                            <PencilIcon className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+
+                      {milestone.resources.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <p className="text-sm font-medium mb-2">Resources: {milestone.resources.length}</p>
+                        </div>
+                      )}
                     </div>
-
-                    <div className="mt-4 flex justify-between items-center">
-                      <div className="text-sm text-gray-500">
-                        <span>Target: {new Date(milestone.target_date).toLocaleDateString()}</span>
-                        {milestone.completion_date && (
-                          <span className="ml-4">
-                            Completed: {new Date(milestone.completion_date).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditMilestone(milestone.id)}
-                          className="flex items-center"
-                        >
-                          <PencilIcon className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-
-                    {milestone.resources.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <p className="text-sm font-medium mb-2">Resources: {milestone.resources.length}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

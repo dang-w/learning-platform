@@ -1,27 +1,32 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ConceptForm } from '@/components/knowledge/ConceptForm';
-import { useConceptStore } from '@/lib/store/conceptStore';
+import ConceptForm from '@/components/knowledge/ConceptForm';
+import { create } from 'zustand';
 
-// Mock the store
-jest.mock('@/lib/store/conceptStore');
+// Mock the knowledge store
+jest.mock('@/lib/store/knowledge-store', () => ({
+  __esModule: true,
+  default: create(() => ({
+    addConcept: jest.fn(),
+    updateConcept: jest.fn(),
+  })),
+}));
 
 describe('ConceptForm Component', () => {
   const mockAddConcept = jest.fn();
   const mockUpdateConcept = jest.fn();
+  const mockOnSubmit = jest.fn();
+  const mockOnCancel = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    (useConceptStore as jest.Mock).mockReturnValue({
-      addConcept: mockAddConcept,
-      updateConcept: mockUpdateConcept,
-    });
+    // We don't need to mock useConceptStore since we're mocking the entire module
   });
 
   it('renders the form correctly for new concept', () => {
-    render(<ConceptForm />);
+    render(<ConceptForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} isSubmitting={false} error={null} />);
 
     expect(screen.getByText('Add New Concept')).toBeInTheDocument();
     expect(screen.getByLabelText(/Title/i)).toBeInTheDocument();
@@ -39,10 +44,22 @@ describe('ConceptForm Component', () => {
       reviews: [],
       next_review: null,
       created_at: '2023-03-15T10:30:00',
-      updated_at: '2023-03-15T10:30:00'
+      updated_at: '2023-03-15T10:30:00',
+      difficulty: 'intermediate' as 'beginner' | 'intermediate' | 'advanced',
+      review_count: 0,
+      confidence_level: 3,
+      user_id: 'user123'
     };
 
-    render(<ConceptForm concept={existingConcept} />);
+    render(
+      <ConceptForm
+        initialData={existingConcept}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        error={null}
+      />
+    );
 
     expect(screen.getByText('Edit Concept')).toBeInTheDocument();
     expect(screen.getByLabelText(/Title/i)).toHaveValue('Neural Networks');
@@ -50,7 +67,7 @@ describe('ConceptForm Component', () => {
   });
 
   it('calls addConcept when submitting a new concept', async () => {
-    render(<ConceptForm />);
+    render(<ConceptForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} isSubmitting={false} error={null} />);
 
     fireEvent.change(screen.getByLabelText(/Title/i), { target: { value: 'Reinforcement Learning' } });
     fireEvent.change(screen.getByLabelText(/Content/i), { target: { value: 'Reinforcement learning is...' } });
@@ -76,10 +93,22 @@ describe('ConceptForm Component', () => {
       reviews: [],
       next_review: null,
       created_at: '2023-03-15T10:30:00',
-      updated_at: '2023-03-15T10:30:00'
+      updated_at: '2023-03-15T10:30:00',
+      difficulty: 'intermediate' as 'beginner' | 'intermediate' | 'advanced',
+      review_count: 0,
+      confidence_level: 3,
+      user_id: 'user123'
     };
 
-    render(<ConceptForm concept={existingConcept} />);
+    render(
+      <ConceptForm
+        initialData={existingConcept}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        isSubmitting={false}
+        error={null}
+      />
+    );
 
     fireEvent.change(screen.getByLabelText(/Title/i), { target: { value: 'Updated Neural Networks' } });
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
@@ -92,7 +121,7 @@ describe('ConceptForm Component', () => {
   });
 
   it('validates required fields', async () => {
-    render(<ConceptForm />);
+    render(<ConceptForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} isSubmitting={false} error={null} />);
 
     // Submit without filling required fields
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
@@ -107,7 +136,7 @@ describe('ConceptForm Component', () => {
   });
 
   it('shows markdown preview when preview button is clicked', () => {
-    render(<ConceptForm />);
+    render(<ConceptForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} isSubmitting={false} error={null} />);
 
     fireEvent.change(screen.getByLabelText(/Content/i), { target: { value: '# Heading\n\nThis is **bold** text.' } });
 

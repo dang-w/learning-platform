@@ -2,10 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ResourceList } from '@/components/resources/ResourceList';
-import { useResourceStore } from '@/lib/store/resourceStore';
+import { useResourceStore } from '@/lib/store/resource-store';
 
 // Mock the store
-jest.mock('@/lib/store/resourceStore');
+jest.mock('@/lib/store/resource-store');
 
 describe('ResourceList Component', () => {
   const mockResources = [
@@ -42,7 +42,7 @@ describe('ResourceList Component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    (useResourceStore as jest.Mock).mockReturnValue({
+    (useResourceStore as unknown as jest.Mock).mockReturnValue({
       resources: mockResources,
       isLoading: false,
       error: null,
@@ -53,7 +53,7 @@ describe('ResourceList Component', () => {
   });
 
   it('renders the resource list correctly', () => {
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     expect(screen.getByText('Introduction to Machine Learning')).toBeInTheDocument();
     expect(screen.getByText('Advanced Neural Networks')).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe('ResourceList Component', () => {
   });
 
   it('shows loading state when resources are loading', () => {
-    (useResourceStore as jest.Mock).mockReturnValue({
+    (useResourceStore as unknown as jest.Mock).mockReturnValue({
       resources: [],
       isLoading: true,
       error: null,
@@ -71,13 +71,13 @@ describe('ResourceList Component', () => {
       fetchResources: mockFetchResources
     });
 
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     expect(screen.getByText(/Loading/i)).toBeInTheDocument();
   });
 
   it('shows error message when there is an error', () => {
-    (useResourceStore as jest.Mock).mockReturnValue({
+    (useResourceStore as unknown as jest.Mock).mockReturnValue({
       resources: [],
       isLoading: false,
       error: 'Failed to fetch resources',
@@ -86,19 +86,19 @@ describe('ResourceList Component', () => {
       fetchResources: mockFetchResources
     });
 
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     expect(screen.getByText(/Failed to fetch resources/i)).toBeInTheDocument();
   });
 
   it('calls fetchResources on component mount', () => {
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     expect(mockFetchResources).toHaveBeenCalledWith('articles');
   });
 
   it('calls deleteResource when delete button is clicked', async () => {
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     const deleteButtons = screen.getAllByRole('button', { name: /Delete/i });
     fireEvent.click(deleteButtons[0]);
@@ -109,7 +109,7 @@ describe('ResourceList Component', () => {
   });
 
   it('calls toggleCompletion when completion checkbox is clicked', async () => {
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     const checkboxes = screen.getAllByRole('checkbox');
     fireEvent.click(checkboxes[0]);
@@ -120,7 +120,7 @@ describe('ResourceList Component', () => {
   });
 
   it('filters resources based on search input', () => {
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     const searchInput = screen.getByPlaceholderText(/Search/i);
     fireEvent.change(searchInput, { target: { value: 'neural' } });
@@ -130,7 +130,7 @@ describe('ResourceList Component', () => {
   });
 
   it('filters resources based on completion status', () => {
-    render(<ResourceList resourceType="articles" />);
+    render(<ResourceList selectedType="articles" onTypeChange={jest.fn()} />);
 
     const filterSelect = screen.getByLabelText(/Filter by status/i);
     fireEvent.change(filterSelect, { target: { value: 'completed' } });

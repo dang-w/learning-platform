@@ -2,26 +2,35 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GoalForm } from '@/components/learning-path/GoalForm';
-import { useGoalStore } from '@/lib/store/goalStore';
 
 // Mock the store
-jest.mock('@/lib/store/goalStore');
+jest.mock('@/lib/store/goal-store', () => ({
+  useGoalStore: jest.fn()
+}));
+
+// Import after mocking
+import { useGoalStore } from '@/lib/store/goal-store';
+
+// Add proper type for the mocked function
+const mockedUseGoalStore = useGoalStore as jest.MockedFunction<typeof useGoalStore>;
 
 describe('GoalForm Component', () => {
   const mockAddGoal = jest.fn();
   const mockUpdateGoal = jest.fn();
+  const mockOnSubmit = jest.fn();
+  const mockOnCancel = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    (useGoalStore as jest.Mock).mockReturnValue({
+    mockedUseGoalStore.mockReturnValue({
       addGoal: mockAddGoal,
       updateGoal: mockUpdateGoal,
     });
   });
 
   it('renders the form correctly for new goal', () => {
-    render(<GoalForm />);
+    render(<GoalForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
     expect(screen.getByText('Add New Goal')).toBeInTheDocument();
     expect(screen.getByLabelText(/Title/i)).toBeInTheDocument();
@@ -42,10 +51,13 @@ describe('GoalForm Component', () => {
       category: 'Deep Learning',
       completed: false,
       completion_date: null,
-      notes: ''
+      notes: '',
+      progress: 0,
+      progress_history: [],
+      status: 'in_progress'
     };
 
-    render(<GoalForm goal={existingGoal} />);
+    render(<GoalForm goal={existingGoal} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
     expect(screen.getByText('Edit Goal')).toBeInTheDocument();
     expect(screen.getByLabelText(/Title/i)).toHaveValue('Master Neural Networks');
@@ -56,7 +68,7 @@ describe('GoalForm Component', () => {
   });
 
   it('calls addGoal when submitting a new goal', async () => {
-    render(<GoalForm />);
+    render(<GoalForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
     fireEvent.change(screen.getByLabelText(/Title/i), { target: { value: 'Learn Reinforcement Learning' } });
     fireEvent.change(screen.getByLabelText(/Description/i), { target: { value: 'Study the basics of RL' } });
@@ -89,10 +101,13 @@ describe('GoalForm Component', () => {
       category: 'Deep Learning',
       completed: false,
       completion_date: null,
-      notes: ''
+      notes: '',
+      progress: 0,
+      progress_history: [],
+      status: 'in_progress'
     };
 
-    render(<GoalForm goal={existingGoal} />);
+    render(<GoalForm goal={existingGoal} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
     fireEvent.change(screen.getByLabelText(/Title/i), { target: { value: 'Master Advanced Neural Networks' } });
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
@@ -105,7 +120,7 @@ describe('GoalForm Component', () => {
   });
 
   it('validates required fields', async () => {
-    render(<GoalForm />);
+    render(<GoalForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
     // Submit without filling required fields
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
@@ -128,10 +143,13 @@ describe('GoalForm Component', () => {
       category: 'Deep Learning',
       completed: false,
       completion_date: null,
-      notes: ''
+      notes: '',
+      progress: 0,
+      progress_history: [],
+      status: 'in_progress'
     };
 
-    render(<GoalForm goal={existingGoal} />);
+    render(<GoalForm goal={existingGoal} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
     const completedCheckbox = screen.getByLabelText(/Completed/i);
     fireEvent.click(completedCheckbox);

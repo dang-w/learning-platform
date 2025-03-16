@@ -25,8 +25,10 @@ interface ResourceState {
   updateResource: (type: ResourceType, id: string, resource: ResourceUpdateInput) => Promise<void>
   deleteResource: (type: ResourceType, id: string) => Promise<void>
   completeResource: (type: ResourceType, id: string, notes: string) => Promise<void>
+  toggleCompletion: (type: ResourceType, id: string) => Promise<void>
   fetchStatistics: () => Promise<void>
   setSelectedResource: (resource: Resource | null) => void
+  reset: () => void
 }
 
 export const useResourceStore = create<ResourceState>((set) => ({
@@ -112,6 +114,21 @@ export const useResourceStore = create<ResourceState>((set) => ({
     }
   },
 
+  toggleCompletion: async (type, id) => {
+    set({ isLoading: true, error: null })
+    try {
+      const updatedResource = await resourcesApi.toggleResourceCompletion(type, id)
+      set((state) => ({
+        resources: state.resources.map((r) =>
+          r.id === id ? updatedResource : r
+        ),
+        isLoading: false
+      }))
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
   fetchStatistics: async () => {
     set({ isLoading: true, error: null })
     try {
@@ -124,5 +141,15 @@ export const useResourceStore = create<ResourceState>((set) => ({
 
   setSelectedResource: (resource) => {
     set({ selectedResource: resource })
+  },
+
+  reset: () => {
+    set({
+      resources: [],
+      statistics: null,
+      isLoading: false,
+      error: null,
+      selectedResource: null
+    })
   }
 }))
