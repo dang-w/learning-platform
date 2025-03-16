@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authApi, User } from '../api';
+import authApi, { User } from '../api/auth';
 
 interface AuthState {
   user: User | null;
@@ -89,8 +89,11 @@ export const useAuthStore = create<AuthState>()(
           });
         } catch (error) {
           set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to logout',
+            error: 'Failed to logout',
           });
           throw error;
         }
@@ -110,7 +113,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch user',
+            error: 'Failed to fetch user',
             isAuthenticated: false,
             user: null,
           });
@@ -154,7 +157,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to update profile',
+            error: 'Failed to update profile',
           });
           throw error;
         }
@@ -170,7 +173,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to change password',
+            error: 'Failed to change password',
           });
           throw error;
         }

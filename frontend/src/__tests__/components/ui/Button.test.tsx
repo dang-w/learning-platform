@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/buttons';
 
 describe('Button Component', () => {
   it('renders correctly with default props', () => {
@@ -9,64 +9,50 @@ describe('Button Component', () => {
 
     const button = screen.getByRole('button', { name: /Click Me/i });
     expect(button).toBeInTheDocument();
-    expect(button).toHaveClass('bg-blue-600');
+    expect(button).toHaveClass('bg-indigo-600');
     expect(button).not.toBeDisabled();
   });
 
-  it('renders with primary variant', () => {
-    render(<Button variant="primary">Primary Button</Button>);
+  it('renders with default variant', () => {
+    render(<Button variant="default">Default Button</Button>);
 
-    const button = screen.getByRole('button', { name: /Primary Button/i });
-    expect(button).toHaveClass('bg-blue-600');
+    const button = screen.getByRole('button', { name: /Default Button/i });
+    expect(button).toHaveClass('bg-indigo-600');
   });
 
   it('renders with secondary variant', () => {
     render(<Button variant="secondary">Secondary Button</Button>);
 
     const button = screen.getByRole('button', { name: /Secondary Button/i });
-    expect(button).toHaveClass('bg-gray-500');
+    expect(button).toHaveClass('bg-indigo-100');
   });
 
-  it('renders with success variant', () => {
-    render(<Button variant="success">Success Button</Button>);
+  it('renders with destructive variant', () => {
+    render(<Button variant="destructive">Destructive Button</Button>);
 
-    const button = screen.getByRole('button', { name: /Success Button/i });
-    expect(button).toHaveClass('bg-green-600');
-  });
-
-  it('renders with danger variant', () => {
-    render(<Button variant="danger">Danger Button</Button>);
-
-    const button = screen.getByRole('button', { name: /Danger Button/i });
+    const button = screen.getByRole('button', { name: /Destructive Button/i });
     expect(button).toHaveClass('bg-red-600');
   });
 
-  it('renders with warning variant', () => {
-    render(<Button variant="warning">Warning Button</Button>);
+  it('renders with outline variant', () => {
+    render(<Button variant="outline">Outline Button</Button>);
 
-    const button = screen.getByRole('button', { name: /Warning Button/i });
-    expect(button).toHaveClass('bg-yellow-500');
+    const button = screen.getByRole('button', { name: /Outline Button/i });
+    expect(button).toHaveClass('border-indigo-200');
   });
 
-  it('renders with info variant', () => {
-    render(<Button variant="info">Info Button</Button>);
+  it('renders with ghost variant', () => {
+    render(<Button variant="ghost">Ghost Button</Button>);
 
-    const button = screen.getByRole('button', { name: /Info Button/i });
-    expect(button).toHaveClass('bg-blue-400');
+    const button = screen.getByRole('button', { name: /Ghost Button/i });
+    expect(button).toHaveClass('hover:bg-indigo-100');
   });
 
-  it('renders with light variant', () => {
-    render(<Button variant="light">Light Button</Button>);
+  it('renders with link variant', () => {
+    render(<Button variant="link">Link Button</Button>);
 
-    const button = screen.getByRole('button', { name: /Light Button/i });
-    expect(button).toHaveClass('bg-gray-100');
-  });
-
-  it('renders with dark variant', () => {
-    render(<Button variant="dark">Dark Button</Button>);
-
-    const button = screen.getByRole('button', { name: /Dark Button/i });
-    expect(button).toHaveClass('bg-gray-800');
+    const button = screen.getByRole('button', { name: /Link Button/i });
+    expect(button).toHaveClass('text-indigo-900');
   });
 
   it('renders with custom className', () => {
@@ -81,7 +67,7 @@ describe('Button Component', () => {
 
     const button = screen.getByRole('button', { name: /Disabled Button/i });
     expect(button).toBeDisabled();
-    expect(button).toHaveClass('opacity-50 cursor-not-allowed');
+    expect(button).toHaveClass('disabled:opacity-50');
   });
 
   it('renders with loading state', () => {
@@ -89,7 +75,8 @@ describe('Button Component', () => {
 
     const button = screen.getByRole('button', { name: /Loading Button/i });
     expect(button).toBeDisabled();
-    expect(screen.getByText(/Loading/i)).toBeInTheDocument();
+    const spinner = button.querySelector('.animate-spin');
+    expect(spinner).toBeInTheDocument();
   });
 
   it('calls onClick handler when clicked', () => {
@@ -126,14 +113,14 @@ describe('Button Component', () => {
     const { rerender } = render(<Button size="sm">Small Button</Button>);
 
     let button = screen.getByRole('button', { name: /Small Button/i });
-    expect(button).toHaveClass('text-sm py-1 px-2');
+    expect(button).toHaveClass('h-8');
 
-    rerender(<Button size="md">Medium Button</Button>);
+    rerender(<Button size="default">Medium Button</Button>);
     button = screen.getByRole('button', { name: /Medium Button/i });
-    expect(button).toHaveClass('text-base py-2 px-4');
+    expect(button).toHaveClass('h-10');
 
     rerender(<Button size="lg">Large Button</Button>);
     button = screen.getByRole('button', { name: /Large Button/i });
-    expect(button).toHaveClass('text-lg py-3 px-6');
+    expect(button).toHaveClass('h-12');
   });
 });

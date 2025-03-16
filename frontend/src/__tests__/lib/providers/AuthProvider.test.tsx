@@ -1,156 +1,110 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { AuthProvider, useAuth } from '@/lib/providers/AuthProvider';
-import * as authApi from '@/lib/api/authApi';
+import { AuthProvider } from '@/lib/providers/auth-provider';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useRouter, usePathname } from 'next/navigation';
 
-// Mock the API
-jest.mock('@/lib/api/authApi');
-
-// Test component that uses the auth context
-const TestComponent = () => {
-  const { user, isAuthenticated, login, logout, register } = useAuth();
-
-  return (
-    <div>
-      <div data-testid="auth-status">
-        {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}
-      </div>
-      {user && <div data-testid="user-email">{user.email}</div>}
-      <button onClick={() => login({ email: 'test@example.com', password: 'password' })}>
-        Login
-      </button>
-      <button onClick={() => register({ email: 'new@example.com', password: 'password', full_name: 'New User' })}>
-        Register
-      </button>
-      <button onClick={logout}>Logout</button>
-    </div>
-  );
-};
+// Mock dependencies
+jest.mock('@/lib/api/auth');
+jest.mock('@/lib/store/auth-store', () => ({
+  useAuthStore: jest.fn(),
+}));
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  usePathname: jest.fn(),
+}));
 
 describe('AuthProvider', () => {
+  const mockRouter = {
+    push: jest.fn(),
+  };
+
+  const mockAuthStore = {
+    isAuthenticated: false,
+    fetchUser: jest.fn().mockResolvedValue(undefined),
+    refreshToken: jest.fn().mockResolvedValue(false),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Clear localStorage
-    localStorage.clear();
+    // Setup mocks
+    (useRouter as jest.Mock).mockReturnValue(mockRouter);
+    (usePathname as jest.Mock).mockReturnValue('/');
+    (useAuthStore as unknown as jest.Mock).mockReturnValue(mockAuthStore);
   });
 
-  it('provides authentication context to children', () => {
+  it('renders children when loaded', async () => {
     render(
       <AuthProvider>
-        <TestComponent />
+        <div data-testid="child-component">Child Component</div>
       </AuthProvider>
     );
 
-    expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
-    expect(screen.getByText('Login')).toBeInTheDocument();
-    expect(screen.getByText('Register')).toBeInTheDocument();
-    expect(screen.getByText('Logout')).toBeInTheDocument();
+    // Wait for auth initialization to complete
+    await waitFor(() => {
+      expect(screen.getByTestId('child-component')).toBeInTheDocument();
+    });
+
+    expect(mockAuthStore.refreshToken).toHaveBeenCalled();
   });
 
-  it('handles login correctly', async () => {
-    const mockUser = { id: '1', email: 'test@example.com', full_name: 'Test User' };
-    (authApi.login as jest.Mock).mockResolvedValue({ user: mockUser, token: 'fake-token' });
+  it('shows loading state initially', () => {
+    // Mock implementation to delay resolution
+    mockAuthStore.refreshToken.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(false), 100)));
 
     render(
       <AuthProvider>
-        <TestComponent />
+        <div data-testid="child-component">Child Component</div>
       </AuthProvider>
     );
 
-    fireEvent.click(screen.getByText('Login'));
+    // Should show loading spinner
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('redirects to login for protected routes when not authenticated', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    mockAuthStore.isAuthenticated = false;
+
+    render(
+      <AuthProvider>
+        <div>Protected Content</div>
+      </AuthProvider>
+    );
 
     await waitFor(() => {
-      expect(authApi.login).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
-      expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
-      expect(screen.getByTestId('user-email')).toHaveTextContent('test@example.com');
+      expect(mockRouter.push).toHaveBeenCalledWith('/auth/login?callbackUrl=%2Fdashboard');
     });
   });
 
-  it('handles login errors correctly', async () => {
-    const mockError = new Error('Invalid credentials');
-    (authApi.login as jest.Mock).mockRejectedValue(mockError);
+  it('redirects to dashboard for auth routes when authenticated', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/auth/login');
+    mockAuthStore.isAuthenticated = true;
 
     render(
       <AuthProvider>
-        <TestComponent />
+        <div>Login Page</div>
       </AuthProvider>
     );
 
-    fireEvent.click(screen.getByText('Login'));
-
     await waitFor(() => {
-      expect(authApi.login).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password' });
-      expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
+      expect(mockRouter.push).toHaveBeenCalledWith('/dashboard');
     });
   });
 
-  it('handles registration correctly', async () => {
-    const mockUser = { id: '2', email: 'new@example.com', full_name: 'New User' };
-    (authApi.register as jest.Mock).mockResolvedValue({ user: mockUser, token: 'fake-token' });
+  it('fetches user data when token refresh is successful', async () => {
+    mockAuthStore.refreshToken.mockResolvedValue(true);
 
     render(
       <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
-
-    fireEvent.click(screen.getByText('Register'));
-
-    await waitFor(() => {
-      expect(authApi.register).toHaveBeenCalledWith({
-        email: 'new@example.com',
-        password: 'password',
-        full_name: 'New User'
-      });
-      expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
-      expect(screen.getByTestId('user-email')).toHaveTextContent('new@example.com');
-    });
-  });
-
-  it('handles logout correctly', async () => {
-    // First login
-    const mockUser = { id: '1', email: 'test@example.com', full_name: 'Test User' };
-    (authApi.login as jest.Mock).mockResolvedValue({ user: mockUser, token: 'fake-token' });
-
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
-
-    fireEvent.click(screen.getByText('Login'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
-    });
-
-    // Then logout
-    (authApi.logout as jest.Mock).mockResolvedValue({ success: true });
-
-    fireEvent.click(screen.getByText('Logout'));
-
-    await waitFor(() => {
-      expect(authApi.logout).toHaveBeenCalled();
-      expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
-    });
-  });
-
-  it('restores authentication from localStorage on mount', async () => {
-    // Set up localStorage with user data
-    const mockUser = { id: '1', email: 'test@example.com', full_name: 'Test User' };
-    localStorage.setItem('user', JSON.stringify(mockUser));
-
-    render(
-      <AuthProvider>
-        <TestComponent />
+        <div>Content</div>
       </AuthProvider>
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
-      expect(screen.getByTestId('user-email')).toHaveTextContent('test@example.com');
+      expect(mockAuthStore.fetchUser).toHaveBeenCalled();
     });
   });
 });

@@ -1,9 +1,9 @@
 import apiClient from './client';
-import * as authApi from './auth';
-import * as resourcesApi from './resources';
-import * as progressApi from './progress';
-import * as reviewsApi from './reviews';
-import * as learningPathApi from './learning-path';
+import authApi from './auth';
+import resourcesApi from './resources';
+import progressApi from './progress';
+import reviewsApi from './reviews';
+import learningPathApi from './learning-path';
 import knowledgeApi from './knowledge';
 
 // URL metadata extraction API
@@ -37,10 +37,3 @@ export {
   learningPathApi,
   knowledgeApi,
 };
-
-export * from './auth';
-export * from './resources';
-export * from './progress';
-export * from './reviews';
-export * from './learning-path';
-// Don't use export * for default exports

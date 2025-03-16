@@ -65,7 +65,10 @@ const authApi = {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to refresh token:', error);
+      // Only log in non-test environments
+      if (process.env.NODE_ENV !== 'test') {
+        console.error('Failed to refresh token:', error);
+      }
       return null;
     }
   },
@@ -75,7 +78,10 @@ const authApi = {
       // Call the backend logout endpoint to invalidate the token
       await apiClient.post('/logout');
     } catch (error) {
-      console.error('Logout API error:', error);
+      // Only log in non-test environments
+      if (process.env.NODE_ENV !== 'test') {
+        console.error('Logout API error:', error);
+      }
     }
 
     // Remove token from localStorage

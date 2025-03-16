@@ -1,7 +1,7 @@
-import { useResources } from '@/lib/hooks/useResources'
-import { ResourceType } from '@/types/resources'
-import { Spinner } from '../ui/Spinner'
-import { Alert } from '../ui/Alert'
+import { useResources } from '@/lib/hooks/useResources';
+import { ResourceType } from '@/types/resources';
+import { Spinner } from '../ui/feedback/spinner';
+import { Alert } from '../ui/feedback/alert';
 
 const resourceTypeLabels: Record<ResourceType, string> = {
   articles: 'Articles',

@@ -44,7 +44,7 @@ export const useResourceStore = create<ResourceState>((set) => ({
       const resources = await resourcesApi.getAllResources()
       set({ resources, isLoading: false })
     } catch (error) {
-      set({ error: (error as Error).message, isLoading: false })
+      set({ resources: [], error: (error as Error).message, isLoading: false })
     }
   },
 
@@ -54,7 +54,7 @@ export const useResourceStore = create<ResourceState>((set) => ({
       const resources = await resourcesApi.getResourcesByType(type)
       set({ resources, isLoading: false })
     } catch (error) {
-      set({ error: (error as Error).message, isLoading: false })
+      set({ resources: [], error: (error as Error).message, isLoading: false })
     }
   },
 
@@ -135,7 +135,7 @@ export const useResourceStore = create<ResourceState>((set) => ({
       const statistics = await resourcesApi.getResourceStatistics()
       set({ statistics, isLoading: false })
     } catch (error) {
-      set({ error: (error as Error).message, isLoading: false })
+      set({ statistics: null, error: (error as Error).message, isLoading: false })
     }
   },
 
