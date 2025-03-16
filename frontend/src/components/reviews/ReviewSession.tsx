@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/buttons';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/cards';
@@ -21,6 +21,13 @@ export function ReviewSession({ maxReviews = 5, onComplete }: ReviewSessionProps
     queryKey: ['reviewSession', maxReviews],
     queryFn: () => reviewsApi.generateReviewSession(maxReviews),
   });
+
+  // Call onComplete when session is completed
+  useEffect(() => {
+    if (isComplete) {
+      onComplete();
+    }
+  }, [isComplete, onComplete]);
 
   const handleReviewSubmitted = () => {
     if (!session) return;

@@ -82,109 +82,147 @@ export function StudyMetricsForm({ metric, onSubmit, onCancel }: StudyMetricForm
     if (name === 'topics') {
       setTopicsInput(value);
     } else if (name === 'study_hours' || name === 'focus_score') {
+      const numValue = parseFloat(value) || 0;
+
+      // Clear validation errors when the user changes the value
+      if (errors[name]) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
+
       setFormData({
         ...formData,
-        [name]: parseFloat(value) || 0
+        [name]: numValue
       });
+
+      // Immediate validation for study_hours and focus_score
+      if (name === 'study_hours' && numValue <= 0 && value !== '') {
+        setErrors(prev => ({
+          ...prev,
+          study_hours: 'Study hours must be positive'
+        }));
+      } else if (name === 'focus_score' && (numValue < 1 || numValue > 10) && value !== '') {
+        setErrors(prev => ({
+          ...prev,
+          focus_score: 'Focus score must be between 1 and 10'
+        }));
+      }
     } else {
       setFormData({
         ...formData,
         [name]: value
       });
+
+      // Clear validation error when the user changes the value
+      if (errors[name]) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="date" className="block text-sm font-medium mb-1">
-          Date
-        </label>
-        <input
-          id="date"
-          name="date"
-          type="date"
-          className={`w-full p-2 border rounded ${errors.date ? 'border-red-500' : 'border-gray-300'}`}
-          value={formData.date}
-          onChange={handleChange}
-        />
-        {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
-      </div>
+    <>
+      <h2 className="text-xl font-bold mb-4">
+        {metric ? 'Edit Study Session' : 'Record Study Session'}
+      </h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="date" className="block text-sm font-medium mb-1">
+            Date
+          </label>
+          <input
+            id="date"
+            name="date"
+            type="date"
+            className={`w-full p-2 border rounded ${errors.date ? 'border-red-500' : 'border-gray-300'}`}
+            value={formData.date}
+            onChange={handleChange}
+          />
+          {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
+        </div>
 
-      <div>
-        <label htmlFor="study_hours" className="block text-sm font-medium mb-1">
-          Study Hours
-        </label>
-        <input
-          id="study_hours"
-          name="study_hours"
-          type="number"
-          step="0.5"
-          min="0.5"
-          className={`w-full p-2 border rounded ${errors.study_hours ? 'border-red-500' : 'border-gray-300'}`}
-          value={formData.study_hours || ''}
-          onChange={handleChange}
-        />
-        {errors.study_hours && <p className="text-red-500 text-sm mt-1">{errors.study_hours}</p>}
-      </div>
+        <div>
+          <label htmlFor="study_hours" className="block text-sm font-medium mb-1">
+            Study Hours
+          </label>
+          <input
+            id="study_hours"
+            name="study_hours"
+            type="number"
+            step="0.5"
+            min="0.5"
+            className={`w-full p-2 border rounded ${errors.study_hours ? 'border-red-500' : 'border-gray-300'}`}
+            value={formData.study_hours || ''}
+            onChange={handleChange}
+          />
+          {errors.study_hours && <p className="text-red-500 text-sm mt-1">{errors.study_hours}</p>}
+        </div>
 
-      <div>
-        <label htmlFor="topics" className="block text-sm font-medium mb-1">
-          Topics
-        </label>
-        <input
-          id="topics"
-          name="topics"
-          type="text"
-          placeholder="React, TypeScript, Next.js"
-          className={`w-full p-2 border rounded ${errors.topics ? 'border-red-500' : 'border-gray-300'}`}
-          value={topicsInput}
-          onChange={handleChange}
-        />
-        <p className="text-gray-500 text-xs mt-1">Separate topics with commas</p>
-        {errors.topics && <p className="text-red-500 text-sm mt-1">{errors.topics}</p>}
-      </div>
+        <div>
+          <label htmlFor="topics" className="block text-sm font-medium mb-1">
+            Topics
+          </label>
+          <input
+            id="topics"
+            name="topics"
+            type="text"
+            placeholder="React, TypeScript, Next.js"
+            className={`w-full p-2 border rounded ${errors.topics ? 'border-red-500' : 'border-gray-300'}`}
+            value={topicsInput}
+            onChange={handleChange}
+          />
+          <p className="text-gray-500 text-xs mt-1">Separate topics with commas</p>
+          {errors.topics && <p className="text-red-500 text-sm mt-1">{errors.topics}</p>}
+        </div>
 
-      <div>
-        <label htmlFor="focus_score" className="block text-sm font-medium mb-1">
-          Focus Score
-        </label>
-        <input
-          id="focus_score"
-          name="focus_score"
-          type="number"
-          min="1"
-          max="10"
-          className={`w-full p-2 border rounded ${errors.focus_score ? 'border-red-500' : 'border-gray-300'}`}
-          value={formData.focus_score || ''}
-          onChange={handleChange}
-        />
-        <p className="text-gray-500 text-xs mt-1">Rate your focus from 1 to 10</p>
-        {errors.focus_score && <p className="text-red-500 text-sm mt-1">{errors.focus_score}</p>}
-      </div>
+        <div>
+          <label htmlFor="focus_score" className="block text-sm font-medium mb-1">
+            Focus Score
+          </label>
+          <input
+            id="focus_score"
+            name="focus_score"
+            type="number"
+            min="1"
+            max="10"
+            className={`w-full p-2 border rounded ${errors.focus_score ? 'border-red-500' : 'border-gray-300'}`}
+            value={formData.focus_score || ''}
+            onChange={handleChange}
+          />
+          <p className="text-gray-500 text-xs mt-1">Rate your focus from 1 to 10</p>
+          {errors.focus_score && <p className="text-red-500 text-sm mt-1">{errors.focus_score}</p>}
+        </div>
 
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium mb-1">
-          Notes
-        </label>
-        <textarea
-          id="notes"
-          name="notes"
-          rows={3}
-          className="w-full p-2 border border-gray-300 rounded"
-          value={formData.notes}
-          onChange={handleChange}
-        />
-      </div>
+        <div>
+          <label htmlFor="notes" className="block text-sm font-medium mb-1">
+            Notes
+          </label>
+          <textarea
+            id="notes"
+            name="notes"
+            rows={3}
+            className="w-full p-2 border border-gray-300 rounded"
+            value={formData.notes}
+            onChange={handleChange}
+          />
+        </div>
 
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit">
-          Save
-        </Button>
-      </div>
-    </form>
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">
+            Save
+          </Button>
+        </div>
+      </form>
+    </>
   );
 }
