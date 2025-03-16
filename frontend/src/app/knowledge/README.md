@@ -9,6 +9,7 @@ The Knowledge Management System is a core feature of the AI/ML Learning Platform
 - ✅ Organize concepts by topics and difficulty levels
 - ✅ Add detailed content and notes to each concept
 - ✅ View concept details with metadata
+- ✅ Markdown support for concept content
 
 ### Spaced Repetition
 - ✅ Review concepts based on a spaced repetition algorithm
@@ -52,9 +53,11 @@ The knowledge management system uses:
 - React Query for data fetching
 - React Hook Form for form handling
 - Tailwind CSS for styling
+- React Markdown for rendering markdown content
+- React Markdown Editor Lite for editing markdown content
 
 ### Key Components
-- `ConceptForm` - Reusable form for creating and editing concepts
+- `ConceptForm` - Reusable form for creating and editing concepts with markdown support
 - `ConceptList` - List of concepts with filtering and sorting
 - `ConceptDetail` - Detailed view of a concept with review history
 - `ReviewSession` - Interactive review interface with confidence rating
@@ -68,7 +71,6 @@ The knowledge management system uses a dedicated Zustand store (`useKnowledgeSto
 - Error handling
 
 ## Future Enhancements
-- Markdown support for concept content
 - Flashcard mode for quick reviews
 - Concept relationships and connections
 - Import/export functionality

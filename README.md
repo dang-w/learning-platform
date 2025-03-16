@@ -42,10 +42,11 @@ This platform provides a structured approach to learning AI/ML concepts with:
 - Extract metadata from URLs for easy resource addition
 
 ### Knowledge Management System
-- Create and organize knowledge concepts
+- Create and organize knowledge concepts with markdown support
 - Review concepts based on a spaced repetition algorithm
 - Filter concepts by topic and difficulty
 - Track confidence levels over time
+- Interactive markdown editor for content creation
 
 ### Data Visualization Dashboard
 - Interactive charts for learning progress

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/buttons';
 import { Alert, Spinner } from '@/components/ui/feedback';
 import { Badge } from '@/components/ui/data-display';
 import { formatDate } from '@/lib/utils/date';
+import 'react-markdown-editor-lite/lib/index.css';
+import ReactMarkdown from 'react-markdown';
 
 export default function ConceptDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -113,9 +115,7 @@ export default function ConceptDetailPage({ params }: { params: { id: string } }
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Content</h2>
             <div className="prose max-w-none">
-              {concept.content.split('\n').map((paragraph: string, index: number) => (
-                <p key={index} className="mb-4">{paragraph}</p>
-              ))}
+              <ReactMarkdown>{concept.content}</ReactMarkdown>
             </div>
           </div>
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/buttons';
 import { Alert, Spinner } from '@/components/ui/feedback';
 import { Badge } from '@/components/ui/data-display';
 import { formatDate } from '@/lib/utils/date';
+import ReactMarkdown from 'react-markdown';
 
 export default function ReviewSessionPage() {
   const router = useRouter();
@@ -161,9 +162,7 @@ export default function ReviewSessionPage() {
               </div>
             </div>
             <div className="prose max-w-none mb-6">
-              {currentConcept.content.split('\n').map((paragraph, index) => (
-                <p key={index} className="mb-4">{paragraph}</p>
-              ))}
+              <ReactMarkdown>{currentConcept.content}</ReactMarkdown>
             </div>
             {currentConcept.notes && (
               <div className="mt-6 pt-6 border-t border-gray-200">

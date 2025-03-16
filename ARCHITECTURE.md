@@ -108,9 +108,10 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
    - URL metadata extraction
 
 5. **Knowledge Management** ✅
-   - Concept notes
+   - Concept notes with markdown support
    - Spaced repetition system
    - Review scheduling
+   - Interactive markdown editor for content
 
 6. **Progress Analytics** 🔄
    - Study time tracking
