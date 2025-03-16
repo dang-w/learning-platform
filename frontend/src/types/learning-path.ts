@@ -6,26 +6,29 @@ export interface Goal {
   id: string;
   title: string;
   description: string;
-  priority: GoalPriority;
-  status: GoalStatus;
-  target_date: string;
-  completion_date?: string | null;
-  created_at: string;
-  updated_at: string;
-  milestones?: Milestone[];
+  priority: number;
+  category: string;
+  completed: boolean;
+  completion_date: string | null;
+  notes: string;
+  progress: number;
+  progress_history: {
+    date: string;
+    progress: number;
+  }[];
 }
 
 export interface Milestone {
   id: string;
   title: string;
   description: string;
-  status: MilestoneStatus;
   target_date: string;
-  completion_date?: string | null;
-  goal_id: string;
-  created_at: string;
-  updated_at: string;
-  resources: Resource[];
+  verification_method: string;
+  resources: string[];
+  completed: boolean;
+  completion_date: string | null;
+  notes: string;
+  progress: number;
 }
 
 export interface Resource {
@@ -44,14 +47,19 @@ export interface LearningPath {
 }
 
 export interface LearningPathProgress {
-  goals_completion_percentage: number;
-  milestones_completion_percentage: number;
-  on_track: boolean;
+  overall_progress: number;
   goals_completed: number;
-  goals_total: number;
+  goals_in_progress: number;
+  total_goals: number;
   milestones_completed: number;
-  milestones_total: number;
-  next_milestone?: Milestone;
+  milestones_in_progress: number;
+  total_milestones: number;
+  recent_achievements: {
+    id: string;
+    title: string;
+    type: 'goal' | 'milestone';
+    date: string;
+  }[];
 }
 
 export interface GoalCreateInput {

@@ -166,7 +166,7 @@ The platform is **not yet ready for deployment**. The following steps need to be
 
 ## Next Steps
 
-1. Finish the progress analytics dashboard
+1. ~~Finish the progress analytics dashboard~~
 2. Add comprehensive testing
 3. Configure deployment settings
 

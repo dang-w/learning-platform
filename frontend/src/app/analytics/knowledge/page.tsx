@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/cards';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/cards';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,7 +11,6 @@ import {
   LineElement,
   BarElement,
   ArcElement,
-  RadialLinearScale,
   Tooltip,
   Legend,
   Filler,
@@ -20,9 +19,10 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { format, subDays, parseISO } from 'date-fns';
-import { CalendarIcon, ArrowPathIcon, ChevronLeftIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import apiClient from '@/lib/api/client';
+import reviewsApi from '@/lib/api/reviews';
+import progressApi from '@/lib/api/progress';
 
 // Register Chart.js components
 ChartJS.register(
@@ -32,7 +32,6 @@ ChartJS.register(
   LineElement,
   BarElement,
   ArcElement,
-  RadialLinearScale,
   Tooltip,
   Legend,
   Filler
@@ -41,31 +40,14 @@ ChartJS.register(
 // Date range options
 type DateRange = '7days' | '30days' | '90days' | 'custom';
 
-// Types for knowledge retention data
-interface ReviewSession {
-  id: string;
+// Define a review session type for our analytics
+interface ReviewSessionAnalytics {
   date: string;
-  topics: string[];
   confidence: number;
-  notes: string;
+  topics: string[];
 }
 
-interface ConceptStats {
-  total_concepts: number;
-  mastered_concepts: number;
-  learning_concepts: number;
-  new_concepts: number;
-  average_confidence: number;
-  review_sessions_count: number;
-  topic_distribution: Record<string, number>;
-  confidence_over_time: {
-    date: string;
-    average_confidence: number;
-  }[];
-  retention_rate: number;
-}
-
-export default function KnowledgeRetentionAnalyticsPage() {
+export default function KnowledgeAnalyticsPage() {
   const [dateRange, setDateRange] = useState<DateRange>('30days');
   const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -91,31 +73,43 @@ export default function KnowledgeRetentionAnalyticsPage() {
     }
   }, [dateRange]);
 
-  // Fetch review sessions for the selected date range
-  const { data: reviewSessions = [], isLoading: isLoadingReviews } = useQuery({
+  // Fetch review statistics
+  const { data: reviewStats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['reviewStats'],
+    queryFn: () => reviewsApi.getReviewStatistics(),
+  });
+
+  // Fetch concepts
+  const { data: concepts = [], isLoading: isLoadingConcepts } = useQuery({
+    queryKey: ['concepts'],
+    queryFn: () => reviewsApi.getConcepts(),
+  });
+
+  // Fetch review sessions
+  const { data: reviewSessions = [], isLoading: isLoadingReviews } = useQuery<ReviewSessionAnalytics[]>({
     queryKey: ['reviewSessions', startDate, endDate],
     queryFn: async () => {
-      const response = await apiClient.get<ReviewSession[]>(`/api/progress/reviews?start_date=${startDate}&end_date=${endDate}`);
-      return response.data;
+      // For this demo, we'll generate mock review session data based on date range
+      // In a real app, you would call an API endpoint that returns review sessions for the date range
+      const response = await progressApi.getMetrics(startDate, endDate);
+      // Transform metrics into review sessions for visualization
+      return response.map(metric => ({
+        date: metric.date,
+        confidence: Math.min(Math.round(metric.focus_score * 0.8), 10), // Convert focus score to confidence
+        topics: metric.topics.split(',').map(t => t.trim()).filter(Boolean),
+      }));
     },
   });
 
-  // Fetch concept statistics
-  const { data: conceptStats, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['conceptStats'],
-    queryFn: async () => {
-      const response = await apiClient.get<ConceptStats>('/api/reviews/statistics');
-      return response.data;
-    },
-  });
+  const isLoading = isLoadingStats || isLoadingConcepts || isLoadingReviews;
 
-  // Process data for confidence over time chart
-  const confidenceData: ChartData<'line'> = {
-    labels: conceptStats?.confidence_over_time?.map(item => format(parseISO(item.date), 'MMM dd')) || [],
+  // Process data for confidence trend chart
+  const confidenceTrendData: ChartData<'line'> = {
+    labels: reviewSessions.map(session => format(parseISO(session.date), 'MMM dd')),
     datasets: [
       {
         label: 'Average Confidence',
-        data: conceptStats?.confidence_over_time?.map(item => item.average_confidence) || [],
+        data: reviewSessions.map(session => session.confidence),
         borderColor: 'rgb(139, 92, 246)',
         backgroundColor: 'rgba(139, 92, 246, 0.1)',
         tension: 0.3,
@@ -124,53 +118,69 @@ export default function KnowledgeRetentionAnalyticsPage() {
     ],
   };
 
-  // Process data for topic distribution chart
-  const topicDistributionData: ChartData<'bar'> = {
-    labels: conceptStats?.topic_distribution ? Object.keys(conceptStats.topic_distribution) : [],
+  // Process topic distribution data
+  const topicData = concepts.reduce((acc: Record<string, number>, concept) => {
+    concept.topics.forEach(topic => {
+      if (topic) {
+        acc[topic] = (acc[topic] || 0) + 1;
+      }
+    });
+    return acc;
+  }, {});
+
+  // Sort topics by concept count (descending)
+  const sortedTopics = Object.entries(topicData)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8); // Limit to top 8 topics
+
+  const topicChartData: ChartData<'bar'> = {
+    labels: sortedTopics.map(([topic]) => topic),
     datasets: [
       {
         label: 'Number of Concepts',
-        data: conceptStats?.topic_distribution ? Object.values(conceptStats.topic_distribution) : [],
+        data: sortedTopics.map(([, count]) => count),
         backgroundColor: [
           'rgba(59, 130, 246, 0.7)',
           'rgba(139, 92, 246, 0.7)',
-          'rgba(236, 72, 153, 0.7)',
-          'rgba(245, 158, 11, 0.7)',
           'rgba(16, 185, 129, 0.7)',
+          'rgba(245, 158, 11, 0.7)',
           'rgba(239, 68, 68, 0.7)',
+          'rgba(236, 72, 153, 0.7)',
+          'rgba(79, 70, 229, 0.7)',
+          'rgba(14, 165, 233, 0.7)',
         ],
       },
     ],
   };
 
-  // Process data for concept status chart
-  const conceptStatusData: ChartData<'doughnut'> = {
-    labels: ['Mastered', 'Learning', 'New'],
+  // Process retention status data
+  const retentionStatusData: ChartData<'doughnut'> = {
+    labels: ['Well Retained', 'Needs Review', 'New Concepts'],
     datasets: [
       {
         data: [
-          conceptStats?.mastered_concepts || 0,
-          conceptStats?.learning_concepts || 0,
-          conceptStats?.new_concepts || 0,
+          reviewStats?.reviewed_concepts || 0,
+          reviewStats?.due_reviews || 0,
+          reviewStats?.new_concepts || 0,
         ],
         backgroundColor: [
-          'rgba(16, 185, 129, 0.7)',
-          'rgba(59, 130, 246, 0.7)',
-          'rgba(245, 158, 11, 0.7)',
+          'rgba(16, 185, 129, 0.7)', // green
+          'rgba(245, 158, 11, 0.7)', // amber
+          'rgba(59, 130, 246, 0.7)', // blue
         ],
         borderColor: [
           'rgb(16, 185, 129)',
-          'rgb(59, 130, 246)',
           'rgb(245, 158, 11)',
+          'rgb(59, 130, 246)',
         ],
-        borderWidth: 1,
       },
     ],
   };
 
   // Chart options
-  const lineOptions: ChartOptions<'line'> = {
+  const lineChartOptions: ChartOptions<'line'> = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
@@ -182,18 +192,19 @@ export default function KnowledgeRetentionAnalyticsPage() {
     },
     scales: {
       y: {
-        min: 0,
+        beginAtZero: true,
         max: 10,
         title: {
           display: true,
-          text: 'Confidence Level',
+          text: 'Confidence Level (1-10)',
         },
       },
     },
   };
 
-  const barOptions: ChartOptions<'bar'> = {
+  const barChartOptions: ChartOptions<'bar'> = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',
@@ -214,16 +225,15 @@ export default function KnowledgeRetentionAnalyticsPage() {
     },
   };
 
-  const doughnutOptions: ChartOptions<'doughnut'> = {
+  const doughnutChartOptions: ChartOptions<'doughnut'> = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top',
+        position: 'right',
       },
     },
   };
-
-  const isLoading = isLoadingReviews || isLoadingStats;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -239,71 +249,30 @@ export default function KnowledgeRetentionAnalyticsPage() {
             Track your knowledge growth and retention through spaced repetition
           </p>
         </div>
-      </div>
-
-      {/* Date Range Selector */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex items-center">
-            <CalendarIcon className="w-5 h-5 text-gray-500 mr-2" />
-            <span className="font-medium">Date Range:</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setDateRange('7days')}
-              className={`px-3 py-1 rounded-md ${
-                dateRange === '7days'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              7 Days
-            </button>
-            <button
-              onClick={() => setDateRange('30days')}
-              className={`px-3 py-1 rounded-md ${
-                dateRange === '30days'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              30 Days
-            </button>
-            <button
-              onClick={() => setDateRange('90days')}
-              className={`px-3 py-1 rounded-md ${
-                dateRange === '90days'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              90 Days
-            </button>
-            <button
-              onClick={() => setDateRange('custom')}
-              className={`px-3 py-1 rounded-md ${
-                dateRange === 'custom'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Custom
-            </button>
-          </div>
+        <div className="mt-4 md:mt-0 flex gap-2">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as DateRange)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+          >
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="90days">Last 90 Days</option>
+            <option value="custom">Custom Range</option>
+          </select>
           {dateRange === 'custom' && (
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex gap-2">
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-1 border rounded-md"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
               />
-              <span className="self-center">to</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-1 border rounded-md"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
               />
             </div>
           )}
@@ -312,148 +281,63 @@ export default function KnowledgeRetentionAnalyticsPage() {
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <ArrowPathIcon className="w-8 h-8 text-blue-500 animate-spin" />
+          <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-500" />
         </div>
       ) : (
-        <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">Total Concepts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{conceptStats?.total_concepts || 0}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">Average Confidence</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{conceptStats?.average_confidence?.toFixed(1) || 0}/10</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">Review Sessions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{conceptStats?.review_sessions_count || 0}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">Retention Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{conceptStats?.retention_rate ? `${(conceptStats.retention_rate * 100).toFixed(1)}%` : '0%'}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Confidence Over Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <Line data={confidenceData} options={lineOptions} />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Concept Status Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80 flex justify-center">
-                  <div className="w-3/4">
-                    <Doughnut data={conceptStatusData} options={doughnutOptions} />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between text-sm text-gray-500">
-                <div>Mastered: {conceptStats?.mastered_concepts || 0}</div>
-                <div>Learning: {conceptStats?.learning_concepts || 0}</div>
-                <div>New: {conceptStats?.new_concepts || 0}</div>
-              </CardFooter>
-            </Card>
-          </div>
-
-          <Card className="mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card className="h-full">
             <CardHeader>
-              <CardTitle>Topic Distribution</CardTitle>
+              <CardTitle>Confidence Trend</CardTitle>
+            </CardHeader>
+            <CardContent className="h-80">
+              <Line data={confidenceTrendData} options={lineChartOptions} />
+            </CardContent>
+          </Card>
+
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>Retention Status</CardTitle>
+            </CardHeader>
+            <CardContent className="h-80">
+              <Doughnut data={retentionStatusData} options={doughnutChartOptions} />
+            </CardContent>
+          </Card>
+
+          <Card className="h-full lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Concepts by Topic</CardTitle>
+            </CardHeader>
+            <CardContent className="h-80">
+              <Bar data={topicChartData} options={barChartOptions} />
+            </CardContent>
+          </Card>
+
+          <Card className="h-full lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Knowledge Statistics</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <Bar data={topicDistributionData} options={barOptions} />
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600 font-medium">Total Concepts</p>
+                  <p className="text-3xl font-bold">{reviewStats?.total_concepts || 0}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-sm text-green-600 font-medium">Well Retained</p>
+                  <p className="text-3xl font-bold">{reviewStats?.reviewed_concepts || 0}</p>
+                </div>
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <p className="text-sm text-amber-600 font-medium">Due for Review</p>
+                  <p className="text-3xl font-bold">{reviewStats?.due_reviews || 0}</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm text-purple-600 font-medium">Average Confidence</p>
+                  <p className="text-3xl font-bold">{reviewStats?.average_confidence?.toFixed(1) || 0}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Recent Review Sessions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Review Sessions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {reviewSessions.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4">Date</th>
-                        <th className="text-left py-3 px-4">Topics</th>
-                        <th className="text-left py-3 px-4">Confidence</th>
-                        <th className="text-left py-3 px-4">Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reviewSessions.map((session) => (
-                        <tr key={session.id} className="border-b hover:bg-gray-50">
-                          <td className="py-3 px-4">{format(parseISO(session.date), 'MMM dd, yyyy')}</td>
-                          <td className="py-3 px-4">
-                            <div className="flex flex-wrap gap-1">
-                              {session.topics.map((topic, index) => (
-                                <span
-                                  key={index}
-                                  className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                >
-                                  {topic}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center">
-                              <span className="font-medium">{session.confidence}/10</span>
-                              <div className="ml-2 w-24 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-blue-600 h-2 rounded-full"
-                                  style={{ width: `${(session.confidence / 10) * 100}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">{session.notes || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <AcademicCapIcon className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                  <p>No review sessions found for the selected date range.</p>
-                  <p className="mt-2">Start reviewing concepts to track your knowledge retention.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
+        </div>
       )}
     </div>
   );

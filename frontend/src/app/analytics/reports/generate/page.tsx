@@ -1,54 +1,91 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/cards';
-import { format, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
-import { ChevronLeftIcon, DocumentTextIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/cards';
+import { format, startOfWeek, endOfWeek, isAfter, addDays } from 'date-fns';
+import { ArrowPathIcon, ChevronLeftIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import progressApi, { WeeklyReport } from '@/lib/api/progress';
+import { useRouter } from 'next/navigation';
+import progressApi from '@/lib/api/progress';
 
 export default function GenerateReportPage() {
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const router = useRouter();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationSuccess, setGenerationSuccess] = useState(false);
 
-  // Calculate week range for display
-  const selectedDateObj = new Date(selectedDate);
-  const weekStart = format(startOfWeek(selectedDateObj, { weekStartsOn: 1 }), 'MMM dd, yyyy');
-  const weekEnd = format(endOfWeek(selectedDateObj, { weekStartsOn: 1 }), 'MMM dd, yyyy');
+  // Calculate start and end dates for the selected week
+  const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 }); // Week starts on Monday
+  const endDate = endOfWeek(selectedDate, { weekStartsOn: 1 }); // Week ends on Sunday
 
-  // Fetch report if it exists
-  const { data: report, isLoading, refetch } = useQuery<WeeklyReport>({
-    queryKey: ['weeklyReport', selectedDate],
-    queryFn: () => progressApi.generateWeeklyReport(selectedDate),
-    enabled: false, // Don't fetch automatically
+  // Format dates for display and API calls
+  const formattedStartDate = format(startDate, 'yyyy-MM-dd');
+  const formattedEndDate = format(endDate, 'yyyy-MM-dd');
+  const displayDateRange = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+
+  // Fetch metrics for the selected week to check if data exists
+  const { data: weekMetrics = [], isLoading } = useQuery({
+    queryKey: ['weekMetrics', formattedStartDate, formattedEndDate],
+    queryFn: () => progressApi.getMetrics(formattedStartDate, formattedEndDate),
   });
 
-  // Generate report
-  const handleGenerateReport = async () => {
+  // Check if the selected week is in the future
+  const isFutureWeek = isAfter(startDate, new Date());
+
+  // Check if the selected week has data
+  const hasData = weekMetrics.length > 0;
+
+  // Calculate total study hours for the week
+  const totalHours = weekMetrics.reduce((sum, metric) => sum + metric.study_hours, 0);
+
+  // Calculate average focus score for the week
+  const averageFocus = weekMetrics.length > 0
+    ? weekMetrics.reduce((sum, metric) => sum + metric.focus_score, 0) / weekMetrics.length
+    : 0;
+
+  // Generate daily data for preview
+  const dailyData = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(startDate, i);
+    const dayFormatted = format(day, 'yyyy-MM-dd');
+    const dayMetrics = weekMetrics.filter(metric => metric.date === dayFormatted);
+
+    return {
+      date: day,
+      hours: dayMetrics.reduce((sum, metric) => sum + metric.study_hours, 0),
+      focus: dayMetrics.length > 0
+        ? dayMetrics.reduce((sum, metric) => sum + metric.focus_score, 0) / dayMetrics.length
+        : 0,
+      hasData: dayMetrics.length > 0,
+    };
+  });
+
+  // Mutation for generating report
+  const generateReportMutation = useMutation({
+    mutationFn: () => progressApi.generateWeeklyReport(formattedStartDate),
+    onSuccess: () => {
+      setIsGenerating(false);
+      setGenerationSuccess(true);
+      // Redirect to the report view after a short delay
+      setTimeout(() => {
+        router.push('/analytics/reports');
+      }, 1500);
+    },
+    onError: () => {
+      setIsGenerating(false);
+    },
+  });
+
+  // Handle report generation
+  const handleGenerateReport = () => {
     setIsGenerating(true);
-    await refetch();
-    setIsGenerating(false);
+    generateReportMutation.mutate();
   };
 
-  // Previous week
-  const handlePreviousWeek = () => {
-    const prevWeek = subWeeks(selectedDateObj, 1);
-    setSelectedDate(format(prevWeek, 'yyyy-MM-dd'));
-  };
-
-  // Next week (but not future weeks)
-  const handleNextWeek = () => {
-    const nextWeek = subWeeks(selectedDateObj, -1);
-    if (nextWeek <= new Date()) {
-      setSelectedDate(format(nextWeek, 'yyyy-MM-dd'));
-    }
-  };
-
-  // Check if next week button should be disabled
-  const isNextWeekDisabled = () => {
-    const nextWeek = subWeeks(selectedDateObj, -1);
-    return nextWeek > new Date();
+  // Handle date change
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const date = new Date(e.target.value);
+    setSelectedDate(date);
   };
 
   return (
@@ -56,13 +93,13 @@ export default function GenerateReportPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
           <div className="flex items-center gap-2">
-            <Link href="/analytics/reports" className="text-blue-600 hover:text-blue-800">
+            <Link href="/analytics/reports" className="text-gray-500 hover:text-gray-700">
               <ChevronLeftIcon className="w-5 h-5" />
             </Link>
             <h1 className="text-3xl font-bold">Generate Weekly Report</h1>
           </div>
           <p className="text-gray-500 mt-2">
-            Create detailed reports of your learning progress
+            Create a comprehensive report of your learning progress for a specific week
           </p>
         </div>
       </div>
@@ -74,270 +111,212 @@ export default function GenerateReportPage() {
               <CardTitle>Select Week</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select any date in the week
+                  <label htmlFor="week-select" className="block text-sm font-medium text-gray-700 mb-1">
+                    Week Starting
                   </label>
                   <input
+                    id="week-select"
                     type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
+                    value={format(startDate, 'yyyy-MM-dd')}
+                    onChange={handleDateChange}
                     max={format(new Date(), 'yyyy-MM-dd')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 </div>
-
-                <div className="flex justify-between items-center">
-                  <button
-                    onClick={handlePreviousWeek}
-                    className="px-3 py-2 border rounded-md hover:bg-gray-50"
-                  >
-                    Previous Week
-                  </button>
-
-                  <button
-                    onClick={handleNextWeek}
-                    className={`px-3 py-2 border rounded-md ${
-                      isNextWeekDisabled()
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:bg-gray-50'
-                    }`}
-                    disabled={isNextWeekDisabled()}
-                  >
-                    Next Week
-                  </button>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600 font-medium">Selected Period</p>
+                  <p className="text-lg font-bold mt-1">{displayDateRange}</p>
                 </div>
-
-                <div className="text-center py-3 bg-gray-50 rounded-md">
-                  <p className="text-sm text-gray-500">Selected Week</p>
-                  <p className="font-medium">
-                    {weekStart} - {weekEnd}
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleGenerateReport}
-                  disabled={isGenerating}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isGenerating ? (
-                    <span className="flex items-center justify-center">
-                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-                      Generating...
-                    </span>
-                  ) : (
-                    'Generate Report'
-                  )}
-                </button>
               </div>
             </CardContent>
           </Card>
 
-          {report && (
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Report Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <button
-                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                  >
-                    <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
-                    Download PDF
-                  </button>
-
-                  <button
-                    className="w-full flex items-center justify-center px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50"
-                  >
-                    <DocumentTextIcon className="w-5 h-5 mr-2" />
-                    View Full Report
-                  </button>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Data Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center items-center h-24">
+                  <ArrowPathIcon className="w-6 h-6 animate-spin text-blue-500" />
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <p className="text-sm text-green-600 font-medium">Total Study Hours</p>
+                    <p className="text-2xl font-bold mt-1">{totalHours.toFixed(1)}</p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <p className="text-sm text-purple-600 font-medium">Average Focus Score</p>
+                    <p className="text-2xl font-bold mt-1">{averageFocus.toFixed(1)}/10</p>
+                  </div>
+                  <div className="bg-amber-50 p-4 rounded-lg">
+                    <p className="text-sm text-amber-600 font-medium">Days with Activity</p>
+                    <p className="text-2xl font-bold mt-1">{dailyData.filter(day => day.hasData).length}/7</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <button
+                onClick={handleGenerateReport}
+                disabled={isGenerating || !hasData || isFutureWeek || generationSuccess}
+                className={`w-full py-2 px-4 rounded-md flex items-center justify-center ${
+                  hasData && !isFutureWeek && !generationSuccess
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                {isGenerating ? (
+                  <>
+                    <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : generationSuccess ? (
+                  <>
+                    <CheckCircleIcon className="w-5 h-5 mr-2" />
+                    Report Generated
+                  </>
+                ) : (
+                  <>
+                    <DocumentTextIcon className="w-5 h-5 mr-2" />
+                    Generate Report
+                  </>
+                )}
+              </button>
+            </CardFooter>
+          </Card>
         </div>
 
         <div className="lg:col-span-2">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
-            </div>
-          ) : !report ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <DocumentTextIcon className="w-12 h-12 mx-auto text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No report generated yet</h3>
-              <p className="mt-2 text-gray-500">
-                Select a week and click &quot;Generate Report&quot; to create a detailed learning report.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Weekly Report: {weekStart} - {weekEnd}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700">Total Study Hours</p>
-                      <p className="text-2xl font-bold text-blue-900">{report.total_hours}</p>
-                    </div>
-                    <div className="bg-purple-50 p-4 rounded-lg">
-                      <p className="text-sm text-purple-700">Average Focus</p>
-                      <p className="text-2xl font-bold text-purple-900">{report.average_focus.toFixed(1)}/10</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Hours by Day</h4>
-                      <div className="h-12 bg-gray-100 rounded-md overflow-hidden flex">
-                        {Object.entries(report.daily_hours).map(([day, hours]) => {
-                          const maxHours = Math.max(...Object.values(report.daily_hours));
-                          const percentage = maxHours > 0 ? (hours / maxHours) * 100 : 0;
-
-                          return (
-                            <div
-                              key={day}
-                              className="h-full bg-blue-500 relative group"
-                              style={{ width: `${100 / 7}%`, opacity: percentage / 100 }}
-                            >
-                              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-20 text-white text-xs text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                {hours.toFixed(1)}h
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Focus by Day</h4>
-                      <div className="h-12 bg-gray-100 rounded-md overflow-hidden flex">
-                        {Object.entries(report.daily_focus).map(([day, focus]) => {
-                          const percentage = (focus / 10) * 100;
-
-                          return (
-                            <div
-                              key={day}
-                              className="h-full bg-purple-500 relative group"
-                              style={{ width: `${100 / 7}%`, opacity: percentage / 100 }}
-                            >
-                              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-20 text-white text-xs text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                {focus.toFixed(1)}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Topic Distribution</h4>
-                    <div className="space-y-2">
-                      {Object.entries(report.topic_distribution)
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 5)
-                        .map(([topic, hours]) => {
-                          const percentage = (hours / report.total_hours) * 100;
-
-                          return (
-                            <div key={topic}>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span>{topic}</span>
-                                <span>{hours.toFixed(1)}h ({percentage.toFixed(0)}%)</span>
-                              </div>
-                              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly Preview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-500" />
+                </div>
+              ) : isFutureWeek ? (
+                <div className="text-center py-12">
+                  <DocumentTextIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-xl font-semibold mb-2">Future Week Selected</h2>
+                  <p className="text-gray-500">
+                    You cannot generate reports for future weeks. Please select a past or current week.
+                  </p>
+                </div>
+              ) : !hasData ? (
+                <div className="text-center py-12">
+                  <DocumentTextIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-xl font-semibold mb-2">No Data Available</h2>
+                  <p className="text-gray-500">
+                    There is no learning activity recorded for the selected week.
+                    Please select a different week or add study metrics for this period.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4">Day</th>
+                        <th className="text-left py-3 px-4">Study Hours</th>
+                        <th className="text-left py-3 px-4">Focus Score</th>
+                        <th className="text-left py-3 px-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyData.map((day, index) => (
+                        <tr key={index} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium">{format(day.date, 'EEEE, MMM d')}</td>
+                          <td className="py-3 px-4">{day.hours.toFixed(1)}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center">
+                              <span>{day.focus.toFixed(1)}</span>
+                              <div className="ml-2 w-24 bg-gray-200 rounded-full h-2">
                                 <div
-                                  className="h-full bg-blue-600"
-                                  style={{ width: `${percentage}%` }}
+                                  className="bg-blue-600 h-2 rounded-full"
+                                  style={{ width: `${(day.focus / 10) * 100}%` }}
                                 ></div>
                               </div>
                             </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Comparison to Previous Week</h4>
-                    <div className="flex space-x-4">
-                      <div className={`flex items-center ${
-                        report.comparison_to_previous.hours_change_percentage >= 0
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      }`}>
-                        <span className="text-lg font-bold">
-                          {report.comparison_to_previous.hours_change_percentage >= 0 ? '+' : ''}
-                          {report.comparison_to_previous.hours_change_percentage.toFixed(0)}%
-                        </span>
-                        <span className="ml-1 text-sm">hours</span>
-                      </div>
-
-                      <div className={`flex items-center ${
-                        report.comparison_to_previous.focus_change_percentage >= 0
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      }`}>
-                        <span className="text-lg font-bold">
-                          {report.comparison_to_previous.focus_change_percentage >= 0 ? '+' : ''}
-                          {report.comparison_to_previous.focus_change_percentage.toFixed(0)}%
-                        </span>
-                        <span className="ml-1 text-sm">focus</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {report.charts && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Hours Chart</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <img
-                        src={report.charts.hours_chart}
-                        alt="Study hours chart"
-                        className="w-full h-auto"
-                      />
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Focus Chart</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <img
-                        src={report.charts.focus_chart}
-                        alt="Focus score chart"
-                        className="w-full h-auto"
-                      />
-                    </CardContent>
-                  </Card>
-
-                  <Card className="md:col-span-2">
-                    <CardHeader>
-                      <CardTitle>Topics Chart</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <img
-                        src={report.charts.topics_chart}
-                        alt="Topics distribution chart"
-                        className="w-full h-auto"
-                      />
-                    </CardContent>
-                  </Card>
+                          </td>
+                          <td className="py-3 px-4">
+                            {day.hasData ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Data Available
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                No Data
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
-            </div>
-          )}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Report Contents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 rounded-full bg-blue-100 text-blue-600">
+                    <DocumentTextIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Study Time Analysis</h3>
+                    <p className="text-sm text-gray-500">
+                      Daily breakdown of study hours with visualizations and comparisons to previous weeks
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="p-2 rounded-full bg-purple-100 text-purple-600">
+                    <DocumentTextIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Focus Score Tracking</h3>
+                    <p className="text-sm text-gray-500">
+                      Analysis of focus scores throughout the week with trends and patterns
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="p-2 rounded-full bg-green-100 text-green-600">
+                    <DocumentTextIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Topic Distribution</h3>
+                    <p className="text-sm text-gray-500">
+                      Breakdown of time spent on different topics with visualizations
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="p-2 rounded-full bg-amber-100 text-amber-600">
+                    <DocumentTextIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Performance Comparison</h3>
+                    <p className="text-sm text-gray-500">
+                      Comparison with previous week&apos;s performance to track progress
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
