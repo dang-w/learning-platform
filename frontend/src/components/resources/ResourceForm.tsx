@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -6,6 +5,7 @@ import { Button } from '../ui/buttons'
 import { Input, FormGroup, Label, FormError } from '../ui/forms'
 import { Alert } from '../ui/feedback'
 import { Resource, ResourceCreateInput } from '@/types/resources'
+import { useUrlMetadata } from '@/lib/hooks/useUrlMetadata'
 
 const resourceSchema = z.object({
   url: z.string().url('Please enter a valid URL'),
@@ -30,8 +30,7 @@ export const ResourceForm = ({
   onSubmit: submitHandler,
   onCancel,
 }: ResourceFormProps) => {
-  const [isExtracting, setIsExtracting] = useState(false)
-  const [extractionError, setExtractionError] = useState<string | null>(null)
+  const { isExtracting, error: extractionError, extractMetadata } = useUrlMetadata()
 
   const {
     register,
@@ -52,31 +51,13 @@ export const ResourceForm = ({
     } : undefined
   })
 
-  const extractMetadata = async () => {
+  const handleExtractMetadata = async () => {
     const url = watch('url')
-    if (!url) {
-      setExtractionError('Please enter a URL first')
-      return
-    }
-
-    setIsExtracting(true)
-    setExtractionError(null)
+    if (!url) return
 
     try {
-      const response = await fetch('/api/url/extract', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to extract metadata')
-      }
-
-      const metadata = await response.json()
+      const metadata = await extractMetadata(url)
+      if (!metadata) return
 
       // Auto-fill form fields with extracted metadata
       if (metadata.title) setValue('title', metadata.title)
@@ -86,10 +67,7 @@ export const ResourceForm = ({
       if (metadata.difficulty) setValue('difficulty', metadata.difficulty)
       if (metadata.topics && metadata.topics.length > 0) setValue('topics', metadata.topics)
     } catch (err) {
-      setExtractionError(err instanceof Error ? err.message : 'Failed to extract metadata from URL')
       console.error('Metadata extraction error:', err)
-    } finally {
-      setIsExtracting(false)
     }
   }
 
@@ -123,7 +101,7 @@ export const ResourceForm = ({
           />
           <Button
             type="button"
-            onClick={extractMetadata}
+            onClick={handleExtractMetadata}
             disabled={isExtracting}
             variant="secondary"
           >
