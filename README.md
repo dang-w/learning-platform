@@ -28,6 +28,10 @@ This platform provides a structured approach to learning AI/ML concepts with:
 
 ### In Progress
 - 🔄 Testing suite implementation
+  - ✅ Backend unit tests with pytest
+  - ✅ Frontend unit tests with Jest
+  - ✅ End-to-end tests with Cypress
+  - 🔄 Integration tests
 
 ### Not Started
 - ❌ Deployment configuration
@@ -88,6 +92,12 @@ learning-platform/
 ├── backend/                # Python FastAPI backend
 │   ├── main.py             # Main application entry point
 │   ├── requirements.txt    # Python dependencies
+│   ├── auth.py             # Authentication logic
+│   ├── database.py         # Database connection
+│   ├── tests/              # Backend test suite
+│   │   ├── api/            # API endpoint tests
+│   │   ├── services/       # Service layer tests
+│   │   └── utils/          # Utility function tests
 │   ├── routers/            # API route handlers
 │   │   ├── resources.py    # Learning resources API
 │   │   ├── progress.py     # Progress tracking API
@@ -99,7 +109,11 @@ learning-platform/
 │   │   ├── app/            # Next.js App Router
 │   │   ├── components/     # Reusable UI components
 │   │   ├── lib/            # Utility functions and hooks
-│   │   └── types/          # TypeScript type definitions
+│   │   ├── types/          # TypeScript type definitions
+│   │   └── __tests__/      # Frontend test suite
+│   ├── cypress/            # End-to-end tests
+│   │   └── e2e/            # E2E test specifications
+│   └── jest.config.mjs     # Jest configuration
 ├── ARCHITECTURE.md         # Detailed architecture documentation
 └── README.md               # This file
 ```
@@ -154,21 +168,59 @@ npm run dev
 
 The frontend will be available at http://localhost:3000.
 
+## Testing
+
+### Backend Tests
+
+Run the backend tests with:
+
+```bash
+cd backend
+pytest
+```
+
+For test coverage report:
+
+```bash
+pytest --cov=app
+```
+
+### Frontend Tests
+
+Run the frontend unit tests with:
+
+```bash
+cd frontend
+npm test
+```
+
+Run the end-to-end tests with:
+
+```bash
+cd frontend
+npm run cypress
+```
+
 ## Deployment Status
 
 The platform is **not yet ready for deployment**. The following steps need to be completed before deployment:
 
-1. Complete the implementation of the knowledge management system
-2. Finish the progress analytics dashboard
-3. Implement comprehensive testing
+1. ~~Complete the implementation of the knowledge management system~~
+2. ~~Finish the progress analytics dashboard~~
+3. Complete comprehensive testing
 4. Configure deployment settings for both frontend and backend
 5. Set up CI/CD pipeline
 
 ## Next Steps
 
 1. ~~Finish the progress analytics dashboard~~
-2. Add comprehensive testing
+2. Complete comprehensive testing
+   - Finish integration tests
+   - Improve test coverage
 3. Configure deployment settings
+   - Set up Vercel for frontend deployment
+   - Configure cloud service for backend deployment
+   - Set up MongoDB Atlas for database
 
 ## API Endpoints
 
@@ -228,14 +280,6 @@ The backend provides the following API endpoints:
 - `GET /api/learning-path/roadmap` - Get the roadmap
 - `PUT /api/learning-path/roadmap` - Update the roadmap
 - `GET /api/learning-path/progress` - Get learning path progress
-
-## Original Scripts
-
-The original Python scripts are preserved in the `scripts/` directory for reference. These scripts provided the foundation for the functionality now implemented in the web application:
-
-- `resource_manager.py` - Manage learning resources
-- `progress_analyzer.py` - Analyze learning progress
-- `review_scheduler.py` - Schedule spaced repetition
 
 ## Deployment
 

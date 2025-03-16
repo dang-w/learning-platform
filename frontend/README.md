@@ -65,6 +65,33 @@ Start the production server:
 npm start
 ```
 
+## Testing
+
+The frontend includes a comprehensive test suite using Jest for unit tests and Cypress for end-to-end tests.
+
+### Running Unit Tests
+
+```bash
+# Run all unit tests
+npm test
+
+# Run with coverage report
+npm test -- --coverage
+
+# Run specific test file
+npm test -- src/__tests__/components/Button.test.tsx
+```
+
+### Running End-to-End Tests
+
+```bash
+# Open Cypress test runner
+npm run cypress
+
+# Run Cypress tests headlessly
+npm run cypress:run
+```
+
 ## Project Structure
 
 - `src/app` - Next.js app router pages
@@ -75,6 +102,12 @@ npm start
   - `src/lib/store` - Zustand stores for state management
   - `src/lib/utils` - Utility functions
 - `src/types` - TypeScript type definitions
+- `src/__tests__` - Test suite
+  - `src/__tests__/app` - Page component tests
+  - `src/__tests__/components` - UI component tests
+  - `src/__tests__/lib` - Utility and hook tests
+- `cypress` - End-to-end tests
+  - `cypress/e2e` - E2E test specifications
 - `public` - Static assets
 
 ## Deployment
@@ -90,3 +123,5 @@ To learn more about the technologies used in this project, check out the followi
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [React Query Documentation](https://tanstack.com/query/latest/docs/react/overview)
 - [Zustand Documentation](https://github.com/pmndrs/zustand)
+- [Jest Documentation](https://jestjs.io/docs/getting-started)
+- [Cypress Documentation](https://docs.cypress.io/guides/overview/why-cypress)

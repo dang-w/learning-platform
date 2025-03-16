@@ -49,21 +49,34 @@ Once the server is running, you can access the API documentation at:
 
 ## Testing
 
-Run the API tests to ensure everything is working correctly:
+The backend includes a comprehensive test suite using pytest. For detailed testing instructions, see the [tests/README.md](tests/README.md) file.
+
+### Running Basic Tests
 
 ```bash
-python test_api.py
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=app
+
+# Run specific test file
+pytest tests/api/test_auth_api.py
 ```
 
-To test the URL extractor service:
+### Testing Approaches
 
-```bash
-python test_url_extractor.py
-```
+The test suite supports multiple testing approaches:
+
+1. **Mock-based Testing**: Uses `mongomock` and `mongomock-motor` to mock MongoDB operations
+2. **Dependency Injection Testing**: Uses FastAPI's dependency override system with mock MongoDB
+3. **Real MongoDB Testing**: Tests against a real MongoDB instance
 
 ## Project Structure
 
 - `main.py`: Main FastAPI application
+- `auth.py`: Authentication logic
+- `database.py`: Database connection and utilities
 - `routers/`: API route handlers
   - `resources.py`: Resource management endpoints
   - `progress.py`: Progress tracking endpoints
@@ -72,6 +85,11 @@ python test_url_extractor.py
   - `url_extractor.py`: URL metadata extraction endpoints
 - `app/services/`: Service modules
   - `url_extractor.py`: URL metadata extraction service
+- `tests/`: Test suite
+  - `api/`: API endpoint tests
+  - `services/`: Service layer tests
+  - `utils/`: Test utilities
+  - `config/`: Test configurations
+  - `runners/`: Test runner scripts
+- `utils/`: Utility functions
 - `init_db.py`: Database initialization script
-- `test_api.py`: API test script
-- `test_url_extractor.py`: URL extractor test script
