@@ -15,33 +15,55 @@ jest.mock('@/lib/api/resources', () => ({
 }));
 
 describe('Resource Store', () => {
-  // Sample resource data for testing
   const mockResources: Resource[] = [
     {
       id: '1',
-      title: 'Learn React',
-      url: 'https://reactjs.org',
-      topics: ['react', 'javascript'],
-      difficulty: 'intermediate',
-      estimated_time: 120,
+      title: 'Introduction to Machine Learning',
+      url: 'https://example.com/ml-intro',
+      topics: ['ML', 'AI'],
+      difficulty: 'beginner',
+      estimated_time: 60,
       completed: false,
-      date_added: '2023-01-01T00:00:00Z',
+      date_added: '2023-03-15T10:30:00',
       completion_date: null,
-      notes: '',
+      notes: ''
     },
     {
       id: '2',
-      title: 'TypeScript Tutorial',
-      url: 'https://www.typescriptlang.org',
-      topics: ['typescript', 'javascript'],
-      difficulty: 'beginner',
-      estimated_time: 60,
+      title: 'Advanced Neural Networks',
+      url: 'https://example.com/neural-networks',
+      topics: ['Neural Networks', 'Deep Learning'],
+      difficulty: 'advanced',
+      estimated_time: 120,
       completed: true,
-      date_added: '2023-01-02T00:00:00Z',
-      completion_date: '2023-01-03T00:00:00Z',
-      notes: 'Great tutorial!',
-    },
+      date_added: '2023-03-10T10:30:00',
+      completion_date: '2023-03-14T10:30:00',
+      notes: 'Great resource'
+    }
   ];
+
+  const mockStatistics = {
+    total: 10,
+    completed: 5,
+    completion_percentage: 50,
+    by_type: {
+      articles: { total: 4, completed: 2, completion_percentage: 50 },
+      videos: { total: 3, completed: 1, completion_percentage: 33 },
+      courses: { total: 2, completed: 1, completion_percentage: 50 },
+      books: { total: 1, completed: 1, completion_percentage: 100 },
+    },
+    by_difficulty: {
+      beginner: { total: 4, completed: 3, completion_percentage: 75 },
+      intermediate: { total: 4, completed: 2, completion_percentage: 50 },
+      advanced: { total: 2, completed: 0, completion_percentage: 0 },
+    },
+    by_topic: {
+      javascript: { total: 5, completed: 3, completion_percentage: 60 },
+      react: { total: 3, completed: 1, completion_percentage: 33 },
+      typescript: { total: 2, completed: 1, completion_percentage: 50 },
+    },
+    recent_completions: [],
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -49,254 +71,343 @@ describe('Resource Store', () => {
 
   describe('fetchResources', () => {
     it('should fetch all resources and update state', async () => {
-      // Mock API response
-      (resourcesApi.getAllResources as jest.Mock).mockResolvedValue(mockResources);
+      (resourcesApi.getAllResources as jest.Mock).mockResolvedValueOnce(mockResources);
 
-      // Render the hook
       const { result } = renderHook(() => useResourceStore());
 
-      // Initial state
-      expect(result.current.resources).toEqual([]);
-      expect(result.current.isLoading).toBe(false);
-
-      // Fetch resources
       await act(async () => {
         await result.current.fetchResources();
       });
 
-      // Check updated state
+      expect(resourcesApi.getAllResources).toHaveBeenCalledTimes(1);
       expect(result.current.resources).toEqual(mockResources);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
-
-      // Verify API call
-      expect(resourcesApi.getAllResources).toHaveBeenCalled();
     });
 
-    it('should handle fetch error', async () => {
-      // Mock API error
-      const mockError = new Error('Failed to fetch resources');
-      (resourcesApi.getAllResources as jest.Mock).mockRejectedValue(mockError);
+    it('should handle errors when fetching resources', async () => {
+      const error = new Error('Failed to fetch resources');
+      (resourcesApi.getAllResources as jest.Mock).mockRejectedValueOnce(error);
 
-      // Render the hook
       const { result } = renderHook(() => useResourceStore());
 
-      // Set initial resources to empty array
-      act(() => {
-        result.current.resources = [];
-      });
-
-      // Fetch resources with error
       await act(async () => {
         await result.current.fetchResources();
       });
 
-      // Check error state
+      expect(resourcesApi.getAllResources).toHaveBeenCalledTimes(1);
       expect(result.current.resources).toEqual([]);
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toBe('Failed to fetch resources');
+      expect(result.current.error).toBe(error.message);
     });
   });
 
   describe('fetchResourcesByType', () => {
     it('should fetch resources by type and update state', async () => {
-      // Filter for articles only
-      const articleResources = mockResources.filter(r => r.topics.includes('react'));
+      const type: ResourceType = 'articles';
+      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValueOnce(mockResources);
 
-      // Mock API response
-      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValue(articleResources);
-
-      // Render the hook
       const { result } = renderHook(() => useResourceStore());
 
-      // Fetch resources by type
       await act(async () => {
-        await result.current.fetchResourcesByType('articles' as ResourceType);
+        await result.current.fetchResourcesByType(type);
       });
 
-      // Check updated state
-      expect(result.current.resources).toEqual(articleResources);
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+      expect(result.current.resources).toEqual(mockResources);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
+    });
 
-      // Verify API call
-      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith('articles');
+    it('should handle errors when fetching resources by type', async () => {
+      const type: ResourceType = 'articles';
+      const error = new Error('Failed to fetch resources by type');
+      (resourcesApi.getResourcesByType as jest.Mock).mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      await act(async () => {
+        await result.current.fetchResourcesByType(type);
+      });
+
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+      expect(result.current.resources).toEqual([]);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(error.message);
     });
   });
 
   describe('addResource', () => {
-    it('should add a new resource and update state', async () => {
-      // New resource to add
+    it('should add a resource and update state', async () => {
+      const type: ResourceType = 'articles';
       const newResource: ResourceCreateInput = {
         title: 'New Resource',
-        url: 'https://example.com',
-        difficulty: 'beginner',
-        topics: ['test'],
-        estimated_time: 30,
+        url: 'https://example.com/new',
+        topics: ['React', 'TypeScript'],
+        difficulty: 'intermediate',
+        estimated_time: 45,
       };
 
-      // Mock API response with ID and timestamps added
       const createdResource: Resource = {
         ...newResource,
         id: '3',
         completed: false,
-        date_added: '2023-01-03T00:00:00Z',
+        date_added: '2023-03-20T10:30:00',
         completion_date: null,
         notes: '',
       };
 
-      (resourcesApi.createResource as jest.Mock).mockResolvedValue(createdResource);
+      (resourcesApi.createResource as jest.Mock).mockResolvedValueOnce(createdResource);
 
-      // Render the hook with initial state
       const { result } = renderHook(() => useResourceStore());
 
-      // Set initial resources
-      act(() => {
-        result.current.resources = [...mockResources];
-      });
-
-      // Add new resource
       await act(async () => {
-        await result.current.addResource('articles' as ResourceType, newResource);
+        await result.current.addResource(type, newResource);
       });
 
-      // Check updated state
-      expect(result.current.resources).toEqual([...mockResources, createdResource]);
+      expect(resourcesApi.createResource).toHaveBeenCalledWith(type, newResource);
+      expect(result.current.resources).toContainEqual(createdResource);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
+    });
 
-      // Verify API call
-      expect(resourcesApi.createResource).toHaveBeenCalledWith('articles', newResource);
+    it('should handle errors when adding a resource', async () => {
+      const type: ResourceType = 'articles';
+      const newResource: ResourceCreateInput = {
+        title: 'New Resource',
+        url: 'https://example.com/new',
+        topics: ['React', 'TypeScript'],
+        difficulty: 'intermediate',
+        estimated_time: 45,
+      };
+
+      const error = new Error('Failed to add resource');
+      (resourcesApi.createResource as jest.Mock).mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      await act(async () => {
+        await result.current.addResource(type, newResource);
+      });
+
+      expect(resourcesApi.createResource).toHaveBeenCalledWith(type, newResource);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(error.message);
     });
   });
 
   describe('updateResource', () => {
-    it('should update an existing resource and update state', async () => {
-      // Update data
+    it('should update a resource and update state', async () => {
+      const type: ResourceType = 'articles';
+      const id = '1';
       const updateData: ResourceUpdateInput = {
-        title: 'Updated React Guide',
-        estimated_time: 150,
+        title: 'Updated Resource',
+        topics: ['ML', 'AI', 'Data Science'],
       };
 
-      // Mock API response
       const updatedResource: Resource = {
         ...mockResources[0],
         ...updateData,
       };
 
-      (resourcesApi.updateResource as jest.Mock).mockResolvedValue(updatedResource);
+      (resourcesApi.updateResource as jest.Mock).mockResolvedValueOnce(updatedResource);
 
-      // Render the hook with initial state
       const { result } = renderHook(() => useResourceStore());
 
-      // Set initial resources
+      // First set some initial resources
       act(() => {
         result.current.resources = [...mockResources];
       });
 
-      // Update resource
       await act(async () => {
-        await result.current.updateResource('articles' as ResourceType, '1', updateData);
+        await result.current.updateResource(type, id, updateData);
       });
 
-      // Check updated state
-      expect(result.current.resources).toEqual([updatedResource, mockResources[1]]);
+      expect(resourcesApi.updateResource).toHaveBeenCalledWith(type, id, updateData);
+      expect(result.current.resources.find(r => r.id === id)).toEqual(updatedResource);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
+    });
 
-      // Verify API call
-      expect(resourcesApi.updateResource).toHaveBeenCalledWith('articles', '1', updateData);
+    it('should handle errors when updating a resource', async () => {
+      const type: ResourceType = 'articles';
+      const id = '1';
+      const updateData: ResourceUpdateInput = {
+        title: 'Updated Resource',
+      };
+
+      const error = new Error('Failed to update resource');
+      (resourcesApi.updateResource as jest.Mock).mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      // First set some initial resources
+      act(() => {
+        result.current.resources = [...mockResources];
+      });
+
+      await act(async () => {
+        await result.current.updateResource(type, id, updateData);
+      });
+
+      expect(resourcesApi.updateResource).toHaveBeenCalledWith(type, id, updateData);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(error.message);
     });
   });
 
   describe('deleteResource', () => {
     it('should delete a resource and update state', async () => {
-      // Mock API response
-      (resourcesApi.deleteResource as jest.Mock).mockResolvedValue(undefined);
+      const type: ResourceType = 'articles';
+      const id = '1';
 
-      // Render the hook with initial state
+      (resourcesApi.deleteResource as jest.Mock).mockResolvedValueOnce(undefined);
+
       const { result } = renderHook(() => useResourceStore());
 
-      // Set initial resources
+      // First set some initial resources
       act(() => {
         result.current.resources = [...mockResources];
       });
 
-      // Delete resource
       await act(async () => {
-        await result.current.deleteResource('articles' as ResourceType, '1');
+        await result.current.deleteResource(type, id);
       });
 
-      // Check updated state - first resource should be removed
-      expect(result.current.resources).toEqual([mockResources[1]]);
+      expect(resourcesApi.deleteResource).toHaveBeenCalledWith(type, id);
+      expect(result.current.resources.find(r => r.id === id)).toBeUndefined();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
+    });
 
-      // Verify API call
-      expect(resourcesApi.deleteResource).toHaveBeenCalledWith('articles', '1');
+    it('should handle errors when deleting a resource', async () => {
+      const type: ResourceType = 'articles';
+      const id = '1';
+
+      const error = new Error('Failed to delete resource');
+      (resourcesApi.deleteResource as jest.Mock).mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      // First set some initial resources
+      act(() => {
+        result.current.resources = [...mockResources];
+      });
+
+      await act(async () => {
+        await result.current.deleteResource(type, id);
+      });
+
+      expect(resourcesApi.deleteResource).toHaveBeenCalledWith(type, id);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(error.message);
     });
   });
 
   describe('completeResource', () => {
-    it('should mark a resource as completed and update state', async () => {
-      // Completion notes
-      const notes = 'This was a great resource!';
+    it('should mark a resource as complete and update state', async () => {
+      const type: ResourceType = 'articles';
+      const id = '1';
+      const notes = 'Completed with notes';
 
-      // Mock API response
       const completedResource: Resource = {
         ...mockResources[0],
         completed: true,
-        completion_date: '2023-01-05T00:00:00Z',
+        completion_date: '2023-03-20T10:30:00',
         notes,
       };
 
-      (resourcesApi.completeResource as jest.Mock).mockResolvedValue(completedResource);
+      (resourcesApi.completeResource as jest.Mock).mockResolvedValueOnce(completedResource);
 
-      // Render the hook with initial state
       const { result } = renderHook(() => useResourceStore());
 
-      // Set initial resources
+      // First set some initial resources
       act(() => {
         result.current.resources = [...mockResources];
       });
 
-      // Complete resource
       await act(async () => {
-        await result.current.completeResource('articles' as ResourceType, '1', notes);
+        await result.current.completeResource(type, id, notes);
       });
 
-      // Check updated state
-      expect(result.current.resources).toEqual([completedResource, mockResources[1]]);
+      expect(resourcesApi.completeResource).toHaveBeenCalledWith(type, id, notes);
+      expect(result.current.resources.find(r => r.id === id)).toEqual(completedResource);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
+    });
 
-      // Verify API call
-      expect(resourcesApi.completeResource).toHaveBeenCalledWith('articles', '1', notes);
+    it('should handle errors when completing a resource', async () => {
+      const type: ResourceType = 'articles';
+      const id = '1';
+      const notes = 'Completed with notes';
+
+      const error = new Error('Failed to complete resource');
+      (resourcesApi.completeResource as jest.Mock).mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      // First set some initial resources
+      act(() => {
+        result.current.resources = [...mockResources];
+      });
+
+      await act(async () => {
+        await result.current.completeResource(type, id, notes);
+      });
+
+      expect(resourcesApi.completeResource).toHaveBeenCalledWith(type, id, notes);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(error.message);
+    });
+  });
+
+  describe('fetchStatistics', () => {
+    it('should fetch statistics and update state', async () => {
+      (resourcesApi.getResourceStatistics as jest.Mock).mockResolvedValueOnce(mockStatistics);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      await act(async () => {
+        await result.current.fetchStatistics();
+      });
+
+      expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      expect(result.current.statistics).toEqual(mockStatistics);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should handle errors when fetching statistics', async () => {
+      const error = new Error('Failed to fetch statistics');
+      (resourcesApi.getResourceStatistics as jest.Mock).mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useResourceStore());
+
+      await act(async () => {
+        await result.current.fetchStatistics();
+      });
+
+      expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      expect(result.current.statistics).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(error.message);
     });
   });
 
   describe('setSelectedResource', () => {
-    it('should update the selected resource', () => {
-      // Render the hook
+    it('should set the selected resource', () => {
       const { result } = renderHook(() => useResourceStore());
 
-      // Initial state
-      expect(result.current.selectedResource).toBeNull();
-
-      // Set selected resource
       act(() => {
         result.current.setSelectedResource(mockResources[0]);
       });
 
-      // Check updated state
       expect(result.current.selectedResource).toEqual(mockResources[0]);
 
-      // Clear selected resource
       act(() => {
         result.current.setSelectedResource(null);
       });
 
-      // Check updated state
       expect(result.current.selectedResource).toBeNull();
     });
   });

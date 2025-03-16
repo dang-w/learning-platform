@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import authApi from '@/lib/api/auth';
+import { User } from '@/lib/api/auth';
 
 // Mock the auth API
 jest.mock('@/lib/api/auth', () => ({
@@ -14,13 +15,25 @@ jest.mock('@/lib/api/auth', () => ({
 }));
 
 describe('Auth Store', () => {
+  const mockUser: User = {
+    username: 'testuser',
+    email: 'test@example.com',
+    full_name: 'Test User',
+    disabled: false,
+  };
+
+  const mockToken = {
+    access_token: 'test-token',
+    token_type: 'bearer',
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Reset the store state before each test
     const { result } = renderHook(() => useAuthStore());
     act(() => {
-      // Reset the store state directly instead of calling logout
+      // Reset the store state directly
       result.current.isAuthenticated = false;
       result.current.isLoading = false;
       result.current.user = null;
@@ -32,9 +45,6 @@ describe('Auth Store', () => {
   describe('login', () => {
     it('should update state on successful login', async () => {
       // Mock API responses
-      const mockToken = { access_token: 'test-token', token_type: 'bearer' };
-      const mockUser = { username: 'testuser', email: 'test@example.com', full_name: 'Test User', disabled: false };
-
       (authApi.login as jest.Mock).mockResolvedValue(mockToken);
       (authApi.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
 
@@ -64,7 +74,7 @@ describe('Auth Store', () => {
       expect(authApi.getCurrentUser).toHaveBeenCalled();
     });
 
-    it('should handle login failure', async () => {
+    it('should handle login errors', async () => {
       // Mock API error
       const mockError = new Error('Invalid credentials');
       (authApi.login as jest.Mock).mockRejectedValue(mockError);
@@ -87,48 +97,198 @@ describe('Auth Store', () => {
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
       expect(result.current.error).toBe('Invalid credentials');
+
+      // Verify API call
+      expect(authApi.login).toHaveBeenCalledWith({ username: 'testuser', password: 'wrong-password' });
+      expect(authApi.getCurrentUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('register', () => {
+    it('should register and login on success', async () => {
+      // Mock API responses
+      (authApi.register as jest.Mock).mockResolvedValue(mockUser);
+      (authApi.login as jest.Mock).mockResolvedValue(mockToken);
+      (authApi.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Perform registration
+      await act(async () => {
+        await result.current.register('testuser', 'test@example.com', 'password', 'Test User');
+      });
+
+      // Check updated state (should be logged in after registration)
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.token).toBe('test-token');
+      expect(result.current.user).toEqual(mockUser);
+      expect(result.current.error).toBeNull();
+
+      // Verify API calls
+      expect(authApi.register).toHaveBeenCalledWith({
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password',
+        full_name: 'Test User',
+      });
+      expect(authApi.login).toHaveBeenCalledWith({ username: 'testuser', password: 'password' });
+      expect(authApi.getCurrentUser).toHaveBeenCalled();
+    });
+
+    it('should handle registration errors', async () => {
+      // Mock API error
+      const mockError = new Error('Username already exists');
+      (authApi.register as jest.Mock).mockRejectedValue(mockError);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Perform registration with error
+      await act(async () => {
+        try {
+          await result.current.register('existinguser', 'test@example.com', 'password', 'Test User');
+        } catch {
+          // Expected to throw
+        }
+      });
+
+      // Check error state
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.user).toBeNull();
+      expect(result.current.token).toBeNull();
+      expect(result.current.error).toBe('Username already exists');
+
+      // Verify API calls
+      expect(authApi.register).toHaveBeenCalledWith({
+        username: 'existinguser',
+        email: 'test@example.com',
+        password: 'password',
+        full_name: 'Test User',
+      });
+      expect(authApi.login).not.toHaveBeenCalled();
     });
   });
 
   describe('logout', () => {
     it('should clear state on logout', async () => {
-      // Setup initial authenticated state
+      // Set up initial authenticated state
       const { result } = renderHook(() => useAuthStore());
-
-      // Manually set authenticated state
       act(() => {
         result.current.isAuthenticated = true;
-        result.current.user = { username: 'testuser', email: 'test@example.com', full_name: 'Test User', disabled: false };
+        result.current.user = mockUser;
         result.current.token = 'test-token';
       });
 
-      // Mock logout API
+      // Mock API response
       (authApi.logout as jest.Mock).mockResolvedValue(undefined);
-
-      // Verify logged in state
-      expect(result.current.isAuthenticated).toBe(true);
-      expect(result.current.user).not.toBeNull();
 
       // Perform logout
       await act(async () => {
         await result.current.logout();
       });
 
-      // Check logged out state
+      // Check cleared state
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.user).toBeNull();
       expect(result.current.token).toBeNull();
+      expect(result.current.error).toBeNull();
+
+      // Verify API call
+      expect(authApi.logout).toHaveBeenCalled();
+    });
+
+    it('should handle logout errors', async () => {
+      // Set up initial authenticated state
+      const { result } = renderHook(() => useAuthStore());
+      act(() => {
+        result.current.isAuthenticated = true;
+        result.current.user = mockUser;
+        result.current.token = 'test-token';
+      });
+
+      // Mock API error
+      const mockError = new Error('Network error');
+      (authApi.logout as jest.Mock).mockRejectedValue(mockError);
+
+      // Perform logout with error
+      await act(async () => {
+        try {
+          await result.current.logout();
+        } catch {
+          // Expected to throw
+        }
+      });
+
+      // Check error state (should still be logged out)
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.user).toBeNull();
+      expect(result.current.token).toBeNull();
+      expect(result.current.error).toBe('Failed to logout');
 
       // Verify API call
       expect(authApi.logout).toHaveBeenCalled();
     });
   });
 
-  describe('refreshToken', () => {
-    it('should update token on successful refresh', async () => {
+  describe('fetchUser', () => {
+    it('should fetch and update user data', async () => {
       // Mock API response
-      const mockToken = { access_token: 'new-token', token_type: 'bearer' };
+      (authApi.getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Perform fetch user
+      await act(async () => {
+        await result.current.fetchUser();
+      });
+
+      // Check updated state
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.user).toEqual(mockUser);
+      expect(result.current.error).toBeNull();
+
+      // Verify API call
+      expect(authApi.getCurrentUser).toHaveBeenCalled();
+    });
+
+    it('should handle fetch user errors', async () => {
+      // Mock API error
+      const mockError = new Error('Unauthorized');
+      (authApi.getCurrentUser as jest.Mock).mockRejectedValue(mockError);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Perform fetch user with error
+      await act(async () => {
+        try {
+          await result.current.fetchUser();
+        } catch {
+          // Expected to throw
+        }
+      });
+
+      // Check error state
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.user).toBeNull();
+      expect(result.current.error).toBe('Failed to fetch user');
+
+      // Verify API call
+      expect(authApi.getCurrentUser).toHaveBeenCalled();
+    });
+  });
+
+  describe('refreshToken', () => {
+    it('should refresh token successfully', async () => {
+      // Mock API response
       (authApi.refreshToken as jest.Mock).mockResolvedValue(mockToken);
 
       // Render the hook
@@ -143,37 +303,201 @@ describe('Auth Store', () => {
       // Check updated state
       expect(refreshResult).toBe(true);
       expect(result.current.isAuthenticated).toBe(true);
-      expect(result.current.token).toBe('new-token');
+      expect(result.current.token).toBe('test-token');
 
       // Verify API call
       expect(authApi.refreshToken).toHaveBeenCalled();
     });
 
-    it('should handle refresh failure', async () => {
-      // Mock API error
+    it('should handle null token response', async () => {
+      // Mock API response with null
       (authApi.refreshToken as jest.Mock).mockResolvedValue(null);
 
       // Render the hook
       const { result } = renderHook(() => useAuthStore());
 
-      // Manually set initial state to unauthenticated
-      act(() => {
-        result.current.isAuthenticated = false;
-        result.current.token = null;
-        result.current.user = null;
-      });
-
-      // Perform token refresh with failure
+      // Perform token refresh
       let refreshResult;
       await act(async () => {
         refreshResult = await result.current.refreshToken();
       });
 
-      // Check updated state
+      // Check state (should not be authenticated)
+      expect(refreshResult).toBe(false);
+      expect(result.current.isAuthenticated).toBe(false);
+
+      // Verify API call
+      expect(authApi.refreshToken).toHaveBeenCalled();
+    });
+
+    it('should handle refresh token errors', async () => {
+      // Mock API error
+      const mockError = new Error('Token expired');
+      (authApi.refreshToken as jest.Mock).mockRejectedValue(mockError);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Set initial state with token
+      act(() => {
+        result.current.token = 'old-token';
+        result.current.isAuthenticated = true;
+        result.current.user = mockUser;
+      });
+
+      // Perform token refresh with error
+      let refreshResult;
+      await act(async () => {
+        refreshResult = await result.current.refreshToken();
+      });
+
+      // Check state (should be logged out)
       expect(refreshResult).toBe(false);
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.token).toBeNull();
       expect(result.current.user).toBeNull();
+
+      // Verify API call
+      expect(authApi.refreshToken).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('should update user profile', async () => {
+      // Mock updated user
+      const updatedUser = {
+        ...mockUser,
+        email: 'updated@example.com',
+        full_name: 'Updated User',
+      };
+
+      // Mock API response
+      (authApi.updateProfile as jest.Mock).mockResolvedValue(updatedUser);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Set initial state with user
+      act(() => {
+        result.current.user = mockUser;
+      });
+
+      // Perform profile update
+      await act(async () => {
+        await result.current.updateProfile({
+          email: 'updated@example.com',
+          full_name: 'Updated User',
+        });
+      });
+
+      // Check updated state
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.user).toEqual(updatedUser);
+      expect(result.current.error).toBeNull();
+
+      // Verify API call
+      expect(authApi.updateProfile).toHaveBeenCalledWith({
+        email: 'updated@example.com',
+        full_name: 'Updated User',
+      });
+    });
+
+    it('should handle update profile errors', async () => {
+      // Mock API error
+      const mockError = new Error('Invalid email format');
+      (authApi.updateProfile as jest.Mock).mockRejectedValue(mockError);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Set initial state with user
+      act(() => {
+        result.current.user = mockUser;
+      });
+
+      // Perform profile update with error
+      await act(async () => {
+        try {
+          await result.current.updateProfile({ email: 'invalid-email' });
+        } catch {
+          // Expected to throw
+        }
+      });
+
+      // Check error state
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.user).toEqual(mockUser); // User should remain unchanged
+      expect(result.current.error).toBe('Failed to update profile');
+
+      // Verify API call
+      expect(authApi.updateProfile).toHaveBeenCalledWith({ email: 'invalid-email' });
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should change password successfully', async () => {
+      // Mock API response
+      (authApi.changePassword as jest.Mock).mockResolvedValue(undefined);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Perform password change
+      await act(async () => {
+        await result.current.changePassword('old-password', 'new-password');
+      });
+
+      // Check state
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+
+      // Verify API call
+      expect(authApi.changePassword).toHaveBeenCalledWith('old-password', 'new-password');
+    });
+
+    it('should handle change password errors', async () => {
+      // Mock API error
+      const mockError = new Error('Incorrect old password');
+      (authApi.changePassword as jest.Mock).mockRejectedValue(mockError);
+
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Perform password change with error
+      await act(async () => {
+        try {
+          await result.current.changePassword('wrong-old-password', 'new-password');
+        } catch {
+          // Expected to throw
+        }
+      });
+
+      // Check error state
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe('Failed to change password');
+
+      // Verify API call
+      expect(authApi.changePassword).toHaveBeenCalledWith('wrong-old-password', 'new-password');
+    });
+  });
+
+  describe('clearError', () => {
+    it('should clear error state', () => {
+      // Render the hook
+      const { result } = renderHook(() => useAuthStore());
+
+      // Set initial state with error
+      act(() => {
+        result.current.error = 'Some error';
+      });
+
+      // Clear error
+      act(() => {
+        result.current.clearError();
+      });
+
+      // Check cleared error state
+      expect(result.current.error).toBeNull();
     });
   });
 });

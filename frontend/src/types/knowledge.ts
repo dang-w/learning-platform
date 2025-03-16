@@ -16,6 +16,9 @@ export interface Concept {
   review_count: number;
   confidence_level: number; // 1-5 scale
   user_id: string;
+  reviews: Review[];
+  next_review: string | null;
+  updated_at: string;
 }
 
 // ConceptCreateInput is used when creating a new concept
@@ -34,12 +37,8 @@ export interface ConceptUpdateInput extends Partial<ConceptCreateInput> {
 
 // Review represents a review session for a concept
 export interface Review {
-  id: string;
-  concept_id: string;
-  reviewed_at: string;
-  confidence_level: number; // 1-5 scale
-  notes?: string;
-  user_id: string;
+  date: string;
+  confidence: number; // 1-5
 }
 
 // ReviewCreateInput is used when creating a new review
@@ -53,23 +52,23 @@ export interface ReviewCreateInput {
 export interface ReviewSession {
   id: string;
   concepts: Concept[];
-  created_at: string;
-  completed_at?: string;
-  user_id: string;
+  date: string;
+  completed: boolean;
 }
 
 // ReviewStatistics provides metrics about the review process
 export interface ReviewStatistics {
   total_concepts: number;
-  concepts_due: number;
-  concepts_by_confidence: {
-    [key: number]: number; // confidence level -> count
-  };
-  concepts_by_topic: {
-    [key: string]: number; // topic -> count
-  };
-  review_streak: number;
+  total_reviews: number;
+  concepts_with_reviews: number;
+  concepts_without_reviews: number;
   average_confidence: number;
+  topics: string[];
+  review_history: {
+    date: string;
+    count: number;
+    average_confidence: number;
+  }[];
 }
 
 // SpacedRepetitionAlgorithm defines the algorithm used for scheduling reviews
@@ -85,4 +84,50 @@ export interface SpacedRepetitionSettings {
   daily_review_limit: number;
   include_new_concepts: boolean;
   new_concepts_per_day: number;
+}
+
+export interface ConceptFormData {
+  title: string;
+  content: string;
+  topics: string[];
+}
+
+export interface ConceptFormProps {
+  concept?: Concept;
+  onSubmit: (data: ConceptFormData) => void;
+  onCancel: () => void;
+}
+
+export interface ConceptListProps {
+  concepts: Concept[];
+  onDelete: (id: string) => void;
+  onEdit: (concept: Concept) => void;
+  onReview: (concept: Concept) => void;
+}
+
+export interface ConceptCardProps {
+  concept: Concept;
+  onDelete: (id: string) => void;
+  onEdit: (concept: Concept) => void;
+  onReview: (concept: Concept) => void;
+}
+
+export interface ConceptFilterProps {
+  onFilterChange: (filter: ConceptFilter) => void;
+}
+
+export interface ConceptFilter {
+  search: string;
+  topic: string | 'all';
+  reviewStatus: 'all' | 'due' | 'not-due' | 'never-reviewed';
+}
+
+export interface ReviewFormData {
+  confidence: number;
+}
+
+export interface ReviewFormProps {
+  concept: Concept;
+  onSubmit: (data: ReviewFormData) => void;
+  onSkip: () => void;
 }
