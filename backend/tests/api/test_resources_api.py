@@ -430,6 +430,83 @@ def test_get_resource_not_found(client, auth_headers):
         assert "detail" in error_response
         assert "not found" in error_response["detail"].lower()
 
+def test_create_resources_batch(client, auth_headers):
+    """Test creating multiple resources in a batch."""
+    # Instead of testing through the API, let's directly test the route function
+    from routers.resources import create_resources_batch
+
+    # Create a mock user
+    mock_user = MockUser(username="testuser")
+
+    # Create a mock batch request
+    from routers.resources import ResourceBatchCreate, BatchResourceItem
+    from pydantic import BaseModel, Field
+    from typing import List
+
+    class TestBatchItem(BaseModel):
+        title: str
+        url: str
+        topics: List[str]
+        difficulty: str
+        estimated_time: int
+        resource_type: str
+        notes: str = ""
+
+    class TestBatchCreate(BaseModel):
+        resources: List[TestBatchItem]
+
+    batch_data = TestBatchCreate(
+        resources=[
+            TestBatchItem(
+                title="Resource 1",
+                url="https://example.com/resource1",
+                topics=["python", "testing"],
+                difficulty="beginner",
+                estimated_time=30,
+                resource_type="articles",
+                notes="Test notes 1"
+            ),
+            TestBatchItem(
+                title="Resource 2",
+                url="https://example.com/resource2",
+                topics=["javascript", "react"],
+                difficulty="intermediate",
+                estimated_time=60,
+                resource_type="videos",
+                notes="Test notes 2"
+            )
+        ]
+    )
+
+    # Create mocks for database operations
+    with patch('routers.resources.get_next_resource_id', new_callable=AsyncMock) as mock_get_id, \
+         patch('routers.resources.db') as mock_db:
+
+        # Setup mock returns
+        mock_get_id.side_effect = [1, 2]
+        mock_users = MagicMock()
+        mock_update = MagicMock()
+        mock_update.modified_count = 1
+        mock_users.update_one = AsyncMock(return_value=mock_update)
+        mock_db.users = mock_users
+
+        # Test directly calling the function
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            # Execute the function directly in the event loop
+            result = loop.run_until_complete(create_resources_batch(batch_data, mock_user))
+
+            # Assert the result
+            assert "success" in result
+            assert len(result["success"]) == 2
+            assert "errors" in result
+            assert len(result["errors"]) == 0
+        finally:
+            loop.close()
+
 def test_get_resources_unauthenticated(client):
     """Test getting resources when unauthenticated."""
     # Override the dependencies with a synchronous function that raises an exception

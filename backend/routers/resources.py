@@ -51,6 +51,19 @@ class ResourceUpdate(BaseModel):
 class ResourceComplete(BaseModel):
     notes: Optional[str] = None
 
+# Model for batch creation
+class BatchResourceItem(BaseModel):
+    title: str
+    url: str
+    topics: List[str]
+    difficulty: str
+    estimated_time: int
+    resource_type: str
+    notes: Optional[str] = ""
+
+class ResourceBatchCreate(BaseModel):
+    resources: List[BatchResourceItem]
+
 # Helper functions
 async def get_next_resource_id(db, username, resource_type):
     """Get the next available ID for a resource."""
@@ -469,3 +482,90 @@ async def get_next_resources(
 
     # Return up to 'count' resources
     return uncompleted[:count]
+
+@router.post("/batch", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+async def create_resources_batch(
+    resources_batch: ResourceBatchCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create multiple resources in a batch."""
+    result = {
+        "success": [],
+        "errors": []
+    }
+
+    # Check if resources_batch has the resources array
+    if not hasattr(resources_batch, 'resources') or not resources_batch.resources:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Request must contain a 'resources' array"
+        )
+
+    for resource_data in resources_batch.resources:
+        try:
+            # Extract resource_type
+            resource_type = resource_data.resource_type
+
+            # Validate resource type
+            try:
+                validate_resource_type(resource_type)
+            except ValidationError as e:
+                result["errors"].append({
+                    "data": resource_data.dict(),
+                    "error": str(e)
+                })
+                continue
+
+            # Validate URL
+            try:
+                validate_url(resource_data.url)
+            except ValidationError as e:
+                result["errors"].append({
+                    "data": resource_data.dict(),
+                    "error": str(e)
+                })
+                continue
+
+            # Get next ID for the resource
+            next_id = await get_next_resource_id(db, current_user.username, resource_type)
+
+            # Create resource document
+            resource_doc = {
+                "id": next_id,
+                "title": resource_data.title,
+                "url": resource_data.url,
+                "topics": resource_data.topics,
+                "difficulty": resource_data.difficulty,
+                "estimated_time": resource_data.estimated_time,
+                "completed": False,
+                "date_added": datetime.now().isoformat(),
+                "completion_date": None,
+                "notes": resource_data.notes
+            }
+
+            # Update user document
+            update_result = await db.users.update_one(
+                {"username": current_user.username},
+                {"$push": {f"resources.{resource_type}": resource_doc}}
+            )
+
+            if update_result.modified_count == 0:
+                result["errors"].append({
+                    "data": resource_data.dict(),
+                    "error": "Failed to add resource to user"
+                })
+                continue
+
+            # Add to success list
+            result["success"].append({
+                "resource_type": resource_type,
+                **resource_doc
+            })
+
+        except Exception as e:
+            result["errors"].append({
+                "data": resource_data.dict(),
+                "error": str(e)
+            })
+
+    return result

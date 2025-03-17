@@ -135,6 +135,83 @@ def test_create_concept(client, auth_headers):
         # The API sets a next_review date, so we just check it exists rather than being None
         assert "next_review" in data
 
+def test_create_concepts_batch(client, auth_headers):
+    """Test creating multiple concepts in a batch."""
+    # Create a mock user
+    mock_user = MockUser(username="testuser")
+
+    # Override the dependencies with synchronous functions
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Create a mock for the find_one method
+    mock_find_one = AsyncMock()
+    mock_find_one.return_value = {
+        "username": "testuser",
+        "concepts": []
+    }
+
+    # Create a mock for the update_one method
+    mock_update_one = AsyncMock()
+    mock_update_result = MagicMock()
+    mock_update_result.modified_count = 1
+    mock_update_one.return_value = mock_update_result
+
+    # Create a mock for the users collection
+    mock_users = MagicMock()
+    mock_users.find_one = mock_find_one
+    mock_users.update_one = mock_update_one
+
+    # Create a mock for the db
+    mock_db = MagicMock()
+    mock_db.users = mock_users
+
+    # Mock the database operations
+    with patch('routers.reviews.db', mock_db), \
+         patch('routers.reviews.datetime') as mock_datetime:
+
+        # Mock datetime to return a fixed value
+        mock_now = datetime(2024, 3, 1, 12, 0, 0)
+        mock_datetime.now.return_value = mock_now
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+        # Test creating new concepts in batch
+        new_concepts = {
+            "concepts": [
+                {
+                    "title": "Convolutional Neural Networks",
+                    "content": "CNNs are a class of deep neural networks...",
+                    "topics": ["Deep Learning", "CNN", "Computer Vision"]
+                },
+                {
+                    "title": "Transformer Architecture",
+                    "content": "Transformers are a type of deep learning model...",
+                    "topics": ["NLP", "Deep Learning", "Attention Mechanism"]
+                }
+            ]
+        }
+
+        response = client.post("/api/reviews/concepts/batch", json=new_concepts, headers=auth_headers)
+
+        # Verify the response
+        assert response.status_code == 201
+        data = response.json()
+
+        assert "success" in data
+        assert "errors" in data
+        assert len(data["success"]) == 2
+
+        # Verify first concept
+        assert data["success"][0]["title"] == "Convolutional Neural Networks"
+        assert data["success"][0]["id"].startswith("20240301120000_convolutional_neural")
+
+        # Verify second concept
+        assert data["success"][1]["title"] == "Transformer Architecture"
+        assert data["success"][1]["id"].startswith("20240301120000_transformer_archite")
+
+        # Verify no errors
+        assert len(data["errors"]) == 0
+
 def test_get_concept_by_id(client, auth_headers):
     """Test getting a specific concept by ID."""
     # Create a mock user

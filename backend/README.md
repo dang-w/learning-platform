@@ -93,3 +93,33 @@ The test suite supports multiple testing approaches:
   - `runners/`: Test runner scripts
 - `utils/`: Utility functions
 - `init_db.py`: Database initialization script
+
+## Recent Updates
+
+### E2E Testing Support (March 2025)
+
+The following endpoints have been implemented to support E2E testing:
+
+1. **Batch Creation Endpoints**
+   - `/api/resources/batch` - Create multiple resources in a batch
+   - `/api/reviews/concepts/batch` - Create multiple knowledge concepts in a batch
+   - `/api/learning-path/goals/batch` - Create multiple learning goals in a batch
+
+2. **Token Management**
+   - `/token/refresh` - Refresh an access token using an existing valid token
+
+These endpoints enhance the API's usability for E2E testing by allowing for more efficient data setup and improved token handling. For details on implementation, see the `ENDPOINTS_IMPLEMENTED.md` file.
+
+### Running Tests
+
+To run tests for the implemented endpoints:
+
+```bash
+# Test token refresh endpoint
+pytest tests/api/test_auth_api.py::test_token_refresh -v
+
+# Test batch endpoints
+pytest tests/api/test_resources_api.py::test_create_resources_batch -v
+pytest tests/api/test_knowledge.py::test_create_concepts_batch -v
+pytest tests/api/test_learning_path_api.py::test_create_goals_batch -v
+```

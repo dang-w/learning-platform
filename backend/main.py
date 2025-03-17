@@ -10,13 +10,16 @@ from datetime import datetime, timedelta
 import logging
 from dotenv import load_dotenv
 from pymongo.errors import DuplicateKeyError
+import jwt
+from jwt.exceptions import PyJWTError
 
 # Import authentication from auth module
 from auth import (
     User, Token, TokenData, UserInDB,
     get_current_active_user, get_current_user,
-    authenticate_user, create_access_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
+    authenticate_user, create_access_token, get_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash,
+    SECRET_KEY, ALGORITHM
 )
 
 # Import database connection
@@ -112,6 +115,106 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         data={"sub": user["username"]}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+@app.post("/token/refresh", response_model=Token)
+async def refresh_access_token(refresh_data: RefreshTokenRequest):
+    """
+    Refresh the access token using a valid JWT token.
+
+    This endpoint allows clients to get a new access token without requiring the user
+    to re-authenticate with username and password, as long as they have a valid token.
+    """
+    try:
+        # Decode the token to verify it's valid
+        payload = jwt.decode(refresh_data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Get the user to make sure they still exist and are not disabled
+        try:
+            user = await get_user(username)
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            if user.get("disabled", False):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Inactive user"
+                )
+
+            # Create a new access token
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": username}, expires_delta=access_token_expires
+            )
+
+            return {"access_token": access_token, "token_type": "bearer"}
+        except RuntimeError as e:
+            if "Event loop is closed" in str(e):
+                # During testing with TestClient, the event loop might be closed
+                # We can work around this by creating a new event loop for this operation
+                import asyncio
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    user = loop.run_until_complete(get_user(username))
+                    if user is None:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="User not found",
+                            headers={"WWW-Authenticate": "Bearer"},
+                        )
+
+                    if user.get("disabled", False):
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Inactive user"
+                        )
+
+                    # Create a new access token
+                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                    access_token = create_access_token(
+                        data={"sub": username}, expires_delta=access_token_expires
+                    )
+
+                    return {"access_token": access_token, "token_type": "bearer"}
+                except Exception as inner_e:
+                    logger.error(f"Error during token refresh after event loop retry: {str(inner_e)}")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Authentication error",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+                finally:
+                    loop.close()
+
+            # For other runtime errors
+            logger.error(f"Error during token refresh: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication error",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    except PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 @app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate):

@@ -185,6 +185,96 @@ def test_create_goal(client, auth_headers):
         assert created_goal["description"] == "New Goal Description"
         assert "id" in created_goal
 
+def test_create_goals_batch(client, auth_headers):
+    """Test creating multiple goals in a batch."""
+    # Create a mock user
+    mock_user = MockUser(username="testuser")
+
+    # Override the dependencies with synchronous functions
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Create a mock for the find_one method
+    mock_find_one = AsyncMock()
+    mock_find_one.return_value = {
+        "username": "testuser",
+        "goals": []
+    }
+
+    # Create a mock for the update_one method
+    mock_update_one = AsyncMock()
+    mock_update_result = MagicMock()
+    mock_update_result.modified_count = 1
+    mock_update_one.return_value = mock_update_result
+
+    # Create a mock for the users collection
+    mock_users = MagicMock()
+    mock_users.find_one = mock_find_one
+    mock_users.update_one = mock_update_one
+
+    # Create a mock for the db
+    mock_db = MagicMock()
+    mock_db.users = mock_users
+
+    # Get tomorrow's date for the target dates
+    tomorrow = datetime.now() + timedelta(days=1)
+    target_date = tomorrow.strftime("%Y-%m-%d")
+
+    # Mock the ObjectId for predictable IDs in tests
+    mock_object_id = MagicMock()
+    mock_object_id.return_value = "mock_object_id"
+
+    # Test data
+    batch_goals = {
+        "goals": [
+            {
+                "title": "Learn Python",
+                "description": "Master Python programming",
+                "target_date": target_date,
+                "priority": 5,
+                "category": "Programming"
+            },
+            {
+                "title": "Learn FastAPI",
+                "description": "Build RESTful APIs with FastAPI",
+                "target_date": target_date,
+                "priority": 4,
+                "category": "Programming"
+            }
+        ]
+    }
+
+    # Mock the database operations
+    with patch('routers.learning_path.db', mock_db), \
+         patch('routers.learning_path.ObjectId', return_value=mock_object_id), \
+         patch('routers.learning_path.datetime') as mock_datetime:
+
+        # Mock datetime to return a fixed value
+        mock_now = datetime(2024, 3, 1, 12, 0, 0)
+        mock_datetime.now.return_value = mock_now
+        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+        response = client.post("/api/learning-path/goals/batch", json=batch_goals, headers=auth_headers)
+
+        # Verify the response
+        assert response.status_code == 201
+        data = response.json()
+
+        assert "success" in data
+        assert "errors" in data
+        assert len(data["success"]) == 2
+
+        # Verify first goal
+        assert data["success"][0]["title"] == "Learn Python"
+        assert data["success"][0]["priority"] == 5
+
+        # Verify second goal
+        assert data["success"][1]["title"] == "Learn FastAPI"
+        assert data["success"][1]["priority"] == 4
+
+        # Verify no errors
+        assert len(data["errors"]) == 0
+
 def test_get_goal_by_id(client, auth_headers):
     """Test getting a goal by ID."""
     # Create a mock user
