@@ -10,6 +10,14 @@ from bson import ObjectId
 from datetime import timedelta
 from jose import JWTError
 import nest_asyncio
+import uuid
+from httpx import AsyncClient
+
+# Import standardized utilities
+from utils.error_handlers import AuthenticationError, ResourceNotFoundError
+from utils.response_models import StandardResponse, ErrorResponse
+from utils.validators import validate_required_fields
+from database import get_database
 
 # Apply nest_asyncio to allow nested event loops
 nest_asyncio.apply()
@@ -28,141 +36,215 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # Import the app and auth modules
 from main import app
 from auth import get_current_user, get_current_active_user, oauth2_scheme, create_access_token, jwt, SECRET_KEY, ALGORITHM
-from database import db
 
+# Import the mock database instead of the real one
+from tests.mock_db import db, create_test_user
+
+# Create a session-scoped event loop for all async tests
 @pytest.fixture(scope="session")
-def client():
-    """
-    Create a test client for the FastAPI app.
-    """
-    # Override the get_current_user dependency for testing
-    async def override_get_current_user():
-        # Return a mock user
-        return {
-            "username": "testuser",
-            "email": "testuser@example.com",
-            "full_name": "Test User",
-            "disabled": False,
-            "_id": str(ObjectId()),
-            "resources": [],
-            "study_sessions": [],
-            "review_sessions": [],
-            "learning_paths": [],
-            "reviews": [],
-            "concepts": [],
-            "goals": [],
-            "milestones": []
-        }
+def event_loop():
+    """Create a session-scoped event loop for all async tests."""
+    # Create a new event loop
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
 
-    # Override the dependency
-    app.dependency_overrides[get_current_user] = override_get_current_user
+    # Set it as the default event loop
+    asyncio.set_event_loop(loop)
 
-    with TestClient(app) as test_client:
-        yield test_client
+    yield loop
 
-    # Clear the dependency override after tests
-    app.dependency_overrides = {}
+    # Clean up pending tasks
+    pending = asyncio.all_tasks(loop)
+    for task in pending:
+        task.cancel()
 
-@pytest_asyncio.fixture(scope="session")
-async def test_db():
-    """
-    Create a test database connection.
-    Note: This is now an async fixture to properly handle async operations.
-    """
-    # Clear the test database before each test
-    collections = await db.list_collection_names()
-    for collection in collections:
-        await db[collection].drop()
+    # Run the event loop until all tasks are cancelled
+    if pending:
+        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
-    yield db
+    # Close the loop
+    loop.close()
 
-# Create a mock user class that mimics the behavior of the User model
+# Mock user class for testing
 class MockUser:
+    """Mock user class for testing."""
+
     def __init__(self, username="testuser"):
         self.username = username
         self.email = f"{username}@example.com"
-        self.full_name = f"{username.capitalize()} User"
+        self.full_name = f"Test User {username.capitalize()}"
         self.disabled = False
-        self._id = ObjectId()  # Add a mock _id field
-        # Add additional fields that might be needed
-        self.resources = []
-        self.study_sessions = []
-        self.review_sessions = []
-        self.learning_paths = []
-        self.reviews = []
-        self.concepts = []
-        self.goals = []
-        self.milestones = []
+        self.id = username
+        self.user_id = username
+        self.roles = ["user"]
+        self.permissions = ["read:own", "write:own"]
+        self.created_at = "2023-01-01T00:00:00"
+        self.updated_at = "2023-01-01T00:00:00"
+        self.last_login = "2023-01-01T00:00:00"
+        self.preferences = {"theme": "light", "notifications": True}
 
     def model_dump(self):
-        """Return a dict representation of the user."""
+        """Convert to dict for Pydantic v2 compatibility."""
         return {
             "username": self.username,
             "email": self.email,
             "full_name": self.full_name,
             "disabled": self.disabled,
-            "resources": self.resources,
-            "study_sessions": self.study_sessions,
-            "review_sessions": self.review_sessions,
-            "learning_paths": self.learning_paths,
-            "reviews": self.reviews,
-            "concepts": self.concepts,
-            "goals": self.goals,
-            "milestones": self.milestones
+            "id": self.id,
+            "user_id": self.user_id,
+            "roles": self.roles,
+            "permissions": self.permissions,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "last_login": self.last_login,
+            "preferences": self.preferences
         }
 
     def dict(self):
-        """Alias for model_dump for compatibility."""
+        """Convert to dict for Pydantic v1 compatibility."""
         return self.model_dump()
 
+# Setup test user fixture
 @pytest_asyncio.fixture(scope="session")
 async def setup_test_user():
-    """Create a test user directly in the database and return a valid token."""
-    # Define test user data
-    username = "testuser"
-    user_data = {
-        "username": username,
-        "email": f"{username}@example.com",
-        "full_name": "Test User",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
-        "disabled": False,
-        "resources": [],
-        "study_sessions": [],
-        "review_sessions": [],
-        "learning_paths": [],
-        "reviews": [],
-        "concepts": [],
-        "goals": [],
-        "milestones": []
-    }
+    """Create a test user in the database."""
+    try:
+        # Create a test user
+        test_user = await create_test_user()
 
-    # Check if user already exists and delete if needed
-    existing_user = await db.users.find_one({"username": username})
-    if existing_user:
-        await db.users.delete_one({"_id": existing_user["_id"]})
+        # Create an access token for the test user
+        access_token_expires = timedelta(minutes=30)
+        access_token = create_access_token(
+            data={"sub": test_user["username"]},
+            expires_delta=access_token_expires
+        )
 
-    # Insert the test user
-    await db.users.insert_one(user_data)
+        # Return the test user and token
+        return {
+            "user": test_user,
+            "token": access_token
+        }
+    except Exception as e:
+        logger.error(f"Error setting up test user: {e}")
+        raise
 
-    # Verify the user was created
-    user = await db.users.find_one({"username": username})
-    if not user:
-        pytest.fail(f"Failed to create test user {username} in database")
+# Client fixture for testing
+@pytest.fixture(scope="function")
+def client(setup_test_user):
+    """Create a test client with authentication overrides."""
+    # Create a test client
+    test_client = TestClient(app)
 
-    # Create a token for the test user
-    token = create_access_token(data={"sub": username}, expires_delta=timedelta(days=1))
+    # Override the dependencies for authentication
+    if setup_test_user:
+        # For authenticated routes
+        async def override_get_current_user():
+            """Override the get_current_user dependency."""
+            return MockUser(username=setup_test_user["user"]["username"])
 
-    yield token
+        # Override the dependencies
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[get_current_active_user] = override_get_current_user
+    else:
+        # For unauthenticated routes
+        async def override_get_current_user():
+            """Override to simulate authentication failure."""
+            raise AuthenticationError(detail="Not authenticated for testing")
 
-    # Clean up after the test
-    await db.users.delete_one({"username": username})
+        # Override the dependencies
+        app.dependency_overrides[get_current_user] = override_get_current_user
 
-@pytest.fixture
-def auth_headers():
-    """
-    Create authentication headers for test requests.
-    This fixture doesn't rely on the setup_test_user fixture to avoid async issues.
-    """
-    # Create a token directly
-    token = create_access_token(data={"sub": "testuser"}, expires_delta=timedelta(days=1))
-    return {"Authorization": f"Bearer {token}"}
+    yield test_client
+
+    # Clear dependency overrides
+    app.dependency_overrides.clear()
+
+# Async client fixture for testing
+@pytest_asyncio.fixture
+async def async_client(setup_test_user):
+    """Create an async test client with authentication overrides."""
+    # Create an async client
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        # Override the dependencies for authentication
+        if setup_test_user:
+            # For authenticated routes
+            async def override_get_current_user():
+                """Override the get_current_user dependency."""
+                return MockUser(username=setup_test_user["user"]["username"])
+
+            # Override the dependencies
+            app.dependency_overrides[get_current_user] = override_get_current_user
+            app.dependency_overrides[get_current_active_user] = override_get_current_user
+        else:
+            # For unauthenticated routes
+            async def override_get_current_user():
+                """Override to simulate authentication failure."""
+                raise AuthenticationError(detail="Not authenticated for testing")
+
+            # Override the dependencies
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
+        yield ac
+
+        # Clear dependency overrides
+        app.dependency_overrides.clear()
+
+# Auth headers fixture for testing
+@pytest.fixture(scope="function")
+def auth_headers(setup_test_user):
+    """Create authentication headers for testing."""
+    if not setup_test_user or "token" not in setup_test_user:
+        return {}
+
+    # Create headers with the token
+    headers = {"Authorization": f"Bearer {setup_test_user['token']}"}
+    return headers
+
+# Unique test name fixture for testing
+@pytest.fixture(scope="function")
+def unique_test_name():
+    """Generate a unique test name for isolation."""
+    return f"test_{uuid.uuid4().hex[:8]}"
+
+# Test database fixture for testing
+@pytest_asyncio.fixture(scope="session")
+async def test_db():
+    """Create a test database connection."""
+    try:
+        # Get a new database connection
+        db_conn = await get_database()
+        yield db_conn["db"]
+    finally:
+        # Close the database connection
+        if "client" in db_conn:
+            db_conn["client"].close()
+
+# Patch database fixture for testing
+@pytest.fixture(scope="session", autouse=True)
+def patch_database():
+    """Patch the database module to use the mock database."""
+    # Import the modules that use the database
+    import database
+    import utils.db_utils
+
+    # Save the original database
+    original_db = database.db
+    original_get_database = database.get_database
+
+    # Replace with the mock database
+    database.db = db
+    utils.db_utils.db = db
+
+    # Define a mock get_database function
+    async def mock_get_database():
+        return {"db": db, "client": None}
+
+    # Replace the get_database function
+    database.get_database = mock_get_database
+
+    yield
+
+    # Restore the original database
+    database.db = original_db
+    database.get_database = original_get_database
+    utils.db_utils.db = original_db
