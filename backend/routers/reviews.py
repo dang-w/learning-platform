@@ -18,10 +18,8 @@ db = client.learning_platform_db
 # Create router
 router = APIRouter()
 
-# Import authentication functions from main
-# This will be imported in main.py after the router is created
-# to avoid circular imports
-from main import get_current_active_user, User
+# Import authentication functions from auth
+from auth import get_current_active_user, User
 
 # Models
 class ConceptBase(BaseModel):

@@ -13,6 +13,22 @@ DB_NAME = os.getenv("DB_NAME", "learning_platform")
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
 db = client[DB_NAME]
 
+# Function to get a new database connection
+async def get_database():
+    """
+    Create and return a new database connection.
+    This is useful for tests to avoid event loop conflicts.
+
+    Returns:
+        A dictionary containing both the database and client objects.
+    """
+    new_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
+    new_db = new_client[DB_NAME]
+    return {
+        "db": new_db,
+        "client": new_client
+    }
+
 # Create indexes
 async def create_indexes():
     # Create unique index on username

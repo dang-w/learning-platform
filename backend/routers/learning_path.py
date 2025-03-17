@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 import motor.motor_asyncio
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -17,10 +18,8 @@ db = client.learning_platform_db
 # Create router
 router = APIRouter()
 
-# Import authentication functions from main
-# This will be imported in main.py after the router is created
-# to avoid circular imports
-from main import get_current_active_user, User
+# Import authentication functions from auth
+from auth import get_current_active_user, User
 
 # Models
 class MilestoneBase(BaseModel):
@@ -301,6 +300,8 @@ async def create_goal(
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new learning goal."""
+    logger = logging.getLogger(__name__)
+
     # Validate date format
     try:
         datetime.strptime(goal.target_date, "%Y-%m-%d")
@@ -329,25 +330,48 @@ async def create_goal(
 
     # Handle both User objects and dictionaries
     username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    logger.info(f"Creating goal for user: {username}")
 
-    # Add to user's goals
-    result = await db.users.update_one(
-        {"username": username},
-        {"$push": {"goals": goal_dict}}
-    )
-
-    if result.modified_count == 0:
-        # If the goals array doesn't exist yet, create it
+    try:
+        # Add to user's goals
         result = await db.users.update_one(
             {"username": username},
-            {"$set": {"goals": [goal_dict]}}
+            {"$push": {"goals": goal_dict}}
         )
 
+        logger.info(f"Update result: matched={result.matched_count}, modified={result.modified_count}")
+
         if result.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create goal"
+            # If the goals array doesn't exist yet, create it
+            logger.info(f"Trying to set goals array for user {username}")
+            result = await db.users.update_one(
+                {"username": username},
+                {"$set": {"goals": [goal_dict]}}
             )
+
+            logger.info(f"Set result: matched={result.matched_count}, modified={result.modified_count}")
+
+            if result.modified_count == 0:
+                # Check if user exists
+                user = await db.users.find_one({"username": username})
+                if not user:
+                    logger.error(f"User {username} not found in database")
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"User {username} not found"
+                    )
+                else:
+                    logger.error(f"Failed to create goal for user {username}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to create goal"
+                    )
+    except Exception as e:
+        logger.error(f"Exception creating goal: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating goal: {str(e)}"
+        )
 
     return goal_dict
 
