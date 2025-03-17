@@ -1,23 +1,57 @@
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import patch, MagicMock, AsyncMock
 from main import app
-from auth import create_access_token
+from auth import create_access_token, get_current_user, get_current_active_user
 from datetime import timedelta
 
+# Import standardized utilities
+from utils.error_handlers import AuthenticationError
+from utils.response_models import StandardResponse
+from utils.validators import validate_required_fields
+from database import get_database
+
+# Import test utilities
+from tests.integration.test_utils import verify_response
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_dependency_overrides():
+    """Clear dependency overrides before and after each test."""
+    app.dependency_overrides.clear()
+    yield
+    app.dependency_overrides.clear()
+
 @pytest.mark.integration
-def test_authentication():
+def test_authentication(client, auth_headers):
     """
     Test that authentication works with a valid token.
+    """
+    # Make a request with the auth headers
+    response = client.get("/users/me/", headers=auth_headers)
+
+    # Verify the response using the standardized response model
+    user_data = verify_response(response)
+    assert user_data["username"] == "testuser"
+    assert "email" in user_data
+    assert "full_name" in user_data
+
+@pytest.mark.integration
+def test_authentication_failure():
+    """
+    Test that authentication fails with an invalid token.
     """
     # Create a test client
     client = TestClient(app)
 
-    # Create a token
-    token = create_access_token(data={"sub": "testuser"}, expires_delta=timedelta(days=1))
+    # Create invalid auth headers
+    invalid_headers = {"Authorization": "Bearer invalid_token"}
 
-    # Make a request with the token
-    response = client.get("/users/me/", headers={"Authorization": f"Bearer {token}"})
+    # Make a request with invalid auth headers
+    response = client.get("/users/me/", headers=invalid_headers)
 
-    # For this test, we'll just check that the response is not a 500 error
-    # The actual authentication might fail with 401 if the user doesn't exist
-    assert response.status_code != 500, f"Server error: {response.content}"
+    # Verify the response is unauthorized
+    assert response.status_code == 401
+    response_json = response.json()
+    assert response_json["success"] == False
+    assert "message" in response_json
+    assert response_json["error_code"] == "UNAUTHORIZED"

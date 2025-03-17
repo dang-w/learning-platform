@@ -99,6 +99,30 @@ class MockCollection:
                         if key in self.data[i]:
                             del self.data[i][key]
 
+                # Handle $push operator
+                if "$push" in update:
+                    for key, value in update["$push"].items():
+                        # Create nested objects if they don't exist
+                        parts = key.split('.')
+                        current = self.data[i]
+
+                        # Navigate to the correct nested object
+                        for j, part in enumerate(parts[:-1]):
+                            if part not in current:
+                                current[part] = {} if j < len(parts) - 2 else []
+                            current = current[part]
+
+                        # Add the value to the array
+                        last_part = parts[-1]
+                        if last_part not in current:
+                            current[last_part] = []
+
+                        if isinstance(current[last_part], list):
+                            current[last_part].append(value)
+                        else:
+                            # If it's not a list, make it a list with the value
+                            current[last_part] = [value]
+
                 # Handle direct updates (no operators)
                 for key, value in update.items():
                     if not key.startswith("$"):
@@ -220,7 +244,20 @@ async def create_test_user():
         "email": "test@example.com",
         "full_name": "Test User",
         "disabled": False,
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"  # password123
+        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
+        "resources": {
+            "articles": [],
+            "videos": [],
+            "courses": [],
+            "books": []
+        },
+        "study_sessions": [],
+        "review_sessions": [],
+        "learning_paths": [],
+        "reviews": [],
+        "concepts": [],
+        "goals": [],
+        "milestones": []
     }
 
     # Insert the user
