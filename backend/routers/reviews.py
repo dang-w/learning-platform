@@ -5,15 +5,19 @@ from datetime import datetime, timedelta
 import os
 import json
 from dotenv import load_dotenv
-import motor.motor_asyncio
+from bson.objectid import ObjectId
 
 # Load environment variables
 load_dotenv()
 
-# MongoDB connection
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
-db = client.learning_platform_db
+# Import database connection from shared module
+from database import db
+
+# Import utility functions
+from utils.db_utils import get_document_by_id, update_document, delete_document
+from utils.validators import validate_date_format, validate_rating, validate_required_fields, validate_resource_type
+from utils.error_handlers import ValidationError, ResourceNotFoundError
+from utils.response_models import StandardResponse, ResponseMessages
 
 # Create router
 router = APIRouter()
@@ -98,36 +102,40 @@ async def create_concept(
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new concept for review."""
+    try:
+        # Validate required fields
+        validate_required_fields(concept.model_dump(), ["title", "content", "topics"])
+
+        if not concept.topics:
+            raise ValidationError("At least one topic must be provided")
+
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
     # Handle both cases where current_user is a User object or a dictionary
     username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-    # Generate a unique ID for the concept
-    concept_id = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{concept.title.lower().replace(' ', '_')}"
-
-    # Create concept object
+    # Create concept object with ID
     concept_dict = concept.model_dump()
-    concept_dict["id"] = concept_id
+    concept_dict["id"] = str(ObjectId())
     concept_dict["reviews"] = []
-    concept_dict["next_review"] = None
+    concept_dict["next_review"] = datetime.now().isoformat()
+    concept_dict["user_id"] = username
 
     # Add to user's concepts
-    result = await db.users.update_one(
-        {"username": username},
-        {"$push": {"concepts": concept_dict}}
-    )
-
-    if result.modified_count == 0:
-        # If the concepts array doesn't exist yet, create it
-        result = await db.users.update_one(
+    try:
+        await db.users.update_one(
             {"username": username},
-            {"$set": {"concepts": [concept_dict]}}
+            {"$push": {"concepts": concept_dict}}
         )
-
-        if result.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create concept"
-            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create concept: {str(e)}"
+        )
 
     return concept_dict
 

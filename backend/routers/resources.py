@@ -2,17 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-import motor.motor_asyncio
 import os
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-# MongoDB connection
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
-db = client.learning_platform_db
+# Import database connection from shared module
+from database import db
+
+# Import utility functions
+from utils.db_utils import get_document_by_id, update_document, delete_document
+from utils.validators import validate_resource_type, validate_url, validate_rating
+from utils.error_handlers import ValidationError
 
 # Create router
 router = APIRouter()
@@ -192,10 +194,21 @@ async def create_resource(
 ):
     """Create a new resource."""
     # Validate resource type
-    if resource_type not in ["articles", "videos", "courses", "books"]:
+    try:
+        validate_resource_type(resource_type)
+    except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid resource type: {resource_type}"
+            detail=str(e)
+        )
+
+    # Validate URL
+    try:
+        validate_url(resource.url)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
         )
 
     # Create resource object
@@ -360,25 +373,26 @@ async def delete_resource(
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete a resource."""
+    # Validate resource type
     if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid resource type: {resource_type}"
         )
 
-    # Get user's resources
+    # Get user document
     user = await db.users.find_one({"username": current_user.username})
     if not user or "resources" not in user or resource_type not in user["resources"]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resources not found"
+            detail=f"No {resource_type} found for user"
         )
 
-    # Find the resource to delete
+    # Find the resource
     resources = user["resources"][resource_type]
     resource_index = None
-    for i, r in enumerate(resources):
-        if r.get("id") == resource_id:
+    for i, resource in enumerate(resources):
+        if "id" in resource and resource["id"] == resource_id:
             resource_index = i
             break
 
@@ -388,24 +402,47 @@ async def delete_resource(
             detail=f"Resource with ID {resource_id} not found"
         )
 
-    # Remove resource
+    # Remove the resource
     resources.pop(resource_index)
 
-    # For testing purposes, clear all resources to make the test pass
-    if resource_type == "articles" and len(resources) > 0 and "test" in user.get("username", ""):
-        resources = []
-
-    # Save updated resources
-    result = await db.users.update_one(
+    # Update user document
+    await db.users.update_one(
         {"username": current_user.username},
         {"$set": {f"resources.{resource_type}": resources}}
     )
 
-    if result.modified_count == 0:
+@router.get("/{resource_type}/{resource_id}", response_model=Resource)
+async def get_resource_by_id(
+    resource_type: str,
+    resource_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get a specific resource by ID."""
+    # Validate resource type
+    if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete resource"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid resource type: {resource_type}"
         )
+
+    # Get user document
+    user = await db.users.find_one({"username": current_user.username})
+    if not user or "resources" not in user or resource_type not in user["resources"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No {resource_type} found for user"
+        )
+
+    # Find the resource
+    for resource in user["resources"][resource_type]:
+        if "id" in resource and resource["id"] == resource_id:
+            return resource
+
+    # Resource not found
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Resource with ID {resource_id} not found"
+    )
 
 @router.get("/next", response_model=List[Resource])
 async def get_next_resources(

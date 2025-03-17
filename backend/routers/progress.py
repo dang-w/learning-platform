@@ -11,15 +11,19 @@ matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import os
 from dotenv import load_dotenv
-import motor.motor_asyncio
+from bson.objectid import ObjectId
 
 # Load environment variables
 load_dotenv()
 
-# MongoDB connection
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
-db = client.learning_platform_db
+# Import database connection from shared module
+from database import db
+
+# Import utility functions
+from utils.db_utils import get_document_by_id, update_document, delete_document
+from utils.validators import validate_date_format, validate_rating, validate_required_fields
+from utils.error_handlers import ValidationError, ResourceNotFoundError
+from utils.response_models import StandardResponse, ResponseMessages
 
 # Create router
 router = APIRouter()
@@ -93,90 +97,40 @@ async def add_daily_metrics(
     """Add daily study metrics."""
     # Validate date format
     try:
-        date = datetime.strptime(metric.date, "%Y-%m-%d").strftime("%Y-%m-%d")
-    except ValueError:
+        if not validate_date_format(metric.date):
+            raise ValidationError("Date must be in YYYY-MM-DD format")
+
+        # Validate focus score
+        validate_rating(metric.focus_score, min_value=1, max_value=10)
+
+        # Validate study hours
+        if metric.study_hours <= 0:
+            raise ValidationError("Study hours must be greater than 0")
+
+    except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Date must be in YYYY-MM-DD format"
+            detail=str(e)
         )
 
-    # Validate study hours
-    if not (0 < metric.study_hours < 24):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Study hours must be between 0 and 24"
-        )
-
-    # Validate focus score
-    if not (1 <= metric.focus_score <= 10):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Focus score must be between 1 and 10"
-        )
-
-    # Create metric object
+    # Create metric object with ID
     metric_dict = metric.model_dump()
-    metric_dict["id"] = f"{date}_{datetime.now().strftime('%H%M%S')}"
+    metric_dict["id"] = str(ObjectId())
+    metric_dict["user_id"] = current_user.username
 
-    # Check if entry for this date already exists
-    user = await db.users.find_one({"username": current_user.username})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
-    metrics = user.get("metrics", [])
-    existing_metrics = [m for m in metrics if m.get("date") == date]
-
-    if existing_metrics:
-        # Update existing entry
-        existing = existing_metrics[0]
-        existing["study_hours"] += metric.study_hours
-
-        # Combine topics
-        existing_topics = set(existing["topics"].split(','))
-        new_topics = set(metric.topics.split(','))
-        combined_topics = ','.join(existing_topics.union(new_topics))
-        existing["topics"] = combined_topics
-
-        # Update focus score (average)
-        existing["focus_score"] = (existing["focus_score"] + metric.focus_score) / 2
-
-        # Append notes
-        if metric.notes:
-            if existing.get("notes"):
-                existing["notes"] = f"{existing['notes']}; {metric.notes}"
-            else:
-                existing["notes"] = metric.notes
-
-        # Save updated metrics
-        result = await db.users.update_one(
-            {"username": current_user.username},
-            {"$set": {"metrics": metrics}}
-        )
-
-        if result.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update metrics"
-            )
-
-        return existing
-    else:
-        # Add new entry
-        result = await db.users.update_one(
+    # Add to user's metrics
+    try:
+        await db.users.update_one(
             {"username": current_user.username},
             {"$push": {"metrics": metric_dict}}
         )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to add metric: {str(e)}"
+        )
 
-        if result.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to add metrics"
-            )
-
-        return metric_dict
+    return metric_dict
 
 @router.get("/metrics", response_model=List[Metric])
 async def get_metrics(
