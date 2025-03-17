@@ -12,6 +12,11 @@ from dotenv import load_dotenv
 # Import authentication functions from auth
 from auth import get_current_active_user, User
 
+# Import utility functions
+from utils.validators import validate_url
+from utils.error_handlers import ValidationError, ResourceNotFoundError
+from utils.response_models import StandardResponse, ResponseMessages
+
 # Add the app directory to the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -54,6 +59,16 @@ async def extract_metadata(
         )
 
     try:
+        # Validate URL format
+        url_str = str(request.url)
+        try:
+            validate_url(url_str)
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+
         # Extract metadata from the URL
         metadata = await extract_metadata_from_url(request.url)
 

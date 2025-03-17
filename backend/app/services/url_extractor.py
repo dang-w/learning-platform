@@ -4,6 +4,15 @@ from bs4 import BeautifulSoup
 from typing import Dict, Any, Optional, Union
 import logging
 from pydantic import HttpUrl
+import sys
+import os
+
+# Add the parent directory to the path to import utils
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Import utility functions
+from utils.validators import validate_url
+from utils.error_handlers import ValidationError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,11 +27,22 @@ async def extract_metadata_from_url(url: Union[str, HttpUrl]) -> Dict[str, Any]:
 
     Returns:
         A dictionary containing the extracted metadata
+
+    Raises:
+        ValidationError: If the URL is invalid
+        Exception: For any other errors during extraction
     """
     try:
         # Convert URL to string if it's a Pydantic URL object
         url_str = str(url)
         logger.info(f"Extracting metadata from URL: {url_str}")
+
+        # Validate URL format
+        try:
+            validate_url(url_str)
+        except ValidationError as e:
+            logger.error(f"Invalid URL format: {url_str}")
+            raise
 
         # Initialize default metadata
         metadata = {

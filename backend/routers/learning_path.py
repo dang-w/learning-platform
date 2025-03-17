@@ -4,16 +4,20 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-import motor.motor_asyncio
 import logging
+from bson.objectid import ObjectId
 
 # Load environment variables
 load_dotenv()
 
-# MongoDB connection
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
-db = client.learning_platform_db
+# Import database connection from shared module
+from database import db
+
+# Import utility functions
+from utils.db_utils import get_document_by_id, update_document, delete_document
+from utils.validators import validate_date_format, validate_rating, validate_required_fields
+from utils.error_handlers import ValidationError, ResourceNotFoundError
+from utils.response_models import StandardResponse, ResponseMessages
 
 # Create router
 router = APIRouter()
