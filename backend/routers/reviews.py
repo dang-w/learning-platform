@@ -48,6 +48,9 @@ class ConceptUpdate(BaseModel):
     content: Optional[str] = None
     topics: Optional[List[str]] = None
 
+class ConceptBatchCreate(BaseModel):
+    concepts: List[ConceptCreate]
+
 class ReviewCreate(BaseModel):
     confidence: int
 
@@ -778,3 +781,57 @@ async def delete_review(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Review with ID {review_id} not found"
         )
+
+@router.post("/concepts/batch", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+async def create_concepts_batch(
+    concepts_batch: ConceptBatchCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create multiple concepts in a batch."""
+    result = {
+        "success": [],
+        "errors": []
+    }
+
+    for concept_data in concepts_batch.concepts:
+        try:
+            # Create a unique ID based on timestamp and title
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            slug = concept_data.title.lower().replace(" ", "_")[:20]
+            concept_id = f"{timestamp}_{slug}"
+
+            # Create concept document
+            concept_doc = {
+                "id": concept_id,
+                "title": concept_data.title,
+                "content": concept_data.content,
+                "topics": concept_data.topics,
+                "reviews": [],
+                "next_review": None,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+
+            # Update user document
+            update_result = await db.users.update_one(
+                {"username": current_user.username},
+                {"$push": {"concepts": concept_doc}}
+            )
+
+            if update_result.modified_count == 0:
+                result["errors"].append({
+                    "data": concept_data.dict(),
+                    "error": "Failed to add concept to user"
+                })
+                continue
+
+            # Add to success list
+            result["success"].append(concept_doc)
+
+        except Exception as e:
+            result["errors"].append({
+                "data": concept_data.dict(),
+                "error": str(e)
+            })
+
+    return result

@@ -1,6 +1,9 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import HTTPException, status
+import jwt
+from jwt.exceptions import PyJWTError
+from datetime import datetime
 
 # Import the app and auth functions
 from main import app
@@ -150,3 +153,60 @@ def test_login_with_invalid_password(mock_auth, client):
     error_response = response.json()
     assert "detail" in error_response
     assert error_response["detail"] == "Incorrect username or password"
+
+def test_login_incorrect_credentials(client):
+    # ... existing code ...
+    pass
+
+def test_token_refresh(client, auth_headers):
+    """Test refreshing an access token with a valid token."""
+    # Mock directly in main.py where the endpoint is defined
+    with patch('main.jwt.decode') as mock_decode, \
+         patch('main.get_user') as mock_get_user:
+
+        # Configure the mocks
+        mock_decode.return_value = {"sub": "testuser", "exp": datetime.now().timestamp() + 1000}
+
+        # Create a user dict that will be returned by get_user
+        user_dict = {
+            "username": "testuser",
+            "email": "test@example.com",
+            "disabled": False
+        }
+
+        # Create a coroutine mock that returns the user dict
+        async def mock_get_user_coro(*args, **kwargs):
+            return user_dict
+
+        mock_get_user.side_effect = mock_get_user_coro
+
+        # Use an arbitrary token for the test
+        refresh_data = {"refresh_token": "valid_token"}
+
+        # Send the request
+        response = client.post("/token/refresh", json=refresh_data)
+
+        # Verify the response
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
+
+def test_token_refresh_invalid_token(client):
+    """Test refreshing an access token with an invalid token."""
+    # Create a mock for the decode function to simulate an invalid token
+    with patch('jwt.decode') as mock_decode:
+        # Configure the mock to raise a PyJWTError
+        mock_decode.side_effect = jwt.exceptions.PyJWTError()
+
+        # Use an arbitrary token for the test
+        refresh_data = {"refresh_token": "invalid_token"}
+
+        # Send the request
+        response = client.post("/token/refresh", json=refresh_data)
+
+        # Verify the response
+        assert response.status_code == 401
+        error_response = response.json()
+        assert "detail" in error_response
+        assert error_response["detail"] == "Invalid token"

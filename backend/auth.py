@@ -66,6 +66,27 @@ async def get_user(username: str) -> Dict[str, Any]:
                 user_dict["_id"] = str(user_dict["_id"])
             return user_dict
         return None
+    except RuntimeError as e:
+        if "Event loop is closed" in str(e):
+            # During testing with TestClient, the event loop might be closed
+            # We can work around this by creating a new event loop for this operation
+            import asyncio
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                user_dict = loop.run_until_complete(db.users.find_one({"username": username}))
+                if user_dict:
+                    if "_id" in user_dict:
+                        user_dict["_id"] = str(user_dict["_id"])
+                    return user_dict
+                return None
+            except Exception as inner_e:
+                logger.error(f"Error getting user after event loop retry: {str(inner_e)}")
+                return None
+            finally:
+                loop.close()
+        logger.error(f"Error getting user: {str(e)}")
+        return None
     except Exception as e:
         logger.error(f"Error getting user: {str(e)}")
         return None

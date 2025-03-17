@@ -61,6 +61,9 @@ class GoalBase(BaseModel):
 class GoalCreate(GoalBase):
     pass
 
+class GoalBatchCreate(BaseModel):
+    goals: List[GoalCreate]
+
 class Goal(GoalBase):
     id: str
     completed: bool = False
@@ -512,6 +515,81 @@ async def delete_goal(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Goal with ID {goal_id} not found"
         )
+
+@router.post("/goals/batch", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+async def create_goals_batch(
+    goals_batch: GoalBatchCreate,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create multiple goals in a batch."""
+    result = {
+        "success": [],
+        "errors": []
+    }
+
+    for goal_data in goals_batch.goals:
+        try:
+            # Validate required fields
+            try:
+                validate_required_fields(goal_data.dict(), ["title", "description", "target_date"])
+            except ValidationError as e:
+                result["errors"].append({
+                    "data": goal_data.dict(),
+                    "error": str(e)
+                })
+                continue
+
+            # Validate date format
+            try:
+                validate_date_format(goal_data.target_date)
+            except ValidationError as e:
+                result["errors"].append({
+                    "data": goal_data.dict(),
+                    "error": str(e)
+                })
+                continue
+
+            # Create a unique ID for the goal
+            goal_id = str(ObjectId())
+
+            # Create goal document
+            goal_doc = {
+                "id": goal_id,
+                "title": goal_data.title,
+                "description": goal_data.description,
+                "target_date": goal_data.target_date,
+                "priority": goal_data.priority,
+                "category": goal_data.category,
+                "completed": False,
+                "completion_date": None,
+                "notes": "",
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+
+            # Update user document
+            update_result = await db.users.update_one(
+                {"username": current_user.username},
+                {"$push": {"goals": goal_doc}}
+            )
+
+            if update_result.modified_count == 0:
+                result["errors"].append({
+                    "data": goal_data.dict(),
+                    "error": "Failed to add goal to user"
+                })
+                continue
+
+            # Add to success list
+            result["success"].append(goal_doc)
+
+        except Exception as e:
+            result["errors"].append({
+                "data": goal_data.dict(),
+                "error": str(e)
+            })
+
+    return result
 
 # Routes for Roadmap
 @router.post("/roadmap", response_model=Roadmap, status_code=status.HTTP_201_CREATED)
