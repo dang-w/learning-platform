@@ -31,7 +31,8 @@ This platform provides a structured approach to learning AI/ML concepts with:
   - ✅ Backend unit tests with pytest
   - ✅ Frontend unit tests with Jest
   - ✅ End-to-end tests with Cypress
-  - 🔄 Integration tests
+  - ✅ Backend integration tests
+  - ✅ Frontend integration tests
 
 ### Not Started
 - ❌ Deployment configuration
@@ -172,20 +173,42 @@ The frontend will be available at http://localhost:3000.
 
 ### Backend Tests
 
-Run the backend tests with:
+The backend has comprehensive test coverage with both unit tests and integration tests:
+
+#### Unit Tests
+
+Run the backend unit tests with:
 
 ```bash
 cd backend
-pytest
+pytest tests/api tests/services tests/utils
 ```
 
 For test coverage report:
 
 ```bash
-pytest --cov=app
+pytest --cov=app tests/api tests/services tests/utils
 ```
 
+#### Integration Tests
+
+Run the backend integration tests with:
+
+```bash
+cd backend
+pytest tests/integration
+```
+
+The integration tests verify:
+- Complete user workflows across multiple API endpoints
+- Interactions between different API endpoints
+- Database operations and data model integrity
+
 ### Frontend Tests
+
+The frontend has comprehensive test coverage with both unit tests and end-to-end integration tests:
+
+#### Unit Tests
 
 Run the frontend unit tests with:
 
@@ -194,12 +217,23 @@ cd frontend
 npm test
 ```
 
+#### End-to-End Tests
+
 Run the end-to-end tests with:
 
 ```bash
 cd frontend
 npm run cypress
 ```
+
+The end-to-end tests verify:
+- Authentication flows
+- Dashboard functionality
+- Resource management
+- Knowledge management
+- Learning path management
+- Progress analytics
+- User profile management
 
 ## Deployment Status
 

@@ -9,7 +9,7 @@ import sys
 import logging
 from dotenv import load_dotenv
 
-# Fix circular import by using absolute import
+# Import authentication functions from auth
 from auth import get_current_active_user, User
 
 # Add the app directory to the path
