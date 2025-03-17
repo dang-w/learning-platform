@@ -1,115 +1,304 @@
-# Learning Platform Backend Tests
+# Testing Guidelines
 
-This directory contains tests for the Learning Platform backend. The tests are organized into unit tests and integration tests.
+This document outlines the standards and best practices for writing tests in the Learning Platform backend.
 
 ## Test Structure
 
-- `tests/unit/`: Unit tests for individual components
-- `tests/integration/`: Integration tests for testing component interactions
-- `tests/setup_test_env.py`: Script to set up the test database
-- `conftest.py`: Pytest configuration and fixtures
+Tests are organized into the following directories:
 
-## Test Database Setup
+- `tests/api/`: Tests for API endpoints
+- `tests/services/`: Tests for service functions
+- `tests/integration/`: Integration tests that test multiple components together
+- `tests/utils/`: Tests for utility functions
+- `tests/config/`: Tests for configuration functions
 
-The integration tests require a MongoDB database. The test database is configured in `.env.test` and is separate from the development database.
+## Shared Utilities
 
-### Test User
+Common test utilities are defined in:
 
-Most tests require a test user to be authenticated. The test user is created with the following credentials:
+- `tests/conftest.py`: Pytest fixtures and shared utilities
+- `tests/mock_db.py`: Mock database implementation for testing
+- `tests/setup_test_env.py`: Setup script for the test environment
 
-- Username: `testuser`
-- Password: `password123` (hashed in the database)
-- Email: `testuser@example.com`
+## Standards for Writing Tests
+
+### Imports
+
+Always import from the correct modules:
+
+```python
+# Import the app and auth functions
+from main import app
+from auth import get_current_user, get_current_active_user, oauth2_scheme
+
+# Import standardized utilities
+from utils.error_handlers import AuthenticationError, ResourceNotFoundError
+from utils.response_models import StandardResponse, ErrorResponse
+
+# Import mocking utilities
+from unittest.mock import patch, AsyncMock, MagicMock
+```
+
+### Dependency Overrides
+
+Always clear dependency overrides before and after each test:
+
+```python
+@pytest.fixture(scope="function", autouse=True)
+def clear_dependency_overrides():
+    """Clear dependency overrides before and after each test."""
+    # Clear any existing overrides
+    app.dependency_overrides.clear()
+
+    yield
+
+    # Clear overrides after the test
+    app.dependency_overrides.clear()
+```
+
+### Authentication Mocking
+
+Use synchronous functions for mocking authentication dependencies:
+
+```python
+# Create a mock user
+mock_user = MockUser(username="testuser")
+
+# Override the dependencies with synchronous functions
+app.dependency_overrides[get_current_user] = lambda: mock_user
+app.dependency_overrides[get_current_active_user] = lambda: mock_user
+```
+
+For simulating authentication failures:
+
+```python
+# Override the dependencies with a synchronous function that raises an exception
+def override_get_current_user():
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+app.dependency_overrides[get_current_user] = override_get_current_user
+app.dependency_overrides[get_current_active_user] = override_get_current_user
+```
+
+### Database Mocking
+
+Use `AsyncMock` for mocking async database operations:
+
+```python
+# Create an AsyncMock for the database operations
+mock_db = MagicMock()
+mock_db.resources = MagicMock()
+mock_db.resources.find_one = AsyncMock(return_value=test_data)
+
+# Patch the main module's db object
+with patch("main.db", mock_db):
+    response = client.get("/resources/test_id", headers=auth_headers)
+
+    assert response.status_code == 200
+```
+
+For operations that return a result object:
+
+```python
+# Create an AsyncMock for the database operations
+mock_db = MagicMock()
+mock_db.resources = MagicMock()
+mock_db.resources.insert_one = AsyncMock()
+mock_db.resources.insert_one.return_value = MagicMock()
+mock_db.resources.insert_one.return_value.inserted_id = "new_resource_id"
+
+# Patch the main module's db object
+with patch("main.db", mock_db):
+    response = client.post("/resources/", json=new_resource, headers=auth_headers)
+
+    assert response.status_code == 201
+```
+
+### Event Loop Issues
+
+To avoid event loop issues, follow these guidelines:
+
+1. Use `AsyncMock` for mocking async database operations
+2. Patch the database object directly rather than individual methods
+3. Use the `client` fixture from `conftest.py` for making requests
+4. Ensure mocked async functions return awaitable objects
+
+Example of proper async mocking:
+
+```python
+# Create an AsyncMock for the database operations
+mock_db = MagicMock()
+mock_db.users = MagicMock()
+mock_db.users.find_one = AsyncMock(return_value=None)
+mock_db.users.insert_one = AsyncMock()
+mock_db.users.insert_one.return_value = MagicMock()
+mock_db.users.insert_one.return_value.inserted_id = "newuser"
+
+# Patch the main module's db object
+with patch("main.db", mock_db):
+    response = client.post("/users/", json=new_user)
+```
+
+### Test Data
+
+Ensure test data matches the expected schema:
+
+```python
+# Test data with all required fields
+new_review = {
+    "resource_id": 1,  # Use integer IDs
+    "resource_type": "article",
+    "rating": 5,
+    "content": "Great resource!",
+    "tags": ["python", "fastapi"],
+    "difficulty_rating": 3,  # Include all required fields
+    "topics": ["python", "fastapi"]
+}
+```
+
+### Assertions
+
+Use flexible assertions when the response format might vary:
+
+```python
+# Check for the presence of key fields rather than exact matches
+assert "study_time" in response_data
+assert "topics" in response_data
+assert "consistency" in response_data
+assert "average_confidence" in response_data
+```
+
+### Test Templates
+
+Use the template files as a reference for writing new tests:
+
+- `tests/api/test_template.py`: General template for API tests (skipped when running tests)
+- `tests/api/test_auth_api.py`: Template for authentication tests
+- `tests/api/test_user_api.py`: Template for user API tests
+- `tests/api/test_reviews_api.py`: Template for reviews API tests
+- `tests/api/test_progress_api.py`: Template for progress API tests
+- `tests/api/test_resources_api.py`: Template for resources API tests
 
 ## Running Tests
 
-### Running All Integration Tests
-
-To run all integration tests:
+Run all tests:
 
 ```bash
-./run_integration_tests.sh
+python -m pytest
 ```
 
-This script:
-1. Sets up the test environment
-2. Checks if MongoDB is running
-3. Sets up the test database
-4. Ensures the test user exists
-5. Runs all integration tests
-
-### Running Individual Tests
-
-To run a specific test file:
+Run a specific test file:
 
 ```bash
-./run_single_test.py tests/integration/test_auth.py
+python -m pytest tests/api/test_auth_api.py
 ```
 
-To run a specific test function:
+Run a specific test:
 
 ```bash
-./run_single_test.py tests/integration/test_auth.py --function test_authentication
+python -m pytest tests/api/test_auth_api.py::test_login_with_valid_credentials
 ```
 
-### Running Tests with pytest
+## Troubleshooting
 
-You can also run tests directly with pytest, but you need to ensure the test database and user are set up first:
+### Event Loop Issues
 
-```bash
-# Set up the test environment
-export $(grep -v '^#' .env.test | xargs)
-python tests/setup_test_env.py
+If you encounter event loop issues (e.g., "Event loop is closed" or "object NoneType can't be used in 'await' expression"), try the following:
 
-# Run a specific test
-pytest tests/integration/test_auth.py -v
-```
-
-## Test Fixtures
-
-The following fixtures are available in `conftest.py`:
-
-- `client`: A FastAPI TestClient instance
-- `test_db`: A connection to the test database
-- `setup_test_user`: Creates a test user and returns a valid token
-- `auth_headers`: Authentication headers with a valid token
-
-## Debugging Tests
-
-If you encounter authentication errors when running tests:
-
-1. Make sure MongoDB is running
-2. Check that the test user is created before running the tests
-3. Verify that the test database is properly set up
-4. Run tests individually with `run_single_test.py` to isolate the issue
+1. Use `AsyncMock` for mocking async database operations
+2. Patch the database object directly rather than individual methods
+3. Ensure mocked async functions return awaitable objects
+4. Check if the test is trying to use an async function directly
+5. Use the `client` fixture from `conftest.py` for making requests
 
 ### Authentication Issues
 
-When testing authentication in FastAPI, there are several approaches:
+If you encounter authentication issues, check the following:
 
-1. **Direct Database Testing**: This approach tests authentication by directly interacting with the database and authentication functions, without using the HTTP layer.
+1. Make sure you're using the correct dependency overrides
+2. Check if the test is using the correct auth headers
+3. Make sure the mock user has the correct permissions
 
-2. **HTTP Testing with TestClient**: This approach tests authentication through the HTTP layer using FastAPI's TestClient.
+### Database Issues
 
-We encountered some challenges with authentication in tests:
+If you encounter database issues, check the following:
 
-1. **Dependency Override**: FastAPI uses dependency injection for authentication. When testing, we need to override these dependencies to provide a mock user. However, this can be tricky when running tests in parallel or with different test runners.
+1. Make sure you're mocking all database operations with `AsyncMock`
+2. Check if the mock data has the correct structure and includes all required fields
+3. Make sure the mock operations return the expected results
+4. Ensure you're patching the database object directly rather than individual methods
 
-2. **Token Validation**: When a token is created for testing, it needs to be validated against a user in the database. If the user doesn't exist, the authentication will fail.
+## Common Patterns
 
-To address these challenges, we implemented the following solutions:
+### Creating a New Resource
 
-1. **Ensure Test User Exists**: Before running tests, we ensure that a test user exists in the database. This is done in the `run_tests.py` script and the `run_single_test.py` script.
+```python
+# Create an AsyncMock for the database operations
+mock_db = MagicMock()
+mock_db.resources = MagicMock()
+mock_db.resources.find_one = AsyncMock(return_value=None)
+mock_db.resources.insert_one = AsyncMock()
+mock_db.resources.insert_one.return_value = MagicMock()
+mock_db.resources.insert_one.return_value.inserted_id = "new_resource_id"
 
-2. **Relaxed Assertions**: For tests that involve authentication, we use relaxed assertions that check for the absence of server errors (500) rather than requiring a successful authentication (200). This allows the tests to pass even if the authentication fails with a 401 error due to the user not existing in the database.
+# Patch the main module's db object
+with patch("main.db", mock_db):
+    response = client.post("/resources/", json=new_resource, headers=auth_headers)
 
-3. **Dependency Override**: For tests that require a successful authentication, we override the `get_current_user` dependency to return a mock user. This is done in the test file itself, rather than relying on a global override.
+    assert response.status_code == 201
+```
 
-## Adding New Tests
+### Getting a Resource
 
-When adding new tests:
+```python
+# Create an AsyncMock for the database operations
+mock_db = MagicMock()
+mock_db.resources = MagicMock()
+mock_db.resources.find_one = AsyncMock(return_value=test_data)
 
-1. Use the existing fixtures for authentication and database access
-2. Clean up any test data created during the test
-3. Follow the naming conventions for test files and functions
-4. Add the `@pytest.mark.integration` decorator for integration tests
+# Patch the main module's db object
+with patch("main.db", mock_db):
+    response = client.get("/resources/test_id", headers=auth_headers)
+
+    assert response.status_code == 200
+```
+
+### Updating a Resource
+
+```python
+# Create an AsyncMock for the database operations
+mock_db = MagicMock()
+mock_db.resources = MagicMock()
+mock_db.resources.find_one = AsyncMock(return_value=test_data)
+mock_db.resources.update_one = AsyncMock()
+mock_db.resources.update_one.return_value = MagicMock()
+mock_db.resources.update_one.return_value.modified_count = 1
+
+# Patch the main module's db object
+with patch("main.db", mock_db):
+    response = client.put("/resources/test_id", json=updated_data, headers=auth_headers)
+
+    assert response.status_code == 200
+```
+
+### Deleting a Resource
+
+```python
+# Create an AsyncMock for the database operations
+mock_db = MagicMock()
+mock_db.resources = MagicMock()
+mock_db.resources.find_one = AsyncMock(return_value=test_data)
+mock_db.resources.delete_one = AsyncMock()
+mock_db.resources.delete_one.return_value = MagicMock()
+mock_db.resources.delete_one.return_value.deleted_count = 1
+
+# Patch the main module's db object
+with patch("main.db", mock_db):
+    response = client.delete("/resources/test_id", headers=auth_headers)
+
+    assert response.status_code == 204
+```

@@ -51,9 +51,10 @@ def event_loop():
     # Set it as the default event loop
     asyncio.set_event_loop(loop)
 
+    # Yield the loop for use in tests
     yield loop
 
-    # Clean up pending tasks
+    # Clean up pending tasks at the end of the session
     pending = asyncio.all_tasks(loop)
     for task in pending:
         task.cancel()
@@ -62,7 +63,7 @@ def event_loop():
     if pending:
         loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
-    # Close the loop
+    # Close the loop at the end of the session
     loop.close()
 
 # Mock user class for testing

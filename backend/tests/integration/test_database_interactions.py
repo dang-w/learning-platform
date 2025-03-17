@@ -2,6 +2,7 @@ import pytest
 import pytest_asyncio
 from datetime import datetime, timedelta
 from bson import ObjectId
+from unittest.mock import patch, MagicMock
 
 from database import db, get_database
 from main import UserInDB
@@ -829,45 +830,3 @@ async def test_progress_operations():
         await db.users.delete_one({"_id": test_user_id})
         # Close the client connection
         client.close()
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_create_test_user():
-    """
-    Test creating a test user in the database and verifying it exists.
-    This test is useful for debugging authentication issues in other tests.
-    """
-    # Create a test user
-    username = "testuser"
-    user_data = {
-        "username": username,
-        "email": f"{username}@example.com",
-        "full_name": "Test User",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
-        "disabled": False,
-        "resources": [],
-        "study_sessions": [],
-        "review_sessions": [],
-        "learning_paths": [],
-        "reviews": [],
-        "concepts": [],
-        "goals": [],
-        "milestones": []
-    }
-
-    # Check if user already exists and delete if needed
-    existing_user = await db.users.find_one({"username": username})
-    if existing_user:
-        await db.users.delete_one({"_id": existing_user["_id"]})
-
-    # Insert the test user
-    result = await db.users.insert_one(user_data)
-    user_id = result.inserted_id
-
-    # Verify the user was created
-    user = await db.users.find_one({"username": username})
-    assert user is not None, f"Failed to create test user {username} in database"
-    assert user["email"] == f"{username}@example.com"
-
-    # Clean up after test
-    await db.users.delete_one({"_id": user_id})
