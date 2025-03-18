@@ -1,0 +1,344 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 11,
+    "passes": 0,
+    "pending": 0,
+    "failures": 11,
+    "start": "2025-03-17T18:20:32.450Z",
+    "end": "2025-03-17T18:22:42.314Z",
+    "duration": 129864,
+    "testsRegistered": 11,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "5a5c0f4d-3b90-4deb-9456-45baf2b54ea4",
+      "title": "",
+      "fullFile": "cypress/e2e/dashboard.cy.ts",
+      "file": "cypress/e2e/dashboard.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+          "title": "Dashboard",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display dashboard overview with all sections",
+              "fullTitle": "Dashboard should display dashboard overview with all sections",
+              "timedOut": null,
+              "duration": 11427,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should display dashboard overview with all sections (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that dashboard overview is displayed\ncy.get('[data-testid=\"dashboard-overview\"]').should('be.visible');\n// Check that recent activity section is displayed\ncy.get('[data-testid=\"recent-activity-section\"]').should('be.visible');\n// Check that quick stats section is displayed\ncy.get('[data-testid=\"quick-stats-section\"]').should('be.visible');\n// Check that upcoming reviews section is displayed\ncy.get('[data-testid=\"upcoming-reviews-section\"]').should('be.visible');\n// Check that learning progress section is displayed\ncy.get('[data-testid=\"learning-progress-section\"]').should('be.visible');\n// Check that recent resources section is displayed\ncy.get('[data-testid=\"recent-resources-section\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"dashboard-overview\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"dashboard-overview\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:10:0)",
+                "diff": null
+              },
+              "uuid": "7c0cc2bb-d518-4d8f-9ae3-f4f9d9d029a5",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display user-specific greeting",
+              "fullTitle": "Dashboard should display user-specific greeting",
+              "timedOut": null,
+              "duration": 11736,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should display user-specific greeting (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that user greeting is displayed with username\ncy.get('[data-testid=\"user-greeting\"]').should('be.visible');\ncy.get('[data-testid=\"user-greeting\"]').should('contain', beforeEach_1.testUser.email.split('@')[0]);",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"user-greeting\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"user-greeting\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:24:0)",
+                "diff": null
+              },
+              "uuid": "b261f005-9a41-48bb-b3e4-e82dc9a96438",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow quick navigation to main sections",
+              "fullTitle": "Dashboard should allow quick navigation to main sections",
+              "timedOut": null,
+              "duration": 11764,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should allow quick navigation to main sections (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that quick navigation links are displayed\ncy.get('[data-testid=\"quick-nav-resources\"]').should('be.visible');\ncy.get('[data-testid=\"quick-nav-knowledge\"]').should('be.visible');\ncy.get('[data-testid=\"quick-nav-learning-path\"]').should('be.visible');\ncy.get('[data-testid=\"quick-nav-analytics\"]').should('be.visible');\n// Test navigation to resources\ncy.get('[data-testid=\"quick-nav-resources\"]').click();\ncy.url().should('include', '/resources');\ncy.go('back');\n// Test navigation to knowledge\ncy.get('[data-testid=\"quick-nav-knowledge\"]').click();\ncy.url().should('include', '/knowledge');\ncy.go('back');\n// Test navigation to learning path\ncy.get('[data-testid=\"quick-nav-learning-path\"]').click();\ncy.url().should('include', '/learning-path');\ncy.go('back');\n// Test navigation to analytics\ncy.get('[data-testid=\"quick-nav-analytics\"]').click();\ncy.url().should('include', '/analytics');\ncy.go('back');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-nav-resources\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-nav-resources\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:29:0)",
+                "diff": null
+              },
+              "uuid": "30538eec-a508-485e-9f38-3926380d62bc",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display recent activity feed",
+              "fullTitle": "Dashboard should display recent activity feed",
+              "timedOut": null,
+              "duration": 11711,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should display recent activity feed (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that recent activity items are displayed\ncy.get('[data-testid=\"activity-item\"]').should('have.length.at.least', 1);\n// Check that activity items have timestamps\ncy.get('[data-testid=\"activity-timestamp\"]').should('have.length.at.least', 1);\n// Check that activity items have descriptions\ncy.get('[data-testid=\"activity-description\"]').should('have.length.at.least', 1);",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"activity-item\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"activity-item\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:52:0)",
+                "diff": null
+              },
+              "uuid": "2da3ff63-86ea-4919-a1ab-9e6b156d900e",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display quick stats with correct data",
+              "fullTitle": "Dashboard should display quick stats with correct data",
+              "timedOut": null,
+              "duration": 11689,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should display quick stats with correct data (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that study time stat is displayed\ncy.get('[data-testid=\"stat-study-time\"]').should('be.visible');\n// Check that resources completed stat is displayed\ncy.get('[data-testid=\"stat-resources-completed\"]').should('be.visible');\n// Check that concepts reviewed stat is displayed\ncy.get('[data-testid=\"stat-concepts-reviewed\"]').should('be.visible');\n// Check that goals completed stat is displayed\ncy.get('[data-testid=\"stat-goals-completed\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"stat-study-time\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"stat-study-time\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:60:0)",
+                "diff": null
+              },
+              "uuid": "f37372bb-6819-4d1e-8487-4d78485493b0",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display upcoming reviews",
+              "fullTitle": "Dashboard should display upcoming reviews",
+              "timedOut": null,
+              "duration": 11954,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should display upcoming reviews (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that upcoming reviews section is displayed\ncy.get('[data-testid=\"upcoming-reviews-section\"]').should('be.visible');\n// Check if there are any upcoming reviews\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"no-upcoming-reviews\"]').length > 0) {\n        // No upcoming reviews\n        cy.get('[data-testid=\"no-upcoming-reviews\"]').should('be.visible');\n    }\n    else {\n        // Has upcoming reviews\n        cy.get('[data-testid=\"review-item\"]').should('have.length.at.least', 1);\n        // Test starting a review session\n        cy.get('[data-testid=\"start-review-session\"]').click();\n        cy.url().should('include', '/knowledge/review');\n        cy.go('back');\n    }\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"upcoming-reviews-section\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"upcoming-reviews-section\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:70:0)",
+                "diff": null
+              },
+              "uuid": "66ba8bcd-0bc7-4f75-9853-4c9f884a0614",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display learning progress",
+              "fullTitle": "Dashboard should display learning progress",
+              "timedOut": null,
+              "duration": 11782,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should display learning progress (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that learning progress section is displayed\ncy.get('[data-testid=\"learning-progress-section\"]').should('be.visible');\n// Check that progress chart is displayed\ncy.get('[data-testid=\"learning-progress-chart\"]').should('be.visible');\n// Check that progress percentage is displayed\ncy.get('[data-testid=\"learning-progress-percentage\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"learning-progress-section\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"learning-progress-section\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:89:0)",
+                "diff": null
+              },
+              "uuid": "65c3c5c0-93db-4851-b5c1-9b7f3494874d",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display recent resources",
+              "fullTitle": "Dashboard should display recent resources",
+              "timedOut": null,
+              "duration": 11892,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should display recent resources (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that recent resources section is displayed\ncy.get('[data-testid=\"recent-resources-section\"]').should('be.visible');\n// Check if there are any recent resources\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"no-recent-resources\"]').length > 0) {\n        // No recent resources\n        cy.get('[data-testid=\"no-recent-resources\"]').should('be.visible');\n    }\n    else {\n        // Has recent resources\n        cy.get('[data-testid=\"resource-item\"]').should('have.length.at.least', 1);\n        // Test viewing a resource\n        cy.get('[data-testid=\"resource-item\"]').first().click();\n        cy.url().should('include', '/resources/');\n        cy.go('back');\n    }\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"recent-resources-section\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"recent-resources-section\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:97:0)",
+                "diff": null
+              },
+              "uuid": "b7c1fccf-d6f3-4c1c-9586-ce0c49388b63",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow adding a quick study metric",
+              "fullTitle": "Dashboard should allow adding a quick study metric",
+              "timedOut": null,
+              "duration": 12201,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should allow adding a quick study metric (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Click on add quick metric button\ncy.get('[data-testid=\"add-quick-metric\"]').click();\n// Fill out the quick metric form\ncy.get('input[name=\"study_hours\"]').type('1.5');\ncy.get('input[name=\"topics\"]').type('cypress,testing');\ncy.get('input[name=\"focus_score\"]').type('9');\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the metric was added\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the stats are updated\ncy.get('[data-testid=\"stat-study-time\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"add-quick-metric\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"add-quick-metric\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:116:0)",
+                "diff": null
+              },
+              "uuid": "d78ea515-b30c-41ad-a1af-00f3674d0647",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow quick access to add new resources",
+              "fullTitle": "Dashboard should allow quick access to add new resources",
+              "timedOut": null,
+              "duration": 11717,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should allow quick access to add new resources (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Click on add resource button\ncy.get('[data-testid=\"quick-add-resource\"]').click();\n// Verify we're on the add resource page\ncy.url().should('include', '/resources/add');\n// Go back to dashboard\ncy.go('back');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-add-resource\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-add-resource\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:130:0)",
+                "diff": null
+              },
+              "uuid": "90b4cef9-2e31-48c1-93dd-fe9ac619ca02",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow quick access to start review session",
+              "fullTitle": "Dashboard should allow quick access to start review session",
+              "timedOut": null,
+              "duration": 11716,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/dashboard.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/dashboard.cy.ts/Dashboard -- should allow quick access to start review session (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Click on start review button\ncy.get('[data-testid=\"quick-start-review\"]').click();\n// Verify we're on the review session page\ncy.url().should('include', '/knowledge/review');\n// Go back to dashboard\ncy.go('back');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-start-review\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-start-review\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:138:0)",
+                "diff": null
+              },
+              "uuid": "668a38c1-7ea0-4174-b6ea-4ee888387f36",
+              "parentUUID": "1dba22c6-d6c4-458f-b570-99fe277197d6",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "7c0cc2bb-d518-4d8f-9ae3-f4f9d9d029a5",
+            "b261f005-9a41-48bb-b3e4-e82dc9a96438",
+            "30538eec-a508-485e-9f38-3926380d62bc",
+            "2da3ff63-86ea-4919-a1ab-9e6b156d900e",
+            "f37372bb-6819-4d1e-8487-4d78485493b0",
+            "66ba8bcd-0bc7-4f75-9853-4c9f884a0614",
+            "65c3c5c0-93db-4851-b5c1-9b7f3494874d",
+            "b7c1fccf-d6f3-4c1c-9586-ce0c49388b63",
+            "d78ea515-b30c-41ad-a1af-00f3674d0647",
+            "90b4cef9-2e31-48c1-93dd-fe9ac619ca02",
+            "668a38c1-7ea0-4174-b6ea-4ee888387f36"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 129589,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

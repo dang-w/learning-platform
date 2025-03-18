@@ -1,0 +1,10 @@
+{
+  "suites": 1,
+  "tests": 7,
+  "passes": 7,
+  "pending": 0,
+  "failures": 0,
+  "start": "2025-03-17T20:55:20.017Z",
+  "duration": 68164,
+  "file": "cypress/e2e/knowledge.cy.ts"
+}

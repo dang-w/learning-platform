@@ -1,0 +1,229 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-17T18:23:31.859Z",
+    "end": "2025-03-17T18:23:37.725Z",
+    "duration": 5866,
+    "testsRegistered": 7,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 6,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "079523d4-2616-454f-aa17-01bb3665c232",
+      "title": "",
+      "fullFile": "cypress/e2e/learning-path-roadmap.cy.ts",
+      "file": "cypress/e2e/learning-path-roadmap.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+          "title": "Learning Path - Roadmap Visualization",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display the learning path roadmap",
+              "fullTitle": "Learning Path - Roadmap Visualization should display the learning path roadmap",
+              "timedOut": null,
+              "duration": 5685,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/learning-path-roadmap.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization -- should display the learning path roadmap -- before each hook (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that the roadmap visualization is displayed\ncy.get('[data-testid=\"roadmap-visualization\"]').should('be.visible');\n// Check that the goals are displayed on the roadmap\ncy.get('[data-testid=\"roadmap-goal\"]').should('have.length.at.least', 1);",
+              "err": {
+                "message": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:3000/api/goals/batch\n\nThe response we received from your web server was:\n\n  > 404: Not Found\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:3000/api/goals/batch\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"Authorization\": \"Bearer null\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"cookie\": \"token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItY3lwcmVzcyIsImV4cCI6MTc0MjIzNzYxMn0.18kqJmXLjm_SMgWVkOmM4HaOAG0mqXNHbB4uVXsvy-s\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-type\": \"application/json\",\n  \"content-length\": 677\n}\nBody: {\"goals\":[{\"title\":\"Test Goal 1\",\"description\":\"Description for test goal 1\",\"deadline\":\"2025-03-24\",\"priority\":\"high\",\"status\":\"not_started\"},{\"title\":\"Test Goal 2\",\"description\":\"Description for test goal 2\",\"deadline\":\"2025-03-31\",\"priority\":\"medium\",\"status\":\"in_progress\"},{\"title\":\"Test Goal 3\",\"description\":\"Description for test goal 3\",\"deadline\":\"2025-04-07\",\"priority\":\"low\",\"status\":\"completed\"},{\"title\":\"Test Goal 4\",\"description\":\"Description for test goal 4\",\"deadline\":\"2025-04-14\",\"priority\":\"high\",\"status\":\"not_started\"},{\"title\":\"Test Goal 5\",\"description\":\"Description for test goal 5\",\"deadline\":\"2025-04-21\",\"priority\":\"medium\",\"status\":\"in_progress\"}]}\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 404 - Not Found\nHeaders: {\n  \"cache-control\": \"no-store, must-revalidate\",\n  \"vary\": \"RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding\",\n  \"link\": \"</_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css>; rel=preload; as=\\\"style\\\"\",\n  \"x-powered-by\": \"Next.js\",\n  \"content-type\": \"text/html; charset=utf-8\",\n  \"content-encoding\": \"gzip\",\n  \"date\": \"Mon, 17 Mar 2025 18:23:36 GMT\",\n  \"connection\": \"keep-alive\",\n  \"keep-alive\": \"timeout=5\",\n  \"transfer-encoding\": \"chunked\"\n}\nBody: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css\" data-precedence=\"next_static/chunks/[root of the server]__08514339._.css\"/><link rel=\"preload\" as=\"script\" fetchPriority=\"low\" href=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_49a6ea35._.js\"/><script src=\"/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_3bfaed20._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40swc_helpers_cjs_00636ac3._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_e69f0d32._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_be317ff2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_1a6ee436._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_favicon_ico_mjs_79b6a596._.js\" async=\"\"></script><script src=\"/_next/static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_axios_lib_99999129._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@headlessui_react_dist_306b8882._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@floating-ui_react_dist_c1a64d8e._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_8535f519._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_8227d2ef._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_layout_tsx_f0e4c1a2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40headlessui_react_dist_306...\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Learning Path - Roadmap Vis...`",
+                "estack": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:3000/api/goals/batch\n\nThe response we received from your web server was:\n\n  > 404: Not Found\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:3000/api/goals/batch\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"Authorization\": \"Bearer null\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"cookie\": \"token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItY3lwcmVzcyIsImV4cCI6MTc0MjIzNzYxMn0.18kqJmXLjm_SMgWVkOmM4HaOAG0mqXNHbB4uVXsvy-s\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-type\": \"application/json\",\n  \"content-length\": 677\n}\nBody: {\"goals\":[{\"title\":\"Test Goal 1\",\"description\":\"Description for test goal 1\",\"deadline\":\"2025-03-24\",\"priority\":\"high\",\"status\":\"not_started\"},{\"title\":\"Test Goal 2\",\"description\":\"Description for test goal 2\",\"deadline\":\"2025-03-31\",\"priority\":\"medium\",\"status\":\"in_progress\"},{\"title\":\"Test Goal 3\",\"description\":\"Description for test goal 3\",\"deadline\":\"2025-04-07\",\"priority\":\"low\",\"status\":\"completed\"},{\"title\":\"Test Goal 4\",\"description\":\"Description for test goal 4\",\"deadline\":\"2025-04-14\",\"priority\":\"high\",\"status\":\"not_started\"},{\"title\":\"Test Goal 5\",\"description\":\"Description for test goal 5\",\"deadline\":\"2025-04-21\",\"priority\":\"medium\",\"status\":\"in_progress\"}]}\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 404 - Not Found\nHeaders: {\n  \"cache-control\": \"no-store, must-revalidate\",\n  \"vary\": \"RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding\",\n  \"link\": \"</_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css>; rel=preload; as=\\\"style\\\"\",\n  \"x-powered-by\": \"Next.js\",\n  \"content-type\": \"text/html; charset=utf-8\",\n  \"content-encoding\": \"gzip\",\n  \"date\": \"Mon, 17 Mar 2025 18:23:36 GMT\",\n  \"connection\": \"keep-alive\",\n  \"keep-alive\": \"timeout=5\",\n  \"transfer-encoding\": \"chunked\"\n}\nBody: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css\" data-precedence=\"next_static/chunks/[root of the server]__08514339._.css\"/><link rel=\"preload\" as=\"script\" fetchPriority=\"low\" href=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_49a6ea35._.js\"/><script src=\"/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_3bfaed20._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40swc_helpers_cjs_00636ac3._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_e69f0d32._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_be317ff2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_1a6ee436._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_favicon_ico_mjs_79b6a596._.js\" async=\"\"></script><script src=\"/_next/static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_axios_lib_99999129._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@headlessui_react_dist_306b8882._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@floating-ui_react_dist_c1a64d8e._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_8535f519._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_8227d2ef._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_layout_tsx_f0e4c1a2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40headlessui_react_dist_306...\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Learning Path - Roadmap Vis...`\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:133638:72)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)",
+                "diff": null
+              },
+              "uuid": "61456b46-046a-4e0a-b498-a50ccb46776a",
+              "parentUUID": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow viewing goal details from the roadmap",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow viewing goal details from the roadmap",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on a goal in the roadmap\ncy.get('[data-testid=\"roadmap-goal\"]').first().click();\n// Check that the goal details modal is displayed\ncy.get('[data-testid=\"goal-details-modal\"]').should('be.visible');\n// Check that the goal title is displayed\ncy.get('[data-testid=\"goal-title\"]').should('be.visible');\n// Check that the goal description is displayed\ncy.get('[data-testid=\"goal-description\"]').should('be.visible');\n// Check that the goal deadline is displayed\ncy.get('[data-testid=\"goal-deadline\"]').should('be.visible');\n// Check that the goal priority is displayed\ncy.get('[data-testid=\"goal-priority\"]').should('be.visible');\n// Check that the goal status is displayed\ncy.get('[data-testid=\"goal-status\"]').should('be.visible');\n// Close the modal\ncy.get('[data-testid=\"close-modal-button\"]').click();\ncy.get('[data-testid=\"goal-details-modal\"]').should('not.exist');",
+              "err": {},
+              "uuid": "c384bf48-3b2d-4975-b785-dcfce1157b3a",
+              "parentUUID": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow updating goal status from the roadmap",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow updating goal status from the roadmap",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on a goal in the roadmap\ncy.get('[data-testid=\"roadmap-goal\"]').first().click();\n// Check that the goal details modal is displayed\ncy.get('[data-testid=\"goal-details-modal\"]').should('be.visible');\n// Update the goal status\ncy.get('[data-testid=\"goal-status-select\"]').click();\ncy.get('[data-testid=\"goal-status-in-progress\"]').click();\n// Save the changes\ncy.get('[data-testid=\"save-goal-button\"]').click();\n// Check that the modal is closed\ncy.get('[data-testid=\"goal-details-modal\"]').should('not.exist');\n// Check that the goal status is updated in the roadmap\ncy.get('[data-testid=\"roadmap-goal\"]').first().should('have.attr', 'data-status', 'in_progress');",
+              "err": {},
+              "uuid": "9f47d0f0-c9eb-4a86-91c6-eb3ad2748650",
+              "parentUUID": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow adding milestones to a goal",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow adding milestones to a goal",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on a goal in the roadmap\ncy.get('[data-testid=\"roadmap-goal\"]').first().click();\n// Check that the goal details modal is displayed\ncy.get('[data-testid=\"goal-details-modal\"]').should('be.visible');\n// Click on the add milestone button\ncy.get('[data-testid=\"add-milestone-button\"]').click();\n// Check that the add milestone form is displayed\ncy.get('[data-testid=\"add-milestone-form\"]').should('be.visible');\n// Fill out the milestone form\ncy.get('[data-testid=\"milestone-title-input\"]').type('Test Milestone');\ncy.get('[data-testid=\"milestone-description-input\"]').type('Test milestone description');\ncy.get('[data-testid=\"milestone-deadline-input\"]').type('2023-12-31');\n// Save the milestone\ncy.get('[data-testid=\"save-milestone-button\"]').click();\n// Check that the milestone is added to the goal\ncy.get('[data-testid=\"milestone-list\"]').should('contain', 'Test Milestone');",
+              "err": {},
+              "uuid": "cb15fddc-11ad-428a-a98d-f02d79d31b54",
+              "parentUUID": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow filtering the roadmap by status",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow filtering the roadmap by status",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the filter controls are displayed\ncy.get('[data-testid=\"roadmap-filters\"]').should('be.visible');\n// Filter by status\ncy.get('[data-testid=\"filter-status\"]').click();\ncy.get('[data-testid=\"filter-status-in-progress\"]').click();\n// Check that the URL includes the filter parameter\ncy.url().should('include', 'status=in_progress');\n// Check that the filtered roadmap is displayed\ncy.get('[data-testid=\"roadmap-visualization\"]').should('be.visible');",
+              "err": {},
+              "uuid": "9cc5d83f-f33f-4313-aa6e-9bbbda053f0a",
+              "parentUUID": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow filtering the roadmap by priority",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow filtering the roadmap by priority",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the filter controls are displayed\ncy.get('[data-testid=\"roadmap-filters\"]').should('be.visible');\n// Filter by priority\ncy.get('[data-testid=\"filter-priority\"]').click();\ncy.get('[data-testid=\"filter-priority-high\"]').click();\n// Check that the URL includes the filter parameter\ncy.url().should('include', 'priority=high');\n// Check that the filtered roadmap is displayed\ncy.get('[data-testid=\"roadmap-visualization\"]').should('be.visible');",
+              "err": {},
+              "uuid": "0538b5de-9815-4f54-8875-e583dc8b6ad1",
+              "parentUUID": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow viewing the roadmap in timeline view",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow viewing the roadmap in timeline view",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the view controls are displayed\ncy.get('[data-testid=\"roadmap-view-controls\"]').should('be.visible');\n// Switch to timeline view\ncy.get('[data-testid=\"view-timeline-button\"]').click();\n// Check that the URL includes the view parameter\ncy.url().should('include', 'view=timeline');\n// Check that the timeline view is displayed\ncy.get('[data-testid=\"timeline-visualization\"]').should('be.visible');\n// Check that the goals are displayed on the timeline\ncy.get('[data-testid=\"timeline-goal\"]').should('have.length.at.least', 1);",
+              "err": {},
+              "uuid": "7985bd0f-9ab3-445b-b4d5-21bf6e53444f",
+              "parentUUID": "e5afa19e-c541-49c7-86a7-c5231d05eb67",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "61456b46-046a-4e0a-b498-a50ccb46776a"
+          ],
+          "pending": [],
+          "skipped": [
+            "c384bf48-3b2d-4975-b785-dcfce1157b3a",
+            "9f47d0f0-c9eb-4a86-91c6-eb3ad2748650",
+            "cb15fddc-11ad-428a-a98d-f02d79d31b54",
+            "9cc5d83f-f33f-4313-aa6e-9bbbda053f0a",
+            "0538b5de-9815-4f54-8875-e583dc8b6ad1",
+            "7985bd0f-9ab3-445b-b4d5-21bf6e53444f"
+          ],
+          "duration": 5685,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

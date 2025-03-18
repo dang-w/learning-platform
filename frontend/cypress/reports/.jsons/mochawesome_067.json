@@ -1,0 +1,176 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 4,
+    "passes": 2,
+    "pending": 0,
+    "failures": 2,
+    "start": "2025-03-17T18:04:26.770Z",
+    "end": "2025-03-17T18:04:58.967Z",
+    "duration": 32197,
+    "testsRegistered": 4,
+    "passPercent": 50,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "54d565d7-1784-4fc9-8ece-a3f73b6227b1",
+      "title": "",
+      "fullFile": "cypress/e2e/auth.cy.ts",
+      "file": "cypress/e2e/auth.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "13f8d639-e534-41d3-b77c-0a2b4a59ad5f",
+          "title": "Authentication Flow",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should show validation errors for invalid registration",
+              "fullTitle": "Authentication Flow should show validation errors for invalid registration",
+              "timedOut": null,
+              "duration": 2326,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-videos-passed\",\n  \"value\": \"cypress/e2e/auth.cy.ts\"\n}",
+              "code": "cy.visit('/auth/register');\n// Submit empty form\ncy.get('button[type=\"submit\"]').click();\n// Should show validation errors\ncy.get('[data-testid=\"error-username\"]').should('be.visible');\ncy.get('[data-testid=\"error-email\"]').should('be.visible');\ncy.get('[data-testid=\"error-password\"]').should('be.visible');\n// Test invalid email format\ncy.get('#username').type('testuser');\ncy.get('#email').type('invalid-email');\ncy.get('#password').type('short');\ncy.get('#fullName').type('Test User');\ncy.get('button[type=\"submit\"]').click();\n// Should show specific validation errors\ncy.get('[data-testid=\"error-email\"]').should('be.visible');\ncy.get('[data-testid=\"error-password\"]').should('be.visible');",
+              "err": {},
+              "uuid": "9f95b0ff-2591-436f-9a14-0ca87766ee1d",
+              "parentUUID": "13f8d639-e534-41d3-b77c-0a2b4a59ad5f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow a user to register and login",
+              "fullTitle": "Authentication Flow should allow a user to register and login",
+              "timedOut": null,
+              "duration": 15946,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/auth.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/auth.cy.ts/Authentication Flow -- should allow a user to register and login (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Visit the registration page\ncy.visit('/auth/register');\ncy.url().should('contain', '/auth/register');\n// Fill out the registration form\ncy.get('#username').type(testUser.username);\ncy.get('#email').type(testUser.email);\ncy.get('#password').type(testUser.password);\ncy.get('#confirmPassword').type(testUser.password);\ncy.get('#fullName').type(testUser.fullName);\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// After registration, we should be redirected to login page\ncy.url().should('contain', '/auth/login', { timeout: 10000 });\n// Login with the newly created account\ncy.get('#username').type(testUser.username);\ncy.get('#password').type(testUser.password);\ncy.get('button[type=\"submit\"]').click();\n// After successful login, we should be redirected to dashboard\n// Look for the Dashboard heading\ncy.get('h1').contains('Dashboard', { timeout: 15000 }).should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `h1`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `h1`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/auth.cy.ts:51:0)",
+                "diff": null
+              },
+              "uuid": "a1b70d8b-d9c9-428b-82e5-3285e848be47",
+              "parentUUID": "13f8d639-e534-41d3-b77c-0a2b4a59ad5f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should show error for invalid login credentials",
+              "fullTitle": "Authentication Flow should show error for invalid login credentials",
+              "timedOut": null,
+              "duration": 1923,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-videos-passed\",\n  \"value\": \"cypress/e2e/auth.cy.ts\"\n}",
+              "code": "cy.visit('/auth/login');\n// Try to login with invalid credentials\ncy.get('#username').type('nonexistent-user');\ncy.get('#password').type('WrongPassword123!');\ncy.get('button[type=\"submit\"]').click();\n// Should show some kind of error message\n// The app might show the error in different ways, so we'll check for common patterns\n// First, let's check if there's any visible error message\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"login-error\"]').length > 0) {\n        cy.get('[data-testid=\"login-error\"]').should('be.visible');\n    }\n    else if ($body.find('.text-red-600, .text-red-500, .text-red-700, .text-red-800').length > 0) {\n        cy.get('.text-red-600, .text-red-500, .text-red-700, .text-red-800').should('be.visible');\n    }\n    else {\n        // If no specific error element is found, at least verify we're still on the login page\n        cy.url().should('contain', '/auth/login');\n    }\n});",
+              "err": {},
+              "uuid": "1d0388ad-434e-43ac-90e9-3ec5836c7873",
+              "parentUUID": "13f8d639-e534-41d3-b77c-0a2b4a59ad5f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should support programmatic login via custom command",
+              "fullTitle": "Authentication Flow should support programmatic login via custom command",
+              "timedOut": null,
+              "duration": 11831,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/auth.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/auth.cy.ts/Authentication Flow -- should support programmatic login via custom command (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Create a test user first via API\ncy.createTestUser(testUser);\n// Use the custom login command\ncy.login(testUser.username, testUser.password);\n// Verify token was set in localStorage\ncy.window().its('localStorage').invoke('getItem', 'token').should('not.be.null');\n// Visit the dashboard\ncy.visit('/dashboard');\n// Should be on dashboard page (not redirected to login)\n// Look for the Dashboard heading\ncy.get('h1').contains('Dashboard', { timeout: 15000 }).should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `h1`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `h1`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/auth.cy.ts:86:0)",
+                "diff": null
+              },
+              "uuid": "e06ea93e-1666-4413-90bb-33ac1bea51c4",
+              "parentUUID": "13f8d639-e534-41d3-b77c-0a2b4a59ad5f",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "9f95b0ff-2591-436f-9a14-0ca87766ee1d",
+            "1d0388ad-434e-43ac-90e9-3ec5836c7873"
+          ],
+          "failures": [
+            "a1b70d8b-d9c9-428b-82e5-3285e848be47",
+            "e06ea93e-1666-4413-90bb-33ac1bea51c4"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 32026,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

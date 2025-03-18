@@ -11,7 +11,13 @@ const apiClient = axios.create({
 // Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // You can add auth tokens or other headers here
+    // Add auth token to headers if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     return config;
   },
   (error) => {
@@ -36,7 +42,10 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         // If refresh fails, redirect to login
-        window.location.href = '/login';
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          window.location.href = '/auth/login';
+        }
         return Promise.reject(refreshError);
       }
     }

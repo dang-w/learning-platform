@@ -1,0 +1,248 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-17T17:52:36.337Z",
+    "end": "2025-03-17T17:52:36.884Z",
+    "duration": 547,
+    "testsRegistered": 8,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 7,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "b5faed6b-879e-44ad-bc67-d050b9f144b3",
+      "title": "",
+      "fullFile": "cypress/e2e/learning-path.cy.ts",
+      "file": "cypress/e2e/learning-path.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+          "title": "Learning Path Management",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display learning path overview",
+              "fullTitle": "Learning Path Management should display learning path overview",
+              "timedOut": null,
+              "duration": 424,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/learning-path.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/learning-path.cy.ts/Learning Path Management -- should display learning path overview -- before each hook (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that learning path overview is displayed\ncy.get('[data-testid=\"learning-path-overview\"]').should('be.visible');\n// Check that goals section is displayed\ncy.get('[data-testid=\"goals-section\"]').should('be.visible');\n// Check that milestones section is displayed\ncy.get('[data-testid=\"milestones-section\"]').should('be.visible');\n// Check that roadmap section is displayed\ncy.get('[data-testid=\"roadmap-section\"]').should('be.visible');",
+              "err": {
+                "message": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:8000/token\n\nThe response we received from your web server was:\n\n  > 401: Unauthorized\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:8000/token\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"content-type\": \"application/x-www-form-urlencoded\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-length\": 46\n}\nBody: username=test-user&password=TestPassword123%21\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 401 - Unauthorized\nHeaders: {\n  \"date\": \"Mon, 17 Mar 2025 17:52:35 GMT\",\n  \"server\": \"uvicorn\",\n  \"www-authenticate\": \"Bearer\",\n  \"content-length\": \"43\",\n  \"content-type\": \"application/json\"\n}\nBody: {\n  \"detail\": \"Incorrect username or password\"\n}\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Learning Path Management`",
+                "estack": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:8000/token\n\nThe response we received from your web server was:\n\n  > 401: Unauthorized\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:8000/token\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"content-type\": \"application/x-www-form-urlencoded\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-length\": 46\n}\nBody: username=test-user&password=TestPassword123%21\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 401 - Unauthorized\nHeaders: {\n  \"date\": \"Mon, 17 Mar 2025 17:52:35 GMT\",\n  \"server\": \"uvicorn\",\n  \"www-authenticate\": \"Bearer\",\n  \"content-length\": \"43\",\n  \"content-type\": \"application/json\"\n}\nBody: {\n  \"detail\": \"Incorrect username or password\"\n}\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Learning Path Management`\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:133638:72)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)\nFrom Your Spec Code:\n    at Context.eval (webpack://frontend/./cypress/support/commands.ts:16:0)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138854:43)",
+                "diff": null
+              },
+              "uuid": "3a411df0-d923-4641-a93e-e339dac69d2d",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow creating a new goal",
+              "fullTitle": "Learning Path Management should allow creating a new goal",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on add goal button\ncy.get('[data-testid=\"add-goal\"]').click();\n// Fill out the goal form\nvar goalTitle = \"Test Goal \".concat(Date.now());\ncy.get('input[name=\"title\"]').type(goalTitle);\ncy.get('textarea[name=\"description\"]').type('This is a test goal created by Cypress');\n// Set target date (1 month from now)\nvar targetDate = new Date();\ntargetDate.setMonth(targetDate.getMonth() + 1);\nvar formattedDate = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD\ncy.get('input[name=\"target_date\"]').type(formattedDate);\ncy.get('input[name=\"priority\"]').clear().type('8');\ncy.get('input[name=\"category\"]').type('Testing');\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the goal was created\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the goal appears in the list\ncy.get('[data-testid=\"goals-list\"]').contains(goalTitle).should('be.visible');",
+              "err": {},
+              "uuid": "f151ce60-ef85-4382-80f7-88d7b9f8359f",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow editing an existing goal",
+              "fullTitle": "Learning Path Management should allow editing an existing goal",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Find the first goal and click edit\ncy.get('[data-testid=\"goal-item\"]').first().within(function () {\n    cy.get('[data-testid=\"edit-goal\"]').click();\n});\n// Update the goal title\nvar updatedTitle = \"Updated Goal \".concat(Date.now());\ncy.get('input[name=\"title\"]').clear().type(updatedTitle);\n// Update the description\ncy.get('textarea[name=\"description\"]').clear().type('This goal was updated by Cypress');\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the goal was updated\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the updated goal appears in the list\ncy.get('[data-testid=\"goals-list\"]').contains(updatedTitle).should('be.visible');",
+              "err": {},
+              "uuid": "bdb4275d-a596-4f03-8b6b-24a4b9206915",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow marking a goal as completed",
+              "fullTitle": "Learning Path Management should allow marking a goal as completed",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Find the first goal and click complete\ncy.get('[data-testid=\"goal-item\"]').first().within(function () {\n    cy.get('[data-testid=\"complete-goal\"]').click();\n});\n// Confirm completion\ncy.get('[data-testid=\"confirm-complete\"]').click();\n// Verify the goal was marked as completed\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the goal shows as completed in the list\ncy.get('[data-testid=\"goal-item\"]').first().within(function () {\n    cy.get('[data-testid=\"completed-badge\"]').should('be.visible');\n});",
+              "err": {},
+              "uuid": "dcf91ea1-6778-4177-930b-6ee7e050cf93",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow creating a new milestone",
+              "fullTitle": "Learning Path Management should allow creating a new milestone",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on milestones tab\ncy.get('[data-testid=\"milestones-tab\"]').click();\n// Click on add milestone button\ncy.get('[data-testid=\"add-milestone\"]').click();\n// Fill out the milestone form\nvar milestoneTitle = \"Test Milestone \".concat(Date.now());\ncy.get('input[name=\"title\"]').type(milestoneTitle);\ncy.get('textarea[name=\"description\"]').type('This is a test milestone created by Cypress');\n// Set target date (2 weeks from now)\nvar targetDate = new Date();\ntargetDate.setDate(targetDate.getDate() + 14);\nvar formattedDate = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD\ncy.get('input[name=\"target_date\"]').type(formattedDate);\ncy.get('input[name=\"verification_method\"]').type('Cypress Test');\n// Add resources (assuming there are resources to select)\ncy.get('[data-testid=\"resource-selector\"]').click();\ncy.get('[data-testid=\"resource-option\"]').first().click();\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the milestone was created\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the milestone appears in the list\ncy.get('[data-testid=\"milestones-list\"]').contains(milestoneTitle).should('be.visible');",
+              "err": {},
+              "uuid": "90a4ff7c-ca06-40d7-ac43-debab0558f31",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow editing the roadmap",
+              "fullTitle": "Learning Path Management should allow editing the roadmap",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on roadmap tab\ncy.get('[data-testid=\"roadmap-tab\"]').click();\n// Click on edit roadmap button\ncy.get('[data-testid=\"edit-roadmap\"]').click();\n// Update the roadmap title\nvar updatedTitle = \"Updated Roadmap \".concat(Date.now());\ncy.get('input[name=\"title\"]').clear().type(updatedTitle);\n// Update the description\ncy.get('textarea[name=\"description\"]').clear().type('This roadmap was updated by Cypress');\n// Add a new phase\ncy.get('[data-testid=\"add-phase\"]').click();\ncy.get('input[name=\"phases[0].title\"]').clear().type('Phase 1: Testing');\ncy.get('textarea[name=\"phases[0].description\"]').clear().type('First phase of testing');\n// Add an item to the phase\ncy.get('[data-testid=\"add-phase-item-0\"]').click();\ncy.get('input[name=\"phases[0].items[0].title\"]').clear().type('Learn Cypress');\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the roadmap was updated\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the updated roadmap appears\ncy.get('[data-testid=\"roadmap-title\"]').contains(updatedTitle).should('be.visible');",
+              "err": {},
+              "uuid": "4236e8ad-07c1-4fb8-8bf8-d77109c41e54",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should display learning path progress",
+              "fullTitle": "Learning Path Management should display learning path progress",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on progress tab\ncy.get('[data-testid=\"progress-tab\"]').click();\n// Verify progress charts are displayed\ncy.get('[data-testid=\"goals-progress-chart\"]').should('be.visible');\ncy.get('[data-testid=\"milestones-progress-chart\"]').should('be.visible');\ncy.get('[data-testid=\"roadmap-progress-chart\"]').should('be.visible');\n// Test date range filter\ncy.get('[data-testid=\"date-range-selector\"]').click();\ncy.get('[data-testid=\"date-range-last-month\"]').click();\n// Verify charts are updated\ncy.get('[data-testid=\"goals-progress-chart\"]').should('be.visible');",
+              "err": {},
+              "uuid": "050fa92b-9ead-40cd-8d2f-90bdea502b68",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow deleting a goal",
+              "fullTitle": "Learning Path Management should allow deleting a goal",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Get the title of the first goal\nvar goalTitle;\ncy.get('[data-testid=\"goal-item\"]').first().within(function () {\n    cy.get('[data-testid=\"goal-title\"]').invoke('text').then(function (text) {\n        goalTitle = text;\n    });\n});\n// Find the first goal and click delete\ncy.get('[data-testid=\"goal-item\"]').first().within(function () {\n    cy.get('[data-testid=\"delete-goal\"]').click();\n});\n// Confirm deletion\ncy.get('[data-testid=\"confirm-delete\"]').click();\n// Verify the goal was deleted\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the goal no longer appears in the list\ncy.get('[data-testid=\"goals-list\"]').contains(goalTitle).should('not.exist');",
+              "err": {},
+              "uuid": "8ffde369-e00a-415b-96c2-1734299ef0b1",
+              "parentUUID": "d79217f0-c5e1-4f54-b0da-47bed69008f8",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "3a411df0-d923-4641-a93e-e339dac69d2d"
+          ],
+          "pending": [],
+          "skipped": [
+            "f151ce60-ef85-4382-80f7-88d7b9f8359f",
+            "bdb4275d-a596-4f03-8b6b-24a4b9206915",
+            "dcf91ea1-6778-4177-930b-6ee7e050cf93",
+            "90a4ff7c-ca06-40d7-ac43-debab0558f31",
+            "4236e8ad-07c1-4fb8-8bf8-d77109c41e54",
+            "050fa92b-9ead-40cd-8d2f-90bdea502b68",
+            "8ffde369-e00a-415b-96c2-1734299ef0b1"
+          ],
+          "duration": 424,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

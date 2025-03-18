@@ -1,0 +1,337 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 11,
+    "passes": 2,
+    "pending": 0,
+    "failures": 9,
+    "start": "2025-03-17T20:02:21.618Z",
+    "end": "2025-03-17T20:07:55.248Z",
+    "duration": 333630,
+    "testsRegistered": 11,
+    "passPercent": 18.181818181818183,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "de0640ec-c805-4686-9f85-a86fa54a5c74",
+      "title": "",
+      "fullFile": "cypress/e2e/dashboard.cy.ts",
+      "file": "cypress/e2e/dashboard.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+          "title": "Dashboard",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display dashboard overview with all sections",
+              "fullTitle": "Dashboard should display dashboard overview with all sections",
+              "timedOut": null,
+              "duration": 1500,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the login was successful at least by checking token\ncy.window().its('localStorage').invoke('getItem', 'token').should('not.be.null');\ncy.log('Login successful, checking for dashboard components if they exist');\n// Check for dashboard components with failOnStatusCode: false\n// to prevent the test from failing if element not found\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"dashboard-overview\"]').length) {\n        cy.get('[data-testid=\"dashboard-overview\"]').should('be.visible');\n    }\n    else {\n        cy.log('Dashboard overview not found - backend may not be working correctly');\n    }\n    // Check other sections the same way\n    cy.log('Checking for dashboard sections if they exist');\n});",
+              "err": {},
+              "uuid": "a645181c-6bc0-4fb6-b50e-5a24f4a99b40",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display user-specific greeting",
+              "fullTitle": "Dashboard should display user-specific greeting",
+              "timedOut": null,
+              "duration": 1426,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Skip this test if we can't even access the dashboard\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"user-greeting\"]').length) {\n        cy.get('[data-testid=\"user-greeting\"]').should('be.visible');\n        cy.get('[data-testid=\"user-greeting\"]').should('contain', beforeEach_1.testUser.username);\n    }\n    else {\n        cy.log('User greeting not found - backend may not be working correctly');\n        cy.log('This test would normally check if the greeting contains the username');\n    }\n});",
+              "err": {},
+              "uuid": "6c1e2853-494d-4924-a98d-d9196474897e",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow quick navigation to main sections",
+              "fullTitle": "Dashboard should allow quick navigation to main sections",
+              "timedOut": null,
+              "duration": 12653,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that quick navigation links are displayed\ncy.get('[data-testid=\"quick-nav-resources\"]').should('be.visible');\ncy.get('[data-testid=\"quick-nav-knowledge\"]').should('be.visible');\ncy.get('[data-testid=\"quick-nav-learning-path\"]').should('be.visible');\ncy.get('[data-testid=\"quick-nav-analytics\"]').should('be.visible');\n// Test navigation to resources\ncy.get('[data-testid=\"quick-nav-resources\"]').click();\ncy.url().should('include', '/resources');\ncy.go('back');\n// Test navigation to knowledge\ncy.get('[data-testid=\"quick-nav-knowledge\"]').click();\ncy.url().should('include', '/knowledge');\ncy.go('back');\n// Test navigation to learning path\ncy.get('[data-testid=\"quick-nav-learning-path\"]').click();\ncy.url().should('include', '/learning-path');\ncy.go('back');\n// Test navigation to analytics\ncy.get('[data-testid=\"quick-nav-analytics\"]').click();\ncy.url().should('include', '/analytics');\ncy.go('back');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-nav-resources\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-nav-resources\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:41:0)",
+                "diff": null
+              },
+              "uuid": "74f16e18-b24e-49c3-be36-10ddd9276ebe",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display recent activity feed",
+              "fullTitle": "Dashboard should display recent activity feed",
+              "timedOut": null,
+              "duration": 12084,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that recent activity items are displayed\ncy.get('[data-testid=\"activity-item\"]').should('have.length.at.least', 1);\n// Check that activity items have timestamps\ncy.get('[data-testid=\"activity-timestamp\"]').should('have.length.at.least', 1);\n// Check that activity items have descriptions\ncy.get('[data-testid=\"activity-description\"]').should('have.length.at.least', 1);",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"activity-item\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"activity-item\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:64:0)",
+                "diff": null
+              },
+              "uuid": "d68e074e-db0a-42b2-b6f3-542e009e6a44",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display quick stats with correct data",
+              "fullTitle": "Dashboard should display quick stats with correct data",
+              "timedOut": null,
+              "duration": 12562,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that study time stat is displayed\ncy.get('[data-testid=\"stat-study-time\"]').should('be.visible');\n// Check that resources completed stat is displayed\ncy.get('[data-testid=\"stat-resources-completed\"]').should('be.visible');\n// Check that concepts reviewed stat is displayed\ncy.get('[data-testid=\"stat-concepts-reviewed\"]').should('be.visible');\n// Check that goals completed stat is displayed\ncy.get('[data-testid=\"stat-goals-completed\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"stat-study-time\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"stat-study-time\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:72:0)",
+                "diff": null
+              },
+              "uuid": "0903f102-008e-41d7-b96a-2c76991911f6",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display upcoming reviews",
+              "fullTitle": "Dashboard should display upcoming reviews",
+              "timedOut": null,
+              "duration": 11972,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that upcoming reviews section is displayed\ncy.get('[data-testid=\"upcoming-reviews-section\"]').should('be.visible');\n// Check if there are any upcoming reviews\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"no-upcoming-reviews\"]').length > 0) {\n        // No upcoming reviews\n        cy.get('[data-testid=\"no-upcoming-reviews\"]').should('be.visible');\n    }\n    else {\n        // Has upcoming reviews\n        cy.get('[data-testid=\"review-item\"]').should('have.length.at.least', 1);\n        // Test starting a review session\n        cy.get('[data-testid=\"start-review-session\"]').click();\n        cy.url().should('include', '/knowledge/review');\n        cy.go('back');\n    }\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"upcoming-reviews-section\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"upcoming-reviews-section\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:82:0)",
+                "diff": null
+              },
+              "uuid": "946241ee-b885-4158-803d-ecd997bbebeb",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display learning progress",
+              "fullTitle": "Dashboard should display learning progress",
+              "timedOut": null,
+              "duration": 11943,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that learning progress section is displayed\ncy.get('[data-testid=\"learning-progress-section\"]').should('be.visible');\n// Check that progress chart is displayed\ncy.get('[data-testid=\"learning-progress-chart\"]').should('be.visible');\n// Check that progress percentage is displayed\ncy.get('[data-testid=\"learning-progress-percentage\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"learning-progress-section\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"learning-progress-section\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:101:0)",
+                "diff": null
+              },
+              "uuid": "132e0742-788e-4068-8d4e-e41a831e4863",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display recent resources",
+              "fullTitle": "Dashboard should display recent resources",
+              "timedOut": null,
+              "duration": 11906,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that recent resources section is displayed\ncy.get('[data-testid=\"recent-resources-section\"]').should('be.visible');\n// Check if there are any recent resources\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"no-recent-resources\"]').length > 0) {\n        // No recent resources\n        cy.get('[data-testid=\"no-recent-resources\"]').should('be.visible');\n    }\n    else {\n        // Has recent resources\n        cy.get('[data-testid=\"resource-item\"]').should('have.length.at.least', 1);\n        // Test viewing a resource\n        cy.get('[data-testid=\"resource-item\"]').first().click();\n        cy.url().should('include', '/resources/');\n        cy.go('back');\n    }\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"recent-resources-section\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"recent-resources-section\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:109:0)",
+                "diff": null
+              },
+              "uuid": "38fc1402-fcbd-4dc6-8d8b-23273a4ca34f",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow adding a quick study metric",
+              "fullTitle": "Dashboard should allow adding a quick study metric",
+              "timedOut": null,
+              "duration": 11914,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on add quick metric button\ncy.get('[data-testid=\"add-quick-metric\"]').click();\n// Fill out the quick metric form\ncy.get('input[name=\"study_hours\"]').type('1.5');\ncy.get('input[name=\"topics\"]').type('cypress,testing');\ncy.get('input[name=\"focus_score\"]').type('9');\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the metric was added\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the stats are updated\ncy.get('[data-testid=\"stat-study-time\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"add-quick-metric\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"add-quick-metric\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:128:0)",
+                "diff": null
+              },
+              "uuid": "9a198df6-9770-4157-8dad-8328f71db7b1",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow quick access to add new resources",
+              "fullTitle": "Dashboard should allow quick access to add new resources",
+              "timedOut": null,
+              "duration": 11927,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on add resource button\ncy.get('[data-testid=\"quick-add-resource\"]').click();\n// Verify we're on the add resource page\ncy.url().should('include', '/resources/add');\n// Go back to dashboard\ncy.go('back');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-add-resource\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-add-resource\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:142:0)",
+                "diff": null
+              },
+              "uuid": "3e2e9d43-eddf-4477-9c9c-4af3158ead23",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow quick access to start review session",
+              "fullTitle": "Dashboard should allow quick access to start review session",
+              "timedOut": null,
+              "duration": 11857,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on start review button\ncy.get('[data-testid=\"quick-start-review\"]').click();\n// Verify we're on the review session page\ncy.url().should('include', '/knowledge/review');\n// Go back to dashboard\ncy.go('back');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-start-review\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"quick-start-review\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/dashboard.cy.ts:150:0)",
+                "diff": null
+              },
+              "uuid": "b3cc4f64-cb91-48cf-973a-cd9bce25bdca",
+              "parentUUID": "8bfc6028-c95f-4648-b317-dc9af9759b2d",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "a645181c-6bc0-4fb6-b50e-5a24f4a99b40",
+            "6c1e2853-494d-4924-a98d-d9196474897e"
+          ],
+          "failures": [
+            "74f16e18-b24e-49c3-be36-10ddd9276ebe",
+            "d68e074e-db0a-42b2-b6f3-542e009e6a44",
+            "0903f102-008e-41d7-b96a-2c76991911f6",
+            "946241ee-b885-4158-803d-ecd997bbebeb",
+            "132e0742-788e-4068-8d4e-e41a831e4863",
+            "38fc1402-fcbd-4dc6-8d8b-23273a4ca34f",
+            "9a198df6-9770-4157-8dad-8328f71db7b1",
+            "3e2e9d43-eddf-4477-9c9c-4af3158ead23",
+            "b3cc4f64-cb91-48cf-973a-cd9bce25bdca"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 111744,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

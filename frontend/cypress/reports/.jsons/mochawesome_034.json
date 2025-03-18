@@ -1,0 +1,210 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-17T17:16:09.547Z",
+    "end": "2025-03-17T17:16:10.108Z",
+    "duration": 561,
+    "testsRegistered": 6,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 5,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "45e8cd69-ad7a-403b-a6a0-dba93a5fd078",
+      "title": "",
+      "fullFile": "cypress/e2e/resources.cy.ts",
+      "file": "cypress/e2e/resources.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "c6be7419-1277-4cb2-bc29-47fe5b60c6f8",
+          "title": "Resources Management",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display resources list and allow filtering",
+              "fullTitle": "Resources Management should display resources list and allow filtering",
+              "timedOut": null,
+              "duration": 444,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/resources.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/resources.cy.ts/Resources Management -- should display resources list and allow filtering -- before each hook (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Check that resources list is displayed\ncy.get('[data-testid=\"resources-list\"]').should('be.visible');\n// Test filtering by type\ncy.get('[data-testid=\"filter-type\"]').click();\ncy.get('[data-testid=\"filter-type-articles\"]').click();\ncy.url().should('include', 'type=articles');\n// Test filtering by topic\ncy.get('[data-testid=\"filter-topic\"]').click();\ncy.get('[data-testid=\"filter-topic-python\"]').click();\ncy.url().should('include', 'topic=python');\n// Test filtering by difficulty\ncy.get('[data-testid=\"filter-difficulty\"]').click();\ncy.get('[data-testid=\"filter-difficulty-beginner\"]').click();\ncy.url().should('include', 'difficulty=beginner');\n// Test filtering by completion status\ncy.get('[data-testid=\"filter-status\"]').click();\ncy.get('[data-testid=\"filter-status-completed\"]').click();\ncy.url().should('include', 'status=completed');\n// Clear filters\ncy.get('[data-testid=\"clear-filters\"]').click();\ncy.url().should('not.include', 'type=');\ncy.url().should('not.include', 'topic=');\ncy.url().should('not.include', 'difficulty=');\ncy.url().should('not.include', 'status=');",
+              "err": {
+                "message": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:3000/api/token\n\nThe response we received from your web server was:\n\n  > 404: Not Found\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:3000/api/token\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"content-type\": \"application/x-www-form-urlencoded\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-length\": 46\n}\nBody: username=test-user&password=TestPassword123%21\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 404 - Not Found\nHeaders: {\n  \"cache-control\": \"no-store, must-revalidate\",\n  \"vary\": \"RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding\",\n  \"link\": \"</_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css>; rel=preload; as=\\\"style\\\"\",\n  \"x-powered-by\": \"Next.js\",\n  \"content-type\": \"text/html; charset=utf-8\",\n  \"content-encoding\": \"gzip\",\n  \"date\": \"Mon, 17 Mar 2025 17:16:09 GMT\",\n  \"connection\": \"keep-alive\",\n  \"keep-alive\": \"timeout=5\",\n  \"transfer-encoding\": \"chunked\"\n}\nBody: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css\" data-precedence=\"next_static/chunks/[root of the server]__08514339._.css\"/><link rel=\"preload\" as=\"script\" fetchPriority=\"low\" href=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_49a6ea35._.js\"/><script src=\"/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_3bfaed20._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40swc_helpers_cjs_00636ac3._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_e69f0d32._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_be317ff2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_1a6ee436._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_favicon_ico_mjs_79b6a596._.js\" async=\"\"></script><script src=\"/_next/static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_axios_lib_99999129._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@headlessui_react_dist_306b8882._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@floating-ui_react_dist_c1a64d8e._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_8535f519._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_8227d2ef._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_layout_tsx_f0e4c1a2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40headlessui_react_dist_306...\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Resources Management`",
+                "estack": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:3000/api/token\n\nThe response we received from your web server was:\n\n  > 404: Not Found\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:3000/api/token\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"content-type\": \"application/x-www-form-urlencoded\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-length\": 46\n}\nBody: username=test-user&password=TestPassword123%21\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 404 - Not Found\nHeaders: {\n  \"cache-control\": \"no-store, must-revalidate\",\n  \"vary\": \"RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding\",\n  \"link\": \"</_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css>; rel=preload; as=\\\"style\\\"\",\n  \"x-powered-by\": \"Next.js\",\n  \"content-type\": \"text/html; charset=utf-8\",\n  \"content-encoding\": \"gzip\",\n  \"date\": \"Mon, 17 Mar 2025 17:16:09 GMT\",\n  \"connection\": \"keep-alive\",\n  \"keep-alive\": \"timeout=5\",\n  \"transfer-encoding\": \"chunked\"\n}\nBody: <!DOCTYPE html><html lang=\"en\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/_next/static/chunks/%5Broot%20of%20the%20server%5D__08514339._.css\" data-precedence=\"next_static/chunks/[root of the server]__08514339._.css\"/><link rel=\"preload\" as=\"script\" fetchPriority=\"low\" href=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_49a6ea35._.js\"/><script src=\"/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_3bfaed20._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40swc_helpers_cjs_00636ac3._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_e69f0d32._.js\" async=\"\"></script><script src=\"/_next/static/chunks/_be317ff2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_next_dist_1a6ee436._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_favicon_ico_mjs_79b6a596._.js\" async=\"\"></script><script src=\"/_next/static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_axios_lib_99999129._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@headlessui_react_dist_306b8882._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_@floating-ui_react_dist_c1a64d8e._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_8535f519._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_8227d2ef._.js\" async=\"\"></script><script src=\"/_next/static/chunks/src_app_layout_tsx_f0e4c1a2._.js\" async=\"\"></script><script src=\"/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_f2322ef7._.js\" async=\"\"></script><script src=\"/_next/static/chunks/node_modules_%40headlessui_react_dist_306...\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Resources Management`\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:133638:72)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)\nFrom Your Spec Code:\n    at Context.eval (webpack://frontend/./cypress/support/commands.ts:16:0)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138854:43)",
+                "diff": null
+              },
+              "uuid": "86666660-82e9-4d97-8523-0d6954c8d0c2",
+              "parentUUID": "c6be7419-1277-4cb2-bc29-47fe5b60c6f8",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow creating a new resource",
+              "fullTitle": "Resources Management should allow creating a new resource",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on add resource button\ncy.get('[data-testid=\"add-resource\"]').click();\n// Fill out the resource form\ncy.get('[data-testid=\"resource-type\"]').click();\ncy.get('[data-testid=\"resource-type-articles\"]').click();\nvar resourceTitle = \"Test Resource \".concat(Date.now());\ncy.get('input[name=\"title\"]').type(resourceTitle);\ncy.get('input[name=\"url\"]').type('https://example.com/test-resource');\ncy.get('[data-testid=\"resource-difficulty\"]').click();\ncy.get('[data-testid=\"resource-difficulty-intermediate\"]').click();\ncy.get('input[name=\"estimated_time\"]').type('60');\ncy.get('[data-testid=\"resource-topics\"]').type('python{enter}testing{enter}');\ncy.get('textarea[name=\"notes\"]').type('This is a test resource created by Cypress');\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the resource was created\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the resource appears in the list\ncy.get('[data-testid=\"resources-list\"]').contains(resourceTitle).should('be.visible');",
+              "err": {},
+              "uuid": "ce8207e0-866b-452f-9f5d-ac3a4c13303c",
+              "parentUUID": "c6be7419-1277-4cb2-bc29-47fe5b60c6f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow editing an existing resource",
+              "fullTitle": "Resources Management should allow editing an existing resource",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Find the first resource and click edit\ncy.get('[data-testid=\"resource-item\"]').first().within(function () {\n    cy.get('[data-testid=\"edit-resource\"]').click();\n});\n// Update the resource title\nvar updatedTitle = \"Updated Resource \".concat(Date.now());\ncy.get('input[name=\"title\"]').clear().type(updatedTitle);\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the resource was updated\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the updated resource appears in the list\ncy.get('[data-testid=\"resources-list\"]').contains(updatedTitle).should('be.visible');",
+              "err": {},
+              "uuid": "52f2dc07-db66-4928-8fb9-01a6d68db1c3",
+              "parentUUID": "c6be7419-1277-4cb2-bc29-47fe5b60c6f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow marking a resource as completed",
+              "fullTitle": "Resources Management should allow marking a resource as completed",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Find the first resource and click complete\ncy.get('[data-testid=\"resource-item\"]').first().within(function () {\n    cy.get('[data-testid=\"complete-resource\"]').click();\n});\n// Fill out the completion form\ncy.get('textarea[name=\"notes\"]').type('Completed during Cypress testing');\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the resource was marked as completed\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the resource shows as completed in the list\ncy.get('[data-testid=\"resource-item\"]').first().within(function () {\n    cy.get('[data-testid=\"completed-badge\"]').should('be.visible');\n});",
+              "err": {},
+              "uuid": "86d3bf4f-c350-4aba-956e-0a6e6585f08b",
+              "parentUUID": "c6be7419-1277-4cb2-bc29-47fe5b60c6f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow deleting a resource",
+              "fullTitle": "Resources Management should allow deleting a resource",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Get the title of the first resource\nvar resourceTitle;\ncy.get('[data-testid=\"resource-item\"]').first().within(function () {\n    cy.get('[data-testid=\"resource-title\"]').invoke('text').then(function (text) {\n        resourceTitle = text;\n    });\n});\n// Find the first resource and click delete\ncy.get('[data-testid=\"resource-item\"]').first().within(function () {\n    cy.get('[data-testid=\"delete-resource\"]').click();\n});\n// Confirm deletion\ncy.get('[data-testid=\"confirm-delete\"]').click();\n// Verify the resource was deleted\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Verify the resource no longer appears in the list\ncy.get('[data-testid=\"resources-list\"]').contains(resourceTitle).should('not.exist');",
+              "err": {},
+              "uuid": "6c07ea8d-dc62-44ca-813b-1c36a4f9b5ef",
+              "parentUUID": "c6be7419-1277-4cb2-bc29-47fe5b60c6f8",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should extract metadata from URL",
+              "fullTitle": "Resources Management should extract metadata from URL",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on add resource button\ncy.get('[data-testid=\"add-resource\"]').click();\n// Select article type\ncy.get('[data-testid=\"resource-type\"]').click();\ncy.get('[data-testid=\"resource-type-articles\"]').click();\n// Enter a URL and click extract\ncy.get('input[name=\"url\"]').type('https://example.com/test-article');\ncy.get('[data-testid=\"extract-metadata\"]').click();\n// Verify metadata was extracted\ncy.get('input[name=\"title\"]').should('not.have.value', '');\ncy.get('[data-testid=\"resource-topics\"]').should('not.have.value', '');\n// Cancel the form\ncy.get('[data-testid=\"cancel-button\"]').click();",
+              "err": {},
+              "uuid": "f0204c14-ed62-4118-a215-868bb0bfb3c0",
+              "parentUUID": "c6be7419-1277-4cb2-bc29-47fe5b60c6f8",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "86666660-82e9-4d97-8523-0d6954c8d0c2"
+          ],
+          "pending": [],
+          "skipped": [
+            "ce8207e0-866b-452f-9f5d-ac3a4c13303c",
+            "52f2dc07-db66-4928-8fb9-01a6d68db1c3",
+            "86d3bf4f-c350-4aba-956e-0a6e6585f08b",
+            "6c07ea8d-dc62-44ca-813b-1c36a4f9b5ef",
+            "f0204c14-ed62-4118-a215-868bb0bfb3c0"
+          ],
+          "duration": 444,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

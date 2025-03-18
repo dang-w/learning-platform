@@ -78,6 +78,14 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
 
+      {user && (
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-700" data-testid="user-greeting">
+            Welcome, {user.username}!
+          </h2>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Learning Progress Overview */}
         <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
