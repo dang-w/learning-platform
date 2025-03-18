@@ -59,7 +59,12 @@ class RateLimitExceeded(HTTPException):
 def get_client_identifier(request: Request) -> str:
     """Generate a unique identifier for the client."""
     # Use X-Forwarded-For if behind a proxy, fallback to client host
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+    # Handle case where request.client is None (happens during tests)
+    if request.client is None:
+        client_ip = request.headers.get("X-Forwarded-For", "test-client")
+    else:
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+
     # Include User-Agent to differentiate between clients from same IP
     user_agent = request.headers.get("User-Agent", "")
     return f"{client_ip}:{user_agent}"

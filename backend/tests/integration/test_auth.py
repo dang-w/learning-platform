@@ -52,6 +52,6 @@ def test_authentication_failure():
     # Verify the response is unauthorized
     assert response.status_code == 401
     response_json = response.json()
-    assert response_json["success"] == False
-    assert "message" in response_json
-    assert response_json["error_code"] == "UNAUTHORIZED"
+    # FastAPI returns a standard error format with a "detail" field
+    assert "detail" in response_json
+    assert response_json["detail"] == "Could not validate credentials"

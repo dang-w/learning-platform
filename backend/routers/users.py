@@ -1,7 +1,7 @@
 """User management endpoints."""
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from pydantic import BaseModel, EmailStr, constr
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 from datetime import datetime
 
@@ -90,8 +90,25 @@ async def create_user(user: UserCreate, request: Request):
         )
 
 @router.get("/me", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+async def read_users_me(current_user: dict = Depends(get_current_active_user)):
     """Get current user profile."""
+    # Ensure resources is a dictionary if it exists but is not already a dict
+    if "resources" in current_user and not isinstance(current_user["resources"], dict):
+        current_user["resources"] = {
+            "articles": [],
+            "videos": [],
+            "courses": [],
+            "books": []
+        }
+    # If resources doesn't exist, add it
+    elif "resources" not in current_user:
+        current_user["resources"] = {
+            "articles": [],
+            "videos": [],
+            "courses": [],
+            "books": []
+        }
+
     return current_user
 
 @router.get("/{username}", response_model=User)

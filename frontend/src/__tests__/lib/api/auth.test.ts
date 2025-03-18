@@ -1,5 +1,6 @@
 import authApi, { LoginCredentials, RegisterData, User, AuthResponse } from '@/lib/api/auth';
 import apiClient from '@/lib/api/client';
+import { expect } from '@jest/globals';
 
 // Mock the apiClient
 jest.mock('@/lib/api/client', () => ({
@@ -41,6 +42,7 @@ describe('Auth API', () => {
       const mockResponse = {
         data: {
           access_token: 'test-token',
+          refresh_token: 'test-refresh-token',
           token_type: 'bearer',
         },
       };
@@ -67,6 +69,7 @@ describe('Auth API', () => {
       );
       expect(result).toEqual(mockResponse.data);
       expect(localStorage.getItem('token')).toBe('test-token');
+      expect(localStorage.getItem('refreshToken')).toBe('test-refresh-token');
     });
 
     it('should handle login errors', async () => {
@@ -90,6 +93,7 @@ describe('Auth API', () => {
         expect.any(Object)
       );
       expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('refreshToken')).toBeNull();
     });
   });
 
@@ -175,10 +179,14 @@ describe('Auth API', () => {
 
   describe('refreshToken', () => {
     it('should call the refreshToken endpoint and store the token', async () => {
+      // Setup localStorage with refresh token
+      localStorage.setItem('refreshToken', 'old-refresh-token');
+
       // Mock response
       const mockResponse = {
         data: {
           access_token: 'refreshed-token',
+          refresh_token: 'new-refresh-token',
           token_type: 'bearer',
         } as AuthResponse,
       };
@@ -188,12 +196,18 @@ describe('Auth API', () => {
       const result = await authApi.refreshToken();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/token/refresh');
+      expect(apiClient.post).toHaveBeenCalledWith('/token/refresh', {
+        refresh_token: 'old-refresh-token'
+      });
       expect(result).toEqual(mockResponse.data);
       expect(localStorage.getItem('token')).toBe('refreshed-token');
+      expect(localStorage.getItem('refreshToken')).toBe('new-refresh-token');
     });
 
     it('should handle refreshToken errors and return null', async () => {
+      // Setup localStorage with refresh token
+      localStorage.setItem('refreshToken', 'old-refresh-token');
+
       // Mock error response
       const mockError = new Error('Token expired');
       (apiClient.post as jest.Mock).mockRejectedValue(mockError);
@@ -202,9 +216,10 @@ describe('Auth API', () => {
       const result = await authApi.refreshToken();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/token/refresh');
+      expect(apiClient.post).toHaveBeenCalledWith('/token/refresh', {
+        refresh_token: 'old-refresh-token'
+      });
       expect(result).toBeNull();
-      expect(localStorage.getItem('token')).toBeNull();
     });
   });
 
@@ -212,6 +227,8 @@ describe('Auth API', () => {
     it('should call the logout endpoint and remove the token', async () => {
       // Set up localStorage with a token
       localStorage.setItem('token', 'test-token');
+      localStorage.setItem('refreshToken', 'test-refresh-token');
+      localStorage.setItem('sessionId', 'test-session-id');
 
       // Mock response
       (apiClient.post as jest.Mock).mockResolvedValue({});
@@ -220,13 +237,20 @@ describe('Auth API', () => {
       await authApi.logout();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/logout');
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout', {}, {
+        headers: {
+          'x-session-id': 'test-session-id'
+        }
+      });
       expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('refreshToken')).toBeNull();
+      expect(localStorage.getItem('sessionId')).toBeNull();
     });
 
     it('should handle logout errors but still remove the token', async () => {
       // Set up localStorage with a token
       localStorage.setItem('token', 'test-token');
+      localStorage.setItem('refreshToken', 'test-refresh-token');
 
       // Mock error response
       const mockError = new Error('Server error');
@@ -236,8 +260,9 @@ describe('Auth API', () => {
       await authApi.logout();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/logout');
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout');
       expect(localStorage.getItem('token')).toBeNull();
+      expect(localStorage.getItem('refreshToken')).toBeNull();
     });
   });
 

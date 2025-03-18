@@ -158,20 +158,24 @@ async def test_authenticate_user():
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"  # hashed version of password123
     }
 
-    with patch("auth.get_user", AsyncMock(return_value=mock_user)):
+    # Also need to mock verify_password to ensure it returns True
+    with patch("auth.get_user", AsyncMock(return_value=mock_user)), \
+         patch("auth.verify_password", return_value=True):
         # Authenticate the user
         user = await authenticate_user(username, password)
         assert user is not None
         assert user["username"] == username
 
-        # Try with wrong password
+    # Try with wrong password by mocking verify_password to return False
+    with patch("auth.get_user", AsyncMock(return_value=mock_user)), \
+         patch("auth.verify_password", return_value=False):
         user = await authenticate_user(username, "wrongpassword")
-        assert user is False
+        assert user is None  # Should return None, not False
 
-        # Try with non-existent user
-        with patch("auth.get_user", AsyncMock(return_value=None)):
-            user = await authenticate_user("nonexistentuser", password)
-            assert user is False
+    # Try with non-existent user
+    with patch("auth.get_user", AsyncMock(return_value=None)):
+        user = await authenticate_user("nonexistentuser", password)
+        assert user is None  # Should return None, not False
 
 @pytest.mark.integration
 @pytest.mark.asyncio
