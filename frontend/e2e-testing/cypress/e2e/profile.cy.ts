@@ -2,7 +2,7 @@
  * Profile Page Tests with Page Object Model
  * Using resilient testing patterns for better test stability
  */
-import { profilePage, dashboardPage } from '../support/page-objects';
+import { profilePage } from '../support/page-objects';
 import { setupAuthenticatedTestWithData } from '../support/resilientSeedData';
 
 describe('User Profile', () => {
@@ -254,6 +254,10 @@ describe('User Profile', () => {
           cy.log('Notifications tab not found, skipping preferences test');
           profilePage.takeScreenshot('no-notifications-tab');
         }
+      });
+    });
+  });
+
   it('should allow changing password', () => {
     // Click on change password tab
     cy.get('[data-testid="change-password-tab"]').click();

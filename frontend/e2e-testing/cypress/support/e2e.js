@@ -1,3 +1,4 @@
+
 // ***********************************************************
 // This example support/e2e.js is processed and
 // loaded automatically before your test files.
@@ -38,15 +39,18 @@ window.elementExists = elementExists;
 window.safeClick = safeClick;
 window.safeType = safeType;
 
+// SIMPLIFIED VERSION - DISABLED ERROR REPORTING TO FIX CHAINING ISSUES
+// Log error information safely without chaining Cypress commands
+function logBackendError(data) {
+  console.error('Backend error:', data);
+  // Disabled for now to fix chaining issues
+  // cy.task('logBackendError', data);
+}
+
 // Configure error handling for backend issues
 Cypress.on('uncaught:exception', (err) => {
   console.error('Application error:', err.message);
-  // Log backend errors to the backend error log
-  cy.task('logBackendError', {
-    message: err.message,
-    test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown test'
-  });
-  // Return false to prevent the error from failing the test
+  // Disabled for now to fix chaining issues
   return false;
 });
 
@@ -54,64 +58,16 @@ Cypress.on('uncaught:exception', (err) => {
 Cypress.on('fail', (error) => {
   if (error.message && error.message.indexOf('xhr') >= 0 && error.message.indexOf('failed') >= 0) {
     console.error('XHR Error:', error.message);
-    cy.task('logBackendError', {
-      message: error.message,
-      url: error.source?.url || 'unknown',
-      test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown test'
-    });
     return false; // Don't fail the test
   }
 
   // Report route not found errors but don't fail tests
   if (error.message && error.message.indexOf('failed to load') >= 0) {
     console.error('Route Error:', error.message);
-    cy.task('logBackendError', {
-      message: error.message,
-      url: error.source?.url || 'unknown',
-      test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown test'
-    });
     return false;
   }
 
   throw error; // Let other errors fail the test
-});
-
-// Setup API request interceptors to catch server errors
-Cypress.once('test:before:run', () => {
-  // Reset error reporter
-  cy.task('resetErrorReporter');
-
-  cy.intercept('**/api/**', (req) => {
-    req.on('response', (res) => {
-      if (res.statusCode >= 500) {
-        cy.log(`⚠️ API error ${res.statusCode} for ${req.method} ${req.url}`);
-        cy.task('logBackendError', {
-          url: req.url,
-          status: res.statusCode,
-          message: res.body?.detail || 'Server error',
-          test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown test'
-        });
-      }
-    });
-  });
-
-  // Handle slow connections and timeouts
-  cy.intercept('**', (req) => {
-    // Add timeout handler
-    const timeoutId = setTimeout(() => {
-      cy.log(`⚠️ Request timeout for ${req.method} ${req.url}`);
-      cy.task('logBackendError', {
-        url: req.url,
-        status: 504, // Gateway timeout
-        message: 'Request timed out',
-        test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown test'
-      });
-    }, 10000);
-
-    req.on('response', () => {
-      clearTimeout(timeoutId);
-    });
-  });
 });
 
 // Automatically log out and clear cache before each test
@@ -119,13 +75,6 @@ beforeEach(() => {
   // Clear local storage and cookies
   cy.clearLocalStorage();
   cy.clearCookies();
-
-  // Log failed API requests to help debug
-  cy.on('log:added', (logAttributes) => {
-    if (logAttributes.name === 'request' && logAttributes.state === 'failed') {
-      cy.task('log', `Failed request: ${logAttributes.message}`);
-    }
-  });
 });
 
 // Automatically record network and API errors
@@ -155,11 +104,13 @@ Cypress.Commands.overwrite('request', (originalFn, ...args) => {
       // Check if there's a server error and log it
       if (response.status >= 500) {
         cy.log(`⚠️ Server error ${response.status} for ${mergedOptions.method || 'GET'} ${mergedOptions.url}`);
-        cy.task('logBackendError', {
-          url: mergedOptions.url,
-          status: response.status,
-          message: response.body?.detail || 'Server error',
-          test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown test'
+        cy.then(() => {
+          logBackendError({
+            url: mergedOptions.url,
+            status: response.status,
+            message: response.body?.detail || 'Server error',
+            test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown test'
+          });
         });
       }
 

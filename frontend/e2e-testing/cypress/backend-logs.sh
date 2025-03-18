@@ -15,8 +15,18 @@ echo "Starting backend log capture..."
 
 # Run until terminated
 while true; do
-  # Get recent errors from backend logs (adjust command based on your backend)
-  curl -s http://localhost:3001/api/dev/logs 2>/dev/null | grep -i "error\|exception\|fail" >> $LOG_FILE
+  # Try to get recent errors from backend logs on both possible ports
+  LOGS=""
+  LOGS=$(curl -s http://localhost:3000/api/dev/logs 2>/dev/null || curl -s http://localhost:3001/api/dev/logs 2>/dev/null || echo "No logs endpoint available")
+
+  if [[ "$LOGS" != "No logs endpoint available" ]]; then
+    # Only try to parse if we got actual logs
+    echo "$(date): Captured logs" >> $LOG_FILE
+    echo "$LOGS" | grep -i "error\|exception\|fail" >> $LOG_FILE 2>/dev/null || echo "No errors found in logs" >> $LOG_FILE
+  else
+    # Just note that logs are not available
+    echo "$(date): Logs endpoint not available" >> $LOG_FILE
+  fi
 
   # Sleep before next poll
   sleep $POLLING_INTERVAL

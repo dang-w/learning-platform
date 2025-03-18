@@ -63,6 +63,10 @@ export interface ReviewStatistics {
   concepts_with_reviews: number;
   concepts_without_reviews: number;
   average_confidence: number;
+  concepts_due: number;
+  review_streak: number;
+  concepts_by_topic: Record<string, number>;
+  concepts_by_confidence: Record<number, number>;
   topics: string[];
   review_history: {
     date: string;

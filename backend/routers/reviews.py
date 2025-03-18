@@ -7,6 +7,11 @@ import os
 import json
 from dotenv import load_dotenv
 from bson.objectid import ObjectId
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -616,71 +621,105 @@ async def create_review(
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new resource review."""
-    # Check if user exists
-    user = await db.users.find_one({"username": current_user.username})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
-    # Validate rating
-    if not (1 <= review.rating <= 5):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Rating must be between 1 and 5"
-        )
-
-    # Validate difficulty rating
-    if not (1 <= review.difficulty_rating <= 5):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Difficulty rating must be between 1 and 5"
-        )
-
-    # Create review object
-    review_dict = review.model_dump()
-    review_dict["id"] = f"review_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    review_dict["user_id"] = current_user.username
-    review_dict["date"] = datetime.now().isoformat()
-
-    # Add to user's reviews
     try:
-        result = await db.users.update_one(
-            {"username": current_user.username},
-            {"$push": {"reviews": review_dict}}
-        )
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-        if result.modified_count == 0:
-            # If the reviews array doesn't exist yet, create it
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
+        # Check if user exists
+        user = await db.users.find_one({"username": username})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Validate rating
+        if not (1 <= review.rating <= 5):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Rating must be between 1 and 5"
+            )
+
+        # Validate difficulty rating
+        if not (1 <= review.difficulty_rating <= 5):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Difficulty rating must be between 1 and 5"
+            )
+
+        # Create review object
+        review_dict = review.model_dump()
+        review_dict["id"] = f"review_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        review_dict["user_id"] = username
+        review_dict["date"] = datetime.now().isoformat()
+
+        # Add to user's reviews
+        try:
             result = await db.users.update_one(
-                {"username": current_user.username},
-                {"$set": {"reviews": [review_dict]}}
+                {"username": username},
+                {"$push": {"reviews": review_dict}}
             )
 
             if result.modified_count == 0:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to create review"
+                # If the reviews array doesn't exist yet, create it
+                result = await db.users.update_one(
+                    {"username": username},
+                    {"$set": {"reviews": [review_dict]}}
                 )
+
+                if result.modified_count == 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to create review"
+                    )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create review: {str(e)}"
+            )
+
+        return review_dict
     except Exception as e:
+        logger.error(f"Error in create_review: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create review: {str(e)}"
         )
-
-    return review_dict
 
 @router.get("/", response_model=List[ResourceReview])
 async def get_reviews(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get all reviews created by the user."""
-    user = await db.users.find_one({"username": current_user.username})
-    if not user or "reviews" not in user:
-        return []
+    try:
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-    return user["reviews"]
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
+        user = await db.users.find_one({"username": username})
+        if not user or "reviews" not in user:
+            return []
+
+        return user["reviews"]
+    except Exception as e:
+        logger.error(f"Error in get_reviews: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve reviews: {str(e)}"
+        )
 
 @router.get("/resource/{resource_type}/{resource_id}", response_model=List[ResourceReview])
 async def get_reviews_by_resource(
@@ -689,17 +728,34 @@ async def get_reviews_by_resource(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get reviews for a specific resource."""
-    user = await db.users.find_one({"username": current_user.username})
-    if not user or "reviews" not in user:
-        return []
+    try:
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-    # Filter reviews by resource type and ID
-    reviews = [
-        review for review in user["reviews"]
-        if review.get("resource_type") == resource_type and review.get("resource_id") == resource_id
-    ]
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
 
-    return reviews
+        user = await db.users.find_one({"username": username})
+        if not user or "reviews" not in user:
+            return []
+
+        # Filter reviews by resource type and ID
+        reviews = [
+            review for review in user["reviews"]
+            if review.get("resource_type") == resource_type and review.get("resource_id") == resource_id
+        ]
+
+        return reviews
+    except Exception as e:
+        logger.error(f"Error in get_reviews_by_resource: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve reviews: {str(e)}"
+        )
 
 @router.put("/{review_id}", response_model=ResourceReview)
 async def update_review(
@@ -708,63 +764,80 @@ async def update_review(
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a review."""
-    # Validate rating
-    if not (1 <= review_update.rating <= 5):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Rating must be between 1 and 5"
+    try:
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
+        # Validate rating
+        if not (1 <= review_update.rating <= 5):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Rating must be between 1 and 5"
+            )
+
+        # Validate difficulty rating
+        if not (1 <= review_update.difficulty_rating <= 5):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Difficulty rating must be between 1 and 5"
+            )
+
+        # Get user and find review
+        user = await db.users.find_one({"username": username})
+        if not user or "reviews" not in user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reviews not found"
+            )
+
+        reviews = user["reviews"]
+        review_index = None
+
+        for i, review in enumerate(reviews):
+            if review.get("id") == review_id:
+                review_index = i
+                break
+
+        if review_index is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Review with ID {review_id} not found"
+            )
+
+        # Update review
+        update_data = review_update.model_dump()
+        for key, value in update_data.items():
+            reviews[review_index][key] = value
+
+        # Update date
+        reviews[review_index]["date"] = datetime.now().isoformat()
+
+        # Save updated reviews
+        result = await db.users.update_one(
+            {"username": username},
+            {"$set": {"reviews": reviews}}
         )
 
-    # Validate difficulty rating
-    if not (1 <= review_update.difficulty_rating <= 5):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Difficulty rating must be between 1 and 5"
-        )
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update review"
+            )
 
-    # Get user and find review
-    user = await db.users.find_one({"username": current_user.username})
-    if not user or "reviews" not in user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Reviews not found"
-        )
-
-    reviews = user["reviews"]
-    review_index = None
-
-    for i, review in enumerate(reviews):
-        if review.get("id") == review_id:
-            review_index = i
-            break
-
-    if review_index is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Review with ID {review_id} not found"
-        )
-
-    # Update review
-    update_data = review_update.model_dump()
-    for key, value in update_data.items():
-        reviews[review_index][key] = value
-
-    # Update date
-    reviews[review_index]["date"] = datetime.now().isoformat()
-
-    # Save updated reviews
-    result = await db.users.update_one(
-        {"username": current_user.username},
-        {"$set": {"reviews": reviews}}
-    )
-
-    if result.modified_count == 0:
+        return reviews[review_index]
+    except Exception as e:
+        logger.error(f"Error in update_review: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update review"
+            detail=f"Failed to update review: {str(e)}"
         )
-
-    return reviews[review_index]
 
 @router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_review(
@@ -772,15 +845,32 @@ async def delete_review(
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete a review."""
-    result = await db.users.update_one(
-        {"username": current_user.username},
-        {"$pull": {"reviews": {"id": review_id}}}
-    )
+    try:
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-    if result.modified_count == 0:
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
+        result = await db.users.update_one(
+            {"username": username},
+            {"$pull": {"reviews": {"id": review_id}}}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Review with ID {review_id} not found"
+            )
+    except Exception as e:
+        logger.error(f"Error in delete_review: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Review with ID {review_id} not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete review: {str(e)}"
         )
 
 @router.post("/concepts/batch", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
@@ -789,50 +879,67 @@ async def create_concepts_batch(
     current_user: User = Depends(get_current_active_user)
 ):
     """Create multiple concepts in a batch."""
-    result = {
-        "success": [],
-        "errors": []
-    }
+    try:
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-    for concept_data in concepts_batch.concepts:
-        try:
-            # Create a unique ID based on timestamp and title
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            slug = concept_data.title.lower().replace(" ", "_")[:20]
-            concept_id = f"{timestamp}_{slug}"
-
-            # Create concept document
-            concept_doc = {
-                "id": concept_id,
-                "title": concept_data.title,
-                "content": concept_data.content,
-                "topics": concept_data.topics,
-                "reviews": [],
-                "next_review": None,
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat()
-            }
-
-            # Update user document
-            update_result = await db.users.update_one(
-                {"username": current_user.username},
-                {"$push": {"concepts": concept_doc}}
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
             )
 
-            if update_result.modified_count == 0:
+        result = {
+            "success": [],
+            "errors": []
+        }
+
+        for concept_data in concepts_batch.concepts:
+            try:
+                # Create a unique ID based on timestamp and title
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                slug = concept_data.title.lower().replace(" ", "_")[:20]
+                concept_id = f"{timestamp}_{slug}"
+
+                # Create concept document
+                concept_doc = {
+                    "id": concept_id,
+                    "title": concept_data.title,
+                    "content": concept_data.content,
+                    "topics": concept_data.topics,
+                    "reviews": [],
+                    "next_review": None,
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat()
+                }
+
+                # Update user document
+                update_result = await db.users.update_one(
+                    {"username": username},
+                    {"$push": {"concepts": concept_doc}}
+                )
+
+                if update_result.modified_count == 0:
+                    result["errors"].append({
+                        "data": concept_data.dict(),
+                        "error": "Failed to add concept to user"
+                    })
+                    continue
+
+                # Add to success list
+                result["success"].append(concept_doc)
+
+            except Exception as e:
                 result["errors"].append({
                     "data": concept_data.dict(),
-                    "error": "Failed to add concept to user"
+                    "error": str(e)
                 })
-                continue
 
-            # Add to success list
-            result["success"].append(concept_doc)
-
-        except Exception as e:
-            result["errors"].append({
-                "data": concept_data.dict(),
-                "error": str(e)
-            })
-
-    return result
+        return result
+    except Exception as e:
+        logger.error(f"Error in create_concepts_batch: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create concepts batch: {str(e)}"
+        )

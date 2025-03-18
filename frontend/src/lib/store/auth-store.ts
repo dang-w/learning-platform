@@ -33,15 +33,37 @@ export const useAuthStore = create<AuthState>()(
 
           const response = await authApi.login({ username, password });
 
+          // Ensure we set the token correctly - handle both localStorage and cookies
+          const token = response.access_token;
+
+          if (!token) {
+            console.error('No token received from login response');
+            throw new Error('Authentication failed - no token received');
+          }
+
+          // Manually set token in local storage to ensure it's available immediately
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('token', token);
+            if (response.refresh_token) {
+              localStorage.setItem('refreshToken', response.refresh_token);
+            }
+          }
+
           set({
-            token: response.access_token,
+            token,
             isAuthenticated: true,
             isLoading: false,
           });
 
           // Fetch user data
-          await get().fetchUser();
+          try {
+            await get().fetchUser();
+          } catch (userError) {
+            console.error('Failed to fetch user data after login:', userError);
+            // Don't throw this error, as login itself was successful
+          }
         } catch (error) {
+          console.error('Login error:', error);
           set({
             isLoading: false,
             error: error instanceof Error ? error.message : 'Failed to login',
@@ -105,12 +127,17 @@ export const useAuthStore = create<AuthState>()(
 
           const user = await authApi.getCurrentUser();
 
+          if (!user) {
+            throw new Error('Failed to fetch user data - empty response');
+          }
+
           set({
             user,
             isAuthenticated: true,
             isLoading: false,
           });
         } catch (error) {
+          console.error('Failed to fetch user:', error);
           set({
             isLoading: false,
             error: 'Failed to fetch user',

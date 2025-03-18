@@ -107,7 +107,7 @@ export class AuthPage extends BasePage {
   }
 
   /**
-   * Login with the given credentials
+   * Login with username and password
    * @param username Username to login with
    * @param password Password to login with
    */
@@ -119,12 +119,12 @@ export class AuthPage extends BasePage {
     // Wait for redirect or token to be set
     cy.wait(2000);
 
-    // Check for successful login
-    cy.window().its('localStorage').invoke('getItem', 'token').then(token => {
-      if (token) {
-        cy.log('Login successful - token was set in localStorage');
-      } else {
-        cy.log('Login might have failed - token not found in localStorage');
+    // Check for successful login - avoid nesting cy commands
+    cy.log('Checking if login was successful');
+    cy.window().then(win => {
+      const token = win.localStorage.getItem('token');
+      cy.log(token ? 'Login successful - token was set in localStorage' : 'Login might have failed - token not found in localStorage');
+      if (!token) {
         this.takeScreenshot('login-attempt');
       }
     });
@@ -147,12 +147,14 @@ export class AuthPage extends BasePage {
     // Wait for redirect or response
     cy.wait(2000);
 
-    // Check for successful registration
+    // Check for successful registration - avoid nesting cy commands
     cy.url().then(url => {
-      if (!url.includes('/register')) {
-        cy.log('Registration successful - redirected away from registration page');
-      } else {
-        cy.log('Registration might have failed - still on registration page');
+      const isStillOnRegisterPage = url.includes('/register');
+      cy.log(isStillOnRegisterPage ?
+        'Registration might have failed - still on registration page' :
+        'Registration successful - redirected away from registration page');
+
+      if (isStillOnRegisterPage) {
         this.takeScreenshot('registration-attempt');
       }
     });
