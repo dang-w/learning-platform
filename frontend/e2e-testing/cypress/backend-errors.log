@@ -1,23 +1,43 @@
-Backend logs captured on Mon Mar 17 20:54:35 GMT 2025
-Backend logs captured on Mon, 17 Mar 2025 20:54:46 GMT
+Backend logs captured on Tue, 18 Mar 2025 15:04:45 GMT
 
-Backend logs captured on Mon, 17 Mar 2025 20:54:47 GMT
+Backend logs captured on Tue, 18 Mar 2025 15:06:00 GMT
 
-Backend logs captured on Mon, 17 Mar 2025 20:54:50 GMT
+[2025-03-18T15:06:13.319Z] ["after each" hook] Error unknown: The following error originated from your application code, not from Cypress. It was caused by an unhandled promise rejection.
 
-Backend logs captured on Mon, 17 Mar 2025 20:54:54 GMT
+  > No refresh token available
 
-Backend logs captured on Mon, 17 Mar 2025 20:54:58 GMT
+When Cypress detects uncaught errors originating from your application it will automatically fail the current test.
 
-Backend logs captured on Mon, 17 Mar 2025 20:55:04 GMT
+This behavior is configurable, and you can choose to turn this off by listening to the `uncaught:exception` event. (unknown URL)
+Backend logs captured on Tue, 18 Mar 2025 15:07:44 GMT
 
-Backend logs captured on Mon, 17 Mar 2025 20:55:09 GMT
+[2025-03-18T15:07:53.437Z] ["after each" hook] Error unknown: The following error originated from your application code, not from Cypress. It was caused by an unhandled promise rejection.
 
-Backend logs captured on Mon, 17 Mar 2025 20:55:14 GMT
+  > No refresh token available
 
-Backend logs captured on Mon, 17 Mar 2025 20:55:16 GMT
+When Cypress detects uncaught errors originating from your application it will automatically fail the current test.
 
-Backend logs captured on Mon, 17 Mar 2025 20:55:17 GMT
+This behavior is configurable, and you can choose to turn this off by listening to the `uncaught:exception` event. (unknown URL)
+[2025-03-18T15:07:53.455Z] ["after each" hook] Error unknown: The following error originated from your application code, not from Cypress. It was caused by an unhandled promise rejection.
 
-Backend logs captured on Mon, 17 Mar 2025 20:55:17 GMT
+  > No refresh token available
+
+When Cypress detects uncaught errors originating from your application it will automatically fail the current test.
+
+This behavior is configurable, and you can choose to turn this off by listening to the `uncaught:exception` event. (unknown URL)
+Backend logs captured on Tue, 18 Mar 2025 15:08:31 GMT
+
+Backend logs captured on Tue, 18 Mar 2025 15:08:36 GMT
+
+Backend logs captured on Tue, 18 Mar 2025 15:08:39 GMT
+
+Backend logs captured on Tue, 18 Mar 2025 15:08:44 GMT
+
+Backend logs captured on Tue, 18 Mar 2025 15:08:47 GMT
+
+Backend logs captured on Tue, 18 Mar 2025 15:08:50 GMT
+
+Backend logs captured on Tue, 18 Mar 2025 15:08:53 GMT
+
+Backend logs captured on Tue, 18 Mar 2025 15:08:57 GMT
 

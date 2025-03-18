@@ -23,7 +23,7 @@ export default defineConfig({
       });
 
       // Load our custom plugins using dynamic import instead of require
-      return import('../cypress/plugins/index').then((pluginModule) => {
+      return import('../plugins/index').then((pluginModule) => {
         return pluginModule.default(on, config);
       });
     },
