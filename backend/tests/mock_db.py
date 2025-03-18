@@ -6,6 +6,7 @@ that can be used for testing without requiring a real database connection.
 from typing import Dict, List, Any, Optional
 from bson import ObjectId
 import logging
+from datetime import datetime
 
 # Import standardized error handlers
 from utils.error_handlers import DatabaseError, ResourceNotFoundError
@@ -18,7 +19,28 @@ class MockCollection:
     def __init__(self, name: str):
         self.name = name
         self.data = []
+        self.indexes = {}
         logger.info(f"Created mock collection: {name}")
+
+    async def create_index(self, key, unique: bool = False) -> str:
+        """Create an index on the collection.
+
+        Args:
+            key: Either a string for single field index or list of tuples for compound index
+            unique: Whether the index should enforce uniqueness
+        """
+        logger.info(f"Creating index on {self.name} for key: {key}, unique: {unique}")
+
+        # Convert the key to a string representation for storage
+        if isinstance(key, list):
+            # Handle compound indexes
+            index_key = "_".join(f"{k}_{v}" for k, v in key)
+        else:
+            # Handle single field indexes
+            index_key = str(key)
+
+        self.indexes[index_key] = {"unique": unique}
+        return f"{index_key}_1"
 
     async def find_one(self, query: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Find a single document in the collection."""
@@ -63,17 +85,60 @@ class MockCollection:
         """Insert a document into the collection."""
         logger.info(f"Inserting one in {self.name}: {document}")
 
+        # Check for unique constraints
+        if self.name == "users" and "username" in document:
+            existing = await self.find_one({"username": document["username"]})
+            if existing:
+                raise DatabaseError("Duplicate username")
+
         # Add _id if not present
         if "_id" not in document:
             document["_id"] = ObjectId()
 
-        self.data.append(document)
+        # Add standard fields for user documents
+        if self.name == "users":
+            # Ensure all required fields are present
+            if "disabled" not in document:
+                document["disabled"] = False
+
+            if "is_active" not in document:
+                document["is_active"] = True
+
+            if "resources" not in document:
+                document["resources"] = {
+                    "articles": [],
+                    "videos": [],
+                    "courses": [],
+                    "books": []
+                }
+
+            if "study_sessions" not in document:
+                document["study_sessions"] = []
+
+            if "review_sessions" not in document:
+                document["review_sessions"] = []
+
+            if "learning_paths" not in document:
+                document["learning_paths"] = []
+
+            if "reviews" not in document:
+                document["reviews"] = []
+
+            if "concepts" not in document:
+                document["concepts"] = []
+
+            if "goals" not in document:
+                document["goals"] = []
+
+        # Create a copy of the document to avoid modifying the original
+        doc_copy = document.copy()
+        self.data.append(doc_copy)
 
         class InsertOneResult:
             def __init__(self, inserted_id):
                 self.inserted_id = inserted_id
 
-        return InsertOneResult(document["_id"])
+        return InsertOneResult(doc_copy["_id"])
 
     async def update_one(self, query: Dict[str, Any], update: Dict[str, Any]) -> Any:
         """Update a document in the collection."""
@@ -227,6 +292,12 @@ class MockDatabase:
         """List all collection names."""
         return list(self.collections.keys())
 
+    async def command(self, command: str) -> Dict[str, Any]:
+        """Execute a database command."""
+        if command == "ping":
+            return {"ok": 1}
+        return {"ok": 0}
+
 # Create a mock database instance
 db = MockDatabase()
 
@@ -237,13 +308,15 @@ async def create_test_user():
     if existing_user:
         return existing_user
 
-    # Create a new test user
+    # Create a new test user with all required fields
     test_user = {
-        "_id": "testuser",
+        "_id": ObjectId(),
         "username": "testuser",
         "email": "test@example.com",
         "full_name": "Test User",
         "disabled": False,
+        "is_active": True,
+        "created_at": datetime.utcnow(),
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "resources": {
             "articles": [],
@@ -257,6 +330,8 @@ async def create_test_user():
         "reviews": [],
         "concepts": [],
         "goals": [],
+        "metrics": [],
+        "review_log": {},
         "milestones": []
     }
 

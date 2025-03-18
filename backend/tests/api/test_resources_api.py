@@ -137,45 +137,51 @@ def test_create_resource(client, auth_headers):
     new_resource = {
         "title": "New Resource",
         "url": "https://example.com/new-resource",
-        "description": "New Description",
         "topics": ["python", "fastapi"],
         "difficulty": "beginner",
         "estimated_time": 30
     }
 
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = test_user_data
+    # Create mocks for database operations
+    with patch('routers.resources.db') as mock_db, \
+         patch('routers.resources.get_next_resource_id', new_callable=AsyncMock) as mock_get_id:
 
-    # Create a mock for the update_one method
-    mock_update_one = AsyncMock()
-    mock_update = MagicMock()
-    mock_update.modified_count = 1
-    mock_update_one.return_value = mock_update
+        # Setup mock returns
+        mock_get_id.return_value = 1
+        mock_users = MagicMock()
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-    mock_users.update_one = mock_update_one
+        # Mock find_one to return a user
+        mock_find_one = AsyncMock()
+        mock_find_one.return_value = {
+            "username": "testuser",
+            "resources": {
+                "articles": [],
+                "videos": []
+            }
+        }
+        mock_users.find_one = mock_find_one
 
-    # Create a mock for the db
-    mock_db = MagicMock()
-    mock_db.users = mock_users
+        # Mock update_one
+        mock_update = MagicMock()
+        mock_update.modified_count = 1
+        mock_update_one = AsyncMock()
+        mock_update_one.return_value = mock_update
+        mock_users.update_one = mock_update_one
 
-    # Create a mock for get_next_resource_id
-    mock_get_next_id = AsyncMock()
-    mock_get_next_id.return_value = 2
+        mock_db.users = mock_users
 
-    # Mock the database operations
-    with patch('routers.resources.db', mock_db), \
-         patch('routers.resources.get_next_resource_id', mock_get_next_id):
+        # Test the endpoint
         response = client.post("/api/resources/articles", json=new_resource, headers=auth_headers)
 
         assert response.status_code == 201
-        resource_data = response.json()
-        assert resource_data["title"] == new_resource["title"]
-        assert resource_data["url"] == new_resource["url"]
-        assert "id" in resource_data
+        data = response.json()
+        assert data["title"] == new_resource["title"]
+        assert data["url"] == new_resource["url"]
+        assert data["topics"] == new_resource["topics"]
+        assert data["difficulty"] == new_resource["difficulty"]
+        assert data["estimated_time"] == new_resource["estimated_time"]
+        assert data["completed"] == False
+        assert "date_added" in data
 
 def test_get_resources_by_type(client, auth_headers):
     """Test getting resources by type."""
@@ -432,80 +438,86 @@ def test_get_resource_not_found(client, auth_headers):
 
 def test_create_resources_batch(client, auth_headers):
     """Test creating multiple resources in a batch."""
-    # Instead of testing through the API, let's directly test the route function
-    from routers.resources import create_resources_batch
-
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
-
-    # Create a mock batch request
-    from routers.resources import ResourceBatchCreate, BatchResourceItem
-    from pydantic import BaseModel, Field
-    from typing import List
-
-    class TestBatchItem(BaseModel):
-        title: str
-        url: str
-        topics: List[str]
-        difficulty: str
-        estimated_time: int
-        resource_type: str
-        notes: str = ""
-
-    class TestBatchCreate(BaseModel):
-        resources: List[TestBatchItem]
-
-    batch_data = TestBatchCreate(
-        resources=[
-            TestBatchItem(
-                title="Resource 1",
-                url="https://example.com/resource1",
-                topics=["python", "testing"],
-                difficulty="beginner",
-                estimated_time=30,
-                resource_type="articles",
-                notes="Test notes 1"
-            ),
-            TestBatchItem(
-                title="Resource 2",
-                url="https://example.com/resource2",
-                topics=["javascript", "react"],
-                difficulty="intermediate",
-                estimated_time=60,
-                resource_type="videos",
-                notes="Test notes 2"
-            )
+    # Create test data
+    batch_data = {
+        "resources": [
+            {
+                "title": "Resource 1",
+                "url": "https://example.com/resource1",
+                "topics": ["python", "testing"],
+                "difficulty": "beginner",
+                "estimated_time": 30,
+                "resource_type": "articles",
+                "notes": "Test notes 1",
+                "priority": "medium",
+                "source": "web"
+            },
+            {
+                "title": "Resource 2",
+                "url": "https://example.com/resource2",
+                "topics": ["javascript", "react"],
+                "difficulty": "intermediate",
+                "estimated_time": 60,
+                "resource_type": "videos",
+                "notes": "Test notes 2",
+                "priority": "high",
+                "source": "web"
+            }
         ]
-    )
+    }
 
-    # Create mocks for database operations
-    with patch('routers.resources.get_next_resource_id', new_callable=AsyncMock) as mock_get_id, \
-         patch('routers.resources.db') as mock_db:
+    # Mock the database operations
+    with patch('routers.resources.db') as mock_db, \
+         patch('routers.resources.get_next_resource_id', new_callable=AsyncMock) as mock_get_id:
 
         # Setup mock returns
         mock_get_id.side_effect = [1, 2]
         mock_users = MagicMock()
+
+        # Mock find_one to return a user
+        mock_find_one = AsyncMock()
+        mock_find_one.return_value = {
+            "username": "testuser",
+            "resources": {
+                "articles": [],
+                "videos": []
+            }
+        }
+        mock_users.find_one = mock_find_one
+
+        # Mock update_one
         mock_update = MagicMock()
         mock_update.modified_count = 1
-        mock_users.update_one = AsyncMock(return_value=mock_update)
+        mock_update_one = AsyncMock()
+        mock_update_one.return_value = mock_update
+        mock_users.update_one = mock_update_one
+
         mock_db.users = mock_users
 
-        # Test directly calling the function
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Send request to the API
+        response = client.post("/api/resources/batch-resources", json=batch_data, headers=auth_headers)
 
-        try:
-            # Execute the function directly in the event loop
-            result = loop.run_until_complete(create_resources_batch(batch_data, mock_user))
+        # Print error details if status code is not 200
+        if response.status_code != 200:
+            print(f"Error details: {response.json()}")
 
-            # Assert the result
-            assert "success" in result
-            assert len(result["success"]) == 2
-            assert "errors" in result
-            assert len(result["errors"]) == 0
-        finally:
-            loop.close()
+        # Check response status code
+        assert response.status_code == 200
+
+        # Verify response data
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) == 2
+
+        # Verify first resource
+        assert data[0]["title"] == "Resource 1"
+        assert data[0]["resource_type"] == "articles"
+        assert "date_added" in data[0]
+
+        # Verify second resource
+        assert data[1]["title"] == "Resource 2"
+        assert data[1]["resource_type"] == "videos"
+        assert "date_added" in data[1]
 
 def test_get_resources_unauthenticated(client):
     """Test getting resources when unauthenticated."""

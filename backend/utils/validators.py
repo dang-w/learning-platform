@@ -95,12 +95,15 @@ def validate_rating(rating: int, min_value: int = 1, max_value: int = 5) -> None
     if not isinstance(rating, int) or rating < min_value or rating > max_value:
         raise ValidationError(f"Rating must be an integer between {min_value} and {max_value}")
 
-def validate_email(email: str) -> None:
+def validate_email(email: str) -> bool:
     """
     Validate that an email address is properly formatted.
 
     Args:
         email: The email to validate
+
+    Returns:
+        bool: True if email is valid
 
     Raises:
         ValidationError: If the email is invalid
@@ -108,13 +111,17 @@ def validate_email(email: str) -> None:
     email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
     if not email_pattern.match(email):
         raise ValidationError(f"Invalid email format: {email}")
+    return True
 
-def validate_password_strength(password: str) -> None:
+def validate_password_strength(password: str) -> bool:
     """
     Validate that a password meets minimum strength requirements.
 
     Args:
         password: The password to validate
+
+    Returns:
+        bool: True if password meets requirements
 
     Raises:
         ValidationError: If the password is too weak
@@ -130,3 +137,8 @@ def validate_password_strength(password: str) -> None:
 
     if not any(c.isdigit() for c in password):
         raise ValidationError("Password must contain at least one number")
+
+    if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
+        raise ValidationError("Password must contain at least one special character")
+
+    return True

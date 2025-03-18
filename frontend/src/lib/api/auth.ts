@@ -22,6 +22,7 @@ export interface User {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+  refresh_token: string;
 }
 
 const authApi = {
@@ -36,9 +37,10 @@ const authApi = {
       },
     });
 
-    // Store token in localStorage as fallback
-    if (response.data.access_token && typeof window !== 'undefined') {
+    // Store tokens in localStorage
+    if (response.data.access_token && response.data.refresh_token && typeof window !== 'undefined') {
       localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem('refreshToken', response.data.refresh_token);
     }
 
     return response.data;
@@ -56,11 +58,20 @@ const authApi = {
 
   refreshToken: async (): Promise<AuthResponse | null> => {
     try {
-      const response = await apiClient.post<AuthResponse>('/token/refresh');
+      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
 
-      // Store token in localStorage as fallback
-      if (response.data.access_token && typeof window !== 'undefined') {
+      if (!refreshToken) {
+        return null;
+      }
+
+      const response = await apiClient.post<AuthResponse>('/token/refresh', {
+        refresh_token: refreshToken
+      });
+
+      // Store tokens in localStorage
+      if (response.data.access_token && response.data.refresh_token && typeof window !== 'undefined') {
         localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('refreshToken', response.data.refresh_token);
       }
 
       return response.data;
@@ -84,9 +95,10 @@ const authApi = {
       }
     }
 
-    // Remove token from localStorage
+    // Remove tokens from localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
     }
   },
 

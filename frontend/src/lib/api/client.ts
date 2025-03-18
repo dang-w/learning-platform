@@ -32,20 +32,47 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // Handle 401 errors (unauthorized)
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      (error.response?.status === 401 || error.response?.status === 404) &&
+      !originalRequest._retry &&
+      originalRequest.url !== '/token/refresh' // Prevent infinite loop
+    ) {
       originalRequest._retry = true;
 
       try {
+        // Get the current refresh token from localStorage
+        const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
         // Try to refresh the token
-        await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        // Retry the original request
-        return apiClient(originalRequest);
+        const response = await apiClient.post('/token/refresh', {
+          refresh_token: refreshToken
+        });
+
+        if (response.data.access_token && response.data.refresh_token) {
+          // Update tokens in localStorage
+          localStorage.setItem('token', response.data.access_token);
+          localStorage.setItem('refreshToken', response.data.refresh_token);
+
+          // Update the Authorization header
+          originalRequest.headers.Authorization = `Bearer ${response.data.access_token}`;
+
+          // Retry the original request
+          return apiClient(originalRequest);
+        }
       } catch (refreshError) {
-        // If refresh fails, redirect to login
+        console.error('Token refresh failed:', refreshError);
+
+        // Clear tokens and redirect to login
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token');
-          window.location.href = '/auth/login';
+          localStorage.removeItem('refreshToken');
+          window.location.href = '/auth/login?callbackUrl=' + encodeURIComponent(window.location.pathname);
         }
+
         return Promise.reject(refreshError);
       }
     }
