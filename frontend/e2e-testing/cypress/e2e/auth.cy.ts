@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /**
  * Authentication Flow Tests with Page Object Model
  * Using resilient testing patterns for better test stability
@@ -99,14 +100,13 @@ describe('Authentication Flow', () => {
 
         // Now try to navigate to dashboard
         dashboardPage.visitDashboard();
-        dashboardPage.isDashboardLoaded().then(isDashboardLoaded => {
-          if (isDashboardLoaded) {
-            cy.log('Direct token login successful');
-            dashboardPage.takeScreenshot('token-login-success');
-          } else {
-            cy.log('Both regular and token login failed');
-            dashboardPage.takeScreenshot('login-failure');
-          }
+
+        // The issue is with chaining Cypress commands - use cy aliases to properly sequence them
+        cy.log('Checking if dashboard loaded');
+        dashboardPage.elementExists(dashboardPage['selectors'].navBar).as('dashboardLoaded');
+        cy.get('@dashboardLoaded').then((isDashboardLoaded) => {
+          cy.log(isDashboardLoaded ? 'Direct token login successful' : 'Both regular and token login failed');
+          dashboardPage.takeScreenshot(isDashboardLoaded ? 'token-login-success' : 'login-failure');
         });
       }
     });
@@ -116,8 +116,10 @@ describe('Authentication Flow', () => {
     // Login with an existing test user using the page object
     authPage.login('test-user-cypress', 'TestPassword123!');
 
-    // Verify login was successful
-    dashboardPage.isDashboardLoaded().then(isLoaded => {
+    // Verify login was successful - fix chaining issue with aliases
+    cy.log('Checking if dashboard loaded after login');
+    dashboardPage.elementExists(dashboardPage['selectors'].navBar).as('dashboardLoaded');
+    cy.get('@dashboardLoaded').then((isLoaded) => {
       if (isLoaded) {
         cy.log('Login successful');
         dashboardPage.takeScreenshot('existing-user-login');
@@ -126,9 +128,12 @@ describe('Authentication Flow', () => {
         cy.loginWithToken('test-user-cypress');
         dashboardPage.visitDashboard();
 
-        // Verify dashboard loaded after token login
-        dashboardPage.isDashboardLoaded().then(isDashboardLoaded => {
-          cy.wrap(isDashboardLoaded).should('be.true');
+        // Verify dashboard loaded after token login - fix chaining with aliases
+        cy.log('Checking if dashboard loaded after token login');
+        dashboardPage.elementExists(dashboardPage['selectors'].navBar).as('tokenDashboardLoaded');
+        cy.get('@tokenDashboardLoaded').then((isDashboardLoaded) => {
+          // Use expect not cy.wrap().should()
+          expect(isDashboardLoaded).to.be.true;
           dashboardPage.takeScreenshot('token-login-success');
         });
       }
@@ -142,18 +147,15 @@ describe('Authentication Flow', () => {
     // Should show error message or stay on login page
     authPage.takeScreenshot('invalid-login-attempt');
 
-    // Verify we're still on the login page or have error message
-    cy.url().then(url => {
-      const isOnLoginPage = url.includes('/login');
+    // Verify we're still on the login page or have error message - use should instead of then
+    cy.url().should('include', '/login');
 
-      if (isOnLoginPage) {
-        authPage.hasValidationErrors().then(hasErrors => {
-          if (!hasErrors) {
-            cy.log('No validation errors shown for invalid login');
-          }
-        });
-      } else {
-        cy.log('Unexpected redirect after invalid login attempt');
+    // Fix the validation errors check
+    cy.log('Checking for validation errors');
+    cy.wrap(authPage.hasValidationErrors()).as('hasErrors');
+    cy.get('@hasErrors').then((hasErrors) => {
+      if (!hasErrors) {
+        cy.log('No validation errors shown for invalid login');
       }
     });
   });

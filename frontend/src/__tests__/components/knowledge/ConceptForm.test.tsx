@@ -118,7 +118,7 @@ describe('ConceptForm Component', () => {
         content: 'Reinforcement learning is...',
         notes: '',
         topics: ['AI', 'Machine Learning'],
-        difficulty: 'intermediate',
+        difficulty: 'beginner',
       });
     });
   });

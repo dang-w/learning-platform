@@ -43,24 +43,28 @@ export default function ConceptForm({
   error,
 }: ConceptFormProps) {
   const [markdownContent, setMarkdownContent] = useState('');
+  const [validationTriggered, setValidationTriggered] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
     setValue,
+    formState: { errors },
+    trigger,
+    watch,
   } = useForm<ConceptFormData>({
     resolver: zodResolver(conceptSchema),
     defaultValues: {
       title: initialData?.title || '',
       content: initialData?.content || '',
       notes: initialData?.notes || '',
-      topics: initialData?.topics ? initialData.topics.join(', ') : '',
-      difficulty: initialData?.difficulty || 'intermediate',
+      topics: initialData?.topics?.join(', ') || '',
+      difficulty: initialData?.difficulty || 'beginner',
     },
+    mode: 'onChange',
   });
 
-  // Set initial markdown content
+  // Initialize markdown content from initialData
   useEffect(() => {
     if (initialData?.content) {
       setMarkdownContent(initialData.content);
@@ -70,25 +74,46 @@ export default function ConceptForm({
   // Handle markdown editor change
   const handleEditorChange = ({ text }: { text: string }) => {
     setMarkdownContent(text);
-    setValue('content', text, { shouldValidate: true });
+    setValue('content', text, { shouldValidate: validationTriggered });
   };
 
+  // Handle form submission
   const handleFormSubmit = async (data: ConceptFormData) => {
-    try {
-      // Convert comma-separated topics to array
-      const topicsArray = data.topics.split(',').map(topic => topic.trim()).filter(Boolean);
+    // Parse topics as array
+    const topicsArray = data.topics
+      .split(',')
+      .map((topic) => topic.trim())
+      .filter((topic) => topic !== '');
 
+    const formData = {
+      ...data,
+      topics: topicsArray,
+    };
+
+    if (initialData?.id) {
       await onSubmit({
-        ...(initialData?.id ? { id: initialData.id } : {}),
-        title: data.title,
-        content: data.content,
-        notes: data.notes,
-        topics: topicsArray,
-        difficulty: data.difficulty,
+        ...formData,
+        id: initialData.id,
       });
-    } catch (error) {
-      console.error('Form submission failed:', error);
+    } else {
+      await onSubmit(formData);
     }
+  };
+
+  const contentValue = watch('content');
+
+  // Validate all fields on first submit attempt
+  const handleFormValidation = async () => {
+    setValidationTriggered(true);
+
+    // Make sure content from editor is set in the form
+    if (markdownContent && !contentValue) {
+      setValue('content', markdownContent, { shouldValidate: true });
+    }
+
+    // Trigger validation on all fields
+    const isValid = await trigger();
+    return isValid;
   };
 
   return (
@@ -106,13 +131,15 @@ export default function ConceptForm({
             id="title"
             {...register('title')}
             placeholder="Enter concept title"
+            aria-describedby={errors.title ? "title-error" : ""}
+            className={errors.title ? "border-red-500" : ""}
           />
-          {errors.title && <FormError>{errors.title.message}</FormError>}
+          {errors.title && <FormError id="title-error">{errors.title.message}</FormError>}
         </FormGroup>
 
         <FormGroup>
           <Label htmlFor="content">Content</Label>
-          <div className="border rounded-md">
+          <div className={`border rounded-md ${errors.content ? "border-red-500" : ""}`}>
             <MarkdownEditor
               value={markdownContent}
               onChange={handleEditorChange}
@@ -123,6 +150,9 @@ export default function ConceptForm({
           </div>
           <input type="hidden" {...register('content')} />
           {errors.content && <FormError>{errors.content.message}</FormError>}
+          <small className="text-gray-500 mt-1">
+            Use Markdown formatting for text styling, lists, and code snippets.
+          </small>
         </FormGroup>
 
         <FormGroup>
@@ -131,7 +161,7 @@ export default function ConceptForm({
             id="notes"
             {...register('notes')}
             placeholder="Enter additional notes"
-            className="w-full h-24 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full h-24 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.notes ? "border-red-500" : ""}`}
           />
           {errors.notes && <FormError>{errors.notes.message}</FormError>}
         </FormGroup>
@@ -142,8 +172,13 @@ export default function ConceptForm({
             id="topics"
             {...register('topics')}
             placeholder="e.g. machine learning, neural networks, python"
+            aria-describedby={errors.topics ? "topics-error" : ""}
+            className={errors.topics ? "border-red-500" : ""}
           />
-          {errors.topics && <FormError>{errors.topics.message}</FormError>}
+          {errors.topics && <FormError id="topics-error">{errors.topics.message}</FormError>}
+          <small className="text-gray-500 mt-1">
+            Separate each topic with a comma (e.g., &quot;machine learning, neural networks&quot;)
+          </small>
         </FormGroup>
 
         <FormGroup>
@@ -151,7 +186,7 @@ export default function ConceptForm({
           <select
             id="difficulty"
             {...register('difficulty')}
-            className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.difficulty ? "border-red-500" : ""}`}
           >
             <option value="beginner">Beginner</option>
             <option value="intermediate">Intermediate</option>
@@ -160,19 +195,29 @@ export default function ConceptForm({
           {errors.difficulty && <FormError>{errors.difficulty.message}</FormError>}
         </FormGroup>
 
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end space-x-4 pt-4">
           <Button
             type="button"
             onClick={onCancel}
             variant="outline"
+            disabled={isSubmitting}
           >
             Cancel
           </Button>
           <Button
             type="submit"
+            variant="default"
             disabled={isSubmitting}
+            onClick={async (e) => {
+              const isValid = await handleFormValidation();
+              if (!isValid) {
+                e.preventDefault();
+              }
+            }}
           >
-            {isSubmitting ? (initialData ? 'Updating...' : 'Creating...') : (initialData ? 'Update Concept' : 'Create Concept')}
+            {isSubmitting
+              ? (initialData ? 'Updating...' : 'Creating...')
+              : (initialData ? 'Update Concept' : 'Create Concept')}
           </Button>
         </div>
       </form>

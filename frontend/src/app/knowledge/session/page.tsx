@@ -2,119 +2,167 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useKnowledgeStore } from '@/lib/store/knowledge-store';
 import { Button } from '@/components/ui/buttons';
 import { Alert, Spinner } from '@/components/ui/feedback';
 import { Badge } from '@/components/ui/data-display';
-import { formatDate } from '@/lib/utils/date';
 import ReactMarkdown from 'react-markdown';
+import { knowledgeApi } from '@/lib/api';
+import { Concept } from '@/types/knowledge';
 
 export default function ReviewSessionPage() {
   const router = useRouter();
-  const {
-    currentSession,
-    createReviewSession,
-    reviewConcept,
-    completeReviewSession,
-    isLoadingSession,
-    sessionError,
-    clearErrors,
-  } = useKnowledgeStore();
-
   const [currentIndex, setCurrentIndex] = useState(0);
   const [confidenceLevel, setConfidenceLevel] = useState(0);
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isInitializingSession, setIsInitializingSession] = useState(true);
+  const [dueConcepts, setDueConcepts] = useState<Concept[]>([]);
+  const [currentConcept, setCurrentConcept] = useState<Concept | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
 
   // Initialize the review session
   useEffect(() => {
-    const initSession = async () => {
+    const loadDueConcepts = async () => {
       try {
-        clearErrors();
-        await createReviewSession();
+        setIsInitializingSession(true);
+        setErrorMessage(null);
+
+        const concepts = await knowledgeApi.getDueConcepts();
+
+        if (concepts && concepts.length > 0) {
+          setDueConcepts(concepts);
+          setCurrentConcept(concepts[0]);
+        } else {
+          // No concepts due for review
+          setDueConcepts([]);
+          setCurrentConcept(null);
+        }
       } catch (error) {
-        console.error('Failed to create review session:', error);
+        console.error('Failed to load due concepts:', error);
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to load due concepts. Please try again.');
+      } finally {
+        setIsInitializingSession(false);
       }
     };
 
-    if (!currentSession) {
-      initSession();
-    }
-  }, [currentSession, createReviewSession, clearErrors]);
+    loadDueConcepts();
+  }, []);
 
-  const handleSubmitReview = async () => {
-    if (!currentSession || confidenceLevel === 0) return;
+  const handleConfidenceSelect = (level: number) => {
+    setConfidenceLevel(level);
+  };
 
-    const currentConcept = currentSession.concepts[currentIndex];
+  const handleReviewSubmit = async () => {
+    if (!currentConcept || confidenceLevel === 0) return;
 
     try {
       setIsSubmitting(true);
-      await reviewConcept({
+      setErrorMessage(null);
+
+      // Submit the review
+      await knowledgeApi.reviewConcept({
         concept_id: currentConcept.id,
         confidence_level: confidenceLevel,
-        notes: reviewNotes || undefined,
+        notes: reviewNotes,
       });
 
-      // Reset for next concept
-      setConfidenceLevel(0);
-      setReviewNotes('');
-
-      // Move to next concept or complete session
-      if (currentIndex < currentSession.concepts.length - 1) {
+      // Move to the next concept or complete the session
+      if (currentIndex < dueConcepts.length - 1) {
         setCurrentIndex(currentIndex + 1);
+        setCurrentConcept(dueConcepts[currentIndex + 1]);
+        setConfidenceLevel(0);
+        setReviewNotes('');
+        setShowAnswer(false);
       } else {
         setSessionComplete(true);
-        await completeReviewSession();
       }
     } catch (error) {
       console.error('Failed to submit review:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to submit review. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleFinishSession = () => {
-    router.push('/knowledge');
-  };
+  const handleRetry = async () => {
+    setErrorMessage(null);
 
-  const handleCancel = () => {
-    if (confirm('Are you sure you want to cancel this review session? Your progress will be lost.')) {
-      router.push('/knowledge');
+    if (isInitializingSession) {
+      // Retry loading due concepts
+      const loadDueConcepts = async () => {
+        try {
+          setIsInitializingSession(true);
+          const concepts = await knowledgeApi.getDueConcepts();
+
+          if (concepts && concepts.length > 0) {
+            setDueConcepts(concepts);
+            setCurrentConcept(concepts[0]);
+          } else {
+            setDueConcepts([]);
+            setCurrentConcept(null);
+          }
+        } catch (error) {
+          console.error('Failed to load due concepts:', error);
+          setErrorMessage(error instanceof Error ? error.message : 'Failed to load due concepts. Please try again.');
+        } finally {
+          setIsInitializingSession(false);
+        }
+      };
+
+      loadDueConcepts();
+    } else {
+      // Retry submitting the current review
+      handleReviewSubmit();
     }
   };
 
-  if (isLoadingSession) {
+  const handleBackToDashboard = () => {
+    router.push('/knowledge');
+  };
+
+  if (isInitializingSession) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Spinner size="lg" />
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <Spinner size="lg" />
+          <span className="ml-4 text-lg">Loading review session...</span>
+        </div>
       </div>
     );
   }
 
-  if (sessionError) {
+  if (errorMessage) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Alert variant="error" className="mb-6">
-          {sessionError}
+          <div className="flex justify-between items-center">
+            <div>{errorMessage}</div>
+            <Button onClick={handleRetry} size="sm">
+              Retry
+            </Button>
+          </div>
         </Alert>
-        <Button onClick={() => router.push('/knowledge')}>
-          Back to Knowledge Dashboard
-        </Button>
+        <div className="flex justify-center mt-6">
+          <Button onClick={handleBackToDashboard}>
+            Back to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
 
-  if (!currentSession || currentSession.concepts.length === 0) {
+  if (dueConcepts.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold mb-4">No Concepts Due for Review</h1>
+        <div className="bg-white rounded-lg shadow-md p-6 text-center" data-testid="review-dashboard">
+          <h2 className="text-xl font-semibold mb-4">No Concepts Due for Review</h2>
           <p className="text-gray-600 mb-6">
-            You don&apos;t have any concepts due for review at this time. Create new concepts or check back later.
+            You don&apos;t have any concepts that need to be reviewed right now. Come back later or add new concepts.
           </p>
-          <Button onClick={() => router.push('/knowledge')}>
-            Back to Knowledge Dashboard
+          <Button onClick={handleBackToDashboard} data-testid="return-to-dashboard-button">
+            Back to Dashboard
           </Button>
         </div>
       </div>
@@ -124,158 +172,105 @@ export default function ReviewSessionPage() {
   if (sessionComplete) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h1 className="text-2xl font-bold mb-4">Review Session Complete!</h1>
+        <div className="bg-white rounded-lg shadow-md p-6 text-center" data-testid="review-complete">
+          <h2 className="text-xl font-semibold mb-4">Review Session Complete!</h2>
           <p className="text-gray-600 mb-6">
-            You&apos;ve successfully reviewed {currentSession.concepts.length} concepts. Great job!
+            You&apos;ve reviewed all your due concepts. Great job staying consistent with your learning!
           </p>
-          <div className="flex justify-center">
-            <Button onClick={handleFinishSession}>
-              Return to Dashboard
-            </Button>
+          <div className="bg-green-50 p-4 rounded-lg mb-6">
+            <h3 className="font-medium mb-2">Session Summary</h3>
+            <p>Concepts reviewed: {dueConcepts.length}</p>
           </div>
+          <Button onClick={handleBackToDashboard} data-testid="return-to-dashboard-button">
+            Back to Dashboard
+          </Button>
         </div>
       </div>
     );
   }
 
-  const currentConcept = currentSession.concepts[currentIndex];
-
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Review Session</h1>
-        <div className="text-sm text-gray-500">
-          Concept {currentIndex + 1} of {currentSession.concepts.length}
+        <div className="text-gray-500">
+          {currentIndex + 1} of {dueConcepts.length}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="md:col-span-2">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-semibold">{currentConcept.title}</h2>
-              <div className="flex gap-2">
-                {currentConcept.topics.map((topic: string) => (
-                  <Badge key={topic}>{topic}</Badge>
-                ))}
+      {currentConcept && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6" data-testid="review-session">
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-2xl font-semibold">{currentConcept.title}</h2>
+            <Badge variant="secondary">{currentConcept.difficulty}</Badge>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-lg font-medium mb-2">Review this concept:</h3>
+            {!showAnswer ? (
+              <div className="p-6 bg-gray-50 rounded-lg mb-4">
+                <p className="text-gray-700">Try to recall the details of this concept before revealing the answer.</p>
+                <div className="mt-4">
+                  <Button onClick={() => setShowAnswer(true)}>Show Answer</Button>
+                </div>
               </div>
-            </div>
-            <div className="prose max-w-none mb-6">
-              <ReactMarkdown>{currentConcept.content}</ReactMarkdown>
-            </div>
-            {currentConcept.notes && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-medium mb-2">Notes</h3>
-                <div className="prose max-w-none text-gray-600">
-                  {currentConcept.notes.split('\n').map((paragraph, index) => (
-                    <p key={index} className="mb-2">{paragraph}</p>
+            ) : (
+              <div className="p-6 bg-gray-50 rounded-lg mb-4 prose max-w-none" data-testid="concept-content">
+                <ReactMarkdown>{currentConcept.content}</ReactMarkdown>
+              </div>
+            )}
+          </div>
+
+          {showAnswer && (
+            <>
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">How well did you recall this concept?</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => handleConfidenceSelect(level)}
+                      className={`px-4 py-2 rounded-md flex-1 ${
+                        confidenceLevel === level
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
+                      data-testid={`recall-rating-${level}`}
+                    >
+                      {level === 1 && 'Not at all (1)'}
+                      {level === 2 && 'Barely (2)'}
+                      {level === 3 && 'Somewhat (3)'}
+                      {level === 4 && 'Mostly (4)'}
+                      {level === 5 && 'Perfectly (5)'}
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        <div>
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Rate Your Understanding</h2>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confidence Level
-              </label>
-              <div className="flex flex-col gap-2">
-                {[1, 2, 3, 4, 5].map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setConfidenceLevel(level)}
-                    className={`flex items-center p-3 rounded-md ${
-                      confidenceLevel === level
-                        ? 'bg-indigo-100 border border-indigo-300'
-                        : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
-                      confidenceLevel === level
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-200 text-gray-700'
-                    }`}>
-                      {level}
-                    </div>
-                    <div className="text-left">
-                      <div className="font-medium">
-                        {level === 1 && 'Not at all confident'}
-                        {level === 2 && 'Slightly confident'}
-                        {level === 3 && 'Somewhat confident'}
-                        {level === 4 && 'Confident'}
-                        {level === 5 && 'Very confident'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {level === 1 && 'I need to review this again soon'}
-                        {level === 2 && 'I remembered parts of it'}
-                        {level === 3 && 'I remembered most of it'}
-                        {level === 4 && 'I remembered it well'}
-                        {level === 5 && 'I know this perfectly'}
-                      </div>
-                    </div>
-                  </button>
-                ))}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Notes (Optional)</h3>
+                <textarea
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="Add any notes about your understanding of this concept..."
+                  className="w-full h-32 p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
               </div>
-            </div>
 
-            <div className="mb-6">
-              <label htmlFor="reviewNotes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notes (Optional)
-              </label>
-              <textarea
-                id="reviewNotes"
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                placeholder="Add any notes about your understanding..."
-                className="w-full h-24 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex justify-between">
-              <Button
-                onClick={handleCancel}
-                variant="outline"
-              >
-                Cancel Session
-              </Button>
-              <Button
-                onClick={handleSubmitReview}
-                disabled={confidenceLevel === 0 || isSubmitting}
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit & Continue'}
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium mb-3">Review History</h3>
-            {currentConcept.review_count > 0 ? (
-              <div className="text-sm text-gray-600">
-                <p>Last reviewed: {formatDate(currentConcept.last_reviewed_at)}</p>
-                <p>Current confidence: {currentConcept.confidence_level}/5</p>
-                <p>Total reviews: {currentConcept.review_count}</p>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleReviewSubmit}
+                  disabled={isSubmitting || confidenceLevel === 0}
+                  variant="default"
+                  data-testid="submit-review-button"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit & Continue'}
+                </Button>
               </div>
-            ) : (
-              <p className="text-sm text-gray-600">This concept has not been reviewed yet.</p>
-            )}
-          </div>
+            </>
+          )}
         </div>
-      </div>
-
-      <div className="flex justify-between items-center">
-        <div className="w-full bg-gray-200 rounded-full h-2.5">
-          <div
-            className="bg-indigo-600 h-2.5 rounded-full"
-            style={{ width: `${((currentIndex + 1) / currentSession.concepts.length) * 100}%` }}
-          ></div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

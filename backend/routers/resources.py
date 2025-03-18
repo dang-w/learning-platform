@@ -86,30 +86,63 @@ class ResourceBatchCreateTest(BaseModel):
 # Helper functions
 async def get_next_resource_id(db, username, resource_type):
     """Get the next available ID for a resource."""
-    user = await db.users.find_one({"username": username})
-    if not user or "resources" not in user or resource_type not in user["resources"]:
+    try:
+        # Ensure username is a string
+        if not isinstance(username, str):
+            if hasattr(username, 'username'):
+                username = username.username
+            elif isinstance(username, dict) and 'username' in username:
+                username = username.get('username')
+            else:
+                logger.error(f"Invalid username format: {type(username)}")
+                return 1
+
+        user = await db.users.find_one({"username": username})
+        if not user or "resources" not in user or resource_type not in user["resources"]:
+            return 1
+
+        resources = user["resources"][resource_type]
+        if not resources:
+            return 1
+
+        # Find the highest ID
+        max_id = 0
+        for resource in resources:
+            if "id" in resource and isinstance(resource["id"], int) and resource["id"] > max_id:
+                max_id = resource["id"]
+
+        return max_id + 1
+    except Exception as e:
+        logger.error(f"Error in get_next_resource_id: {str(e)}")
+        # Return 1 as default if any error occurs
         return 1
-
-    resources = user["resources"][resource_type]
-    if not resources:
-        return 1
-
-    # Find the highest ID
-    max_id = 0
-    for resource in resources:
-        if "id" in resource and isinstance(resource["id"], int) and resource["id"] > max_id:
-            max_id = resource["id"]
-
-    return max_id + 1
 
 # Routes
 @router.get("/", response_model=Dict[str, List[Resource]])
 async def get_all_resources(current_user: User = Depends(get_current_active_user)):
     """Get all resources for the current user."""
-    user = await db.users.find_one({"username": current_user.username})
-    if not user or "resources" not in user:
-        return {"articles": [], "videos": [], "courses": [], "books": []}
-    return user["resources"]
+    try:
+        # Try to handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
+        user = await db.users.find_one({"username": username})
+        if not user or "resources" not in user:
+            return {"articles": [], "videos": [], "courses": [], "books": []}
+
+        return user["resources"]
+    except Exception as e:
+        logger.error(f"Error in get_all_resources: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve resources: {str(e)}"
+        )
 
 # Statistics endpoint - moved before the resource_type parameter route
 @router.get("/statistics", response_model=Dict[str, Any])
@@ -214,30 +247,47 @@ async def get_resources_by_type(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get resources of a specific type with optional filtering."""
-    if resource_type not in ["articles", "videos", "courses", "books"]:
+    try:
+        if resource_type not in ["articles", "videos", "courses", "books"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid resource type: {resource_type}"
+            )
+
+        # Try to handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
+        user = await db.users.find_one({"username": username})
+        if not user or "resources" not in user or resource_type not in user["resources"]:
+            return []
+
+        resources = user["resources"][resource_type]
+
+        # Filter by completion status if specified
+        if completed is not None:
+            resources = [r for r in resources if r.get("completed", False) == completed]
+
+        # Filter by topic if specified
+        if topic:
+            resources = [
+                r for r in resources
+                if any(t.lower() == topic.lower() for t in r.get("topics", []))
+            ]
+
+        return resources
+    except Exception as e:
+        logger.error(f"Error in get_resources_by_type: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid resource type: {resource_type}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve resources by type: {str(e)}"
         )
-
-    user = await db.users.find_one({"username": current_user.username})
-    if not user or "resources" not in user or resource_type not in user["resources"]:
-        return []
-
-    resources = user["resources"][resource_type]
-
-    # Filter by completion status if specified
-    if completed is not None:
-        resources = [r for r in resources if r.get("completed", False) == completed]
-
-    # Filter by topic if specified
-    if topic:
-        resources = [
-            r for r in resources
-            if any(t.lower() == topic.lower() for t in r.get("topics", []))
-        ]
-
-    return resources
 
 @router.post("/{resource_type}", response_model=Resource, status_code=status.HTTP_201_CREATED)
 async def create_resource(
@@ -266,20 +316,30 @@ async def create_resource(
 
     # Create resource object
     try:
+        # Try to handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
         resource_dict = resource.model_dump()
-        resource_dict["id"] = await get_next_resource_id(db, current_user.username, resource_type)
+        resource_dict["id"] = await get_next_resource_id(db, username, resource_type)
         resource_dict["date_added"] = datetime.now().isoformat()
         resource_dict["completed"] = False
         resource_dict["completion_date"] = None
         resource_dict["notes"] = resource_dict.get("notes", "")
 
         # Get user document
-        user = await db.users.find_one({"username": current_user.username})
+        user = await db.users.find_one({"username": username})
 
         # Initialize resources structure if it doesn't exist
         if not user or "resources" not in user:
             await db.users.update_one(
-                {"username": current_user.username},
+                {"username": username},
                 {"$set": {"resources": {
                     "articles": [],
                     "videos": [],
@@ -291,7 +351,7 @@ async def create_resource(
 
         # Add to user's resources
         result = await db.users.update_one(
-            {"username": current_user.username},
+            {"username": username},
             {"$push": {f"resources.{resource_type}": resource_dict}}
         )
 

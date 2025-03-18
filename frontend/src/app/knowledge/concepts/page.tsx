@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { knowledgeApi } from '@/lib/api';
 import { Concept } from '@/types/knowledge';
 import { Button } from '@/components/ui/buttons';
 import { Input } from '@/components/ui/forms';
 import { Spinner, Alert } from '@/components/ui/feedback';
+import { formatDate } from '@/lib/utils/date';
 
 export default function ConceptsPage() {
   const router = useRouter();
@@ -15,19 +16,36 @@ export default function ConceptsPage() {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
   const [filteredConcepts, setFilteredConcepts] = useState<Concept[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Fetch all concepts
-  const { data: concepts, isLoading, error } = useQuery({
+  const {
+    data: concepts = [],
+    isLoading,
+    refetch
+  } = useQuery<Concept[]>({
     queryKey: ['concepts'],
     queryFn: () => knowledgeApi.getConcepts(),
-  });
+    retry: 2,
+    staleTime: 60000,
+    onError: (error: Error) => {
+      console.error('Failed to fetch concepts:', error);
+      setErrorMessage(error.message || 'Failed to fetch concepts. Please try again.');
+    }
+  } as UseQueryOptions<Concept[], Error>);
 
   // Get unique topics from concepts
-  const topics = concepts ? [...new Set(concepts.flatMap(concept => concept.topics))] : [];
+  const topics = [...new Set(concepts.flatMap(concept => concept.topics))];
+
+  // Handle retry
+  const handleRetry = () => {
+    setErrorMessage(null);
+    refetch();
+  };
 
   // Filter concepts based on search term, topic, and difficulty
   useEffect(() => {
-    if (!concepts) return;
+    if (concepts.length === 0) return;
 
     let filtered = [...concepts];
 
@@ -66,65 +84,78 @@ export default function ConceptsPage() {
     router.push(`/knowledge/concepts/${id}`);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const getDifficultyBadgeColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'beginner':
+        return 'bg-green-100 text-green-800';
+      case 'intermediate':
+        return 'bg-blue-100 text-blue-800';
+      case 'advanced':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" data-testid="concepts-page">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Knowledge Concepts</h1>
-        <Button onClick={handleCreateConcept}>
-          Create New Concept
+        <Button onClick={handleCreateConcept} data-testid="create-concept-button">
+          Create Concept
         </Button>
       </div>
 
+      {/* Error message */}
+      {errorMessage && (
+        <Alert variant="error" className="mb-6" data-testid="concepts-error">
+          <div className="flex justify-between items-center">
+            <div>{errorMessage}</div>
+            <Button onClick={handleRetry} size="sm">Retry</Button>
+          </div>
+        </Alert>
+      )}
+
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="flex justify-center my-12" data-testid="concepts-loading">
+          <Spinner size="lg" />
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {!isLoading && !errorMessage && (
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="concepts-filters">
           <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
             <Input
-              id="search"
               type="text"
               placeholder="Search concepts..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              data-testid="search-input"
             />
           </div>
-
           <div>
-            <label htmlFor="topic" className="block text-sm font-medium text-gray-700 mb-1">
-              Topic
-            </label>
             <select
-              id="topic"
-              className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border rounded-md"
               value={selectedTopic || ''}
               onChange={(e) => setSelectedTopic(e.target.value || null)}
+              data-testid="topic-filter"
             >
               <option value="">All Topics</option>
-              {topics.map(topic => (
-                <option key={topic} value={topic}>{topic}</option>
+              {topics.map((topic) => (
+                <option key={topic} value={topic}>
+                  {topic}
+                </option>
               ))}
             </select>
           </div>
-
           <div>
-            <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 mb-1">
-              Difficulty
-            </label>
             <select
-              id="difficulty"
-              className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border rounded-md"
               value={selectedDifficulty || ''}
               onChange={(e) => setSelectedDifficulty(e.target.value || null)}
+              data-testid="difficulty-filter"
             >
               <option value="">All Difficulties</option>
               <option value="beginner">Beginner</option>
@@ -133,119 +164,83 @@ export default function ConceptsPage() {
             </select>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Concepts List */}
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Spinner />
-        </div>
-      ) : error ? (
-        <Alert variant="error">
-          Failed to load concepts. Please try again.
-        </Alert>
-      ) : filteredConcepts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h2 className="text-xl font-semibold mb-2">No concepts found</h2>
-          <p className="text-gray-600 mb-4">
-            {concepts && concepts.length > 0
-              ? 'Try adjusting your filters to see more results.'
-              : 'Start by creating your first concept.'}
-          </p>
-          {concepts && concepts.length === 0 && (
-            <Button onClick={handleCreateConcept}>
-              Create First Concept
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Title
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Topics
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Difficulty
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Reviewed
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Confidence
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+      {/* Concepts list */}
+      {!isLoading && !errorMessage && (
+        <>
+          {filteredConcepts.length > 0 ? (
+            <div className="space-y-4" data-testid="concepts-list">
               {filteredConcepts.map((concept) => (
-                <tr key={concept.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{concept.title}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-wrap gap-1">
-                      {concept.topics.map(topic => (
-                        <span
-                          key={topic}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      concept.difficulty === 'beginner'
-                        ? 'bg-green-100 text-green-800'
-                        : concept.difficulty === 'intermediate'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                    }`}>
-                      {concept.difficulty.charAt(0).toUpperCase() + concept.difficulty.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">
-                      {concept.last_reviewed_at
-                        ? formatDate(concept.last_reviewed_at)
-                        : 'Never'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-indigo-600 rounded-full"
-                          style={{ width: `${(concept.confidence_level / 5) * 100}%` }}
-                        />
-                      </div>
-                      <span className="ml-2 text-sm text-gray-500">
-                        {concept.confidence_level}/5
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button
-                      onClick={() => handleViewConcept(concept.id)}
-                      variant="outline"
-                      size="sm"
+                <div
+                  key={concept.id}
+                  className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handleViewConcept(concept.id)}
+                  data-testid={`concept-item-${concept.id}`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h2 className="text-xl font-semibold">{concept.title}</h2>
+                    <div
+                      className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getDifficultyBadgeColor(
+                        concept.difficulty
+                      )}`}
                     >
-                      View
-                    </Button>
-                  </td>
-                </tr>
+                      {concept.difficulty}
+                    </div>
+                  </div>
+
+                  <p className="text-gray-600 mb-3 line-clamp-2">
+                    {concept.content.substr(0, 150)}
+                    {concept.content.length > 150 && '...'}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {concept.topics.map((topic) => (
+                      <span
+                        key={topic}
+                        className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs"
+                      >
+                        {topic}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="text-sm text-gray-500">
+                    {concept.review_count > 0 ? (
+                      <span>
+                        Reviewed {concept.review_count} times • Last confidence: {concept.confidence_level || 'N/A'}
+                      </span>
+                    ) : (
+                      <span>Never reviewed</span>
+                    )}
+                    <span className="mx-2">•</span>
+                    <span>Created: {formatDate(concept.created_at)}</span>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-md p-12 text-center" data-testid="no-concepts">
+              <h2 className="text-xl font-semibold mb-4">No Concepts Found</h2>
+              <p className="text-gray-600 mb-6">
+                {concepts.length > 0
+                  ? 'No concepts match your current filters. Try adjusting your search criteria.'
+                  : 'You haven\'t created any concepts yet. Start by creating your first knowledge concept.'}
+              </p>
+              {concepts.length > 0 ? (
+                <Button onClick={() => {
+                  setSearchTerm('');
+                  setSelectedTopic(null);
+                  setSelectedDifficulty(null);
+                }}>
+                  Clear Filters
+                </Button>
+              ) : (
+                <Button onClick={handleCreateConcept}>Create First Concept</Button>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -40,10 +40,31 @@ export default function LoginPage() {
     clearError();
 
     try {
+      console.log('Attempting login for user:', data.username);
       await login(data.username, data.password);
+
+      // Double-check token was stored and add delay to ensure it's properly saved
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('Login appeared successful but no token was stored');
+        throw new Error('Login failed - authentication token not received');
+      }
+
+      // Add a short delay to ensure token is properly set before redirect
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log('Login successful, redirecting to:', callbackUrl);
       router.push(callbackUrl);
     } catch (error) {
       console.error('Login error:', error);
+      // Display specific error message if available
+      if (error instanceof Error) {
+        clearError(); // Clear any existing errors first
+        useAuthStore.setState({ error: error.message });
+      } else {
+        clearError(); // Clear any existing errors first
+        useAuthStore.setState({ error: 'Failed to login. Please check your credentials and try again.' });
+      }
     } finally {
       setIsLoading(false);
     }

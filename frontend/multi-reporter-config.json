@@ -1,6 +1,6 @@
 {
   "reporterEnabled": "cypress-parallel/json-stream.reporter.js, cypress-multi-reporters",
   "cypressMultiReportersReporterOptions": {
-    "configFile": "/Users/dan/code/learning-platform/frontend/multi-reporter-config.json"
+    "configFile": "./multi-reporter-config.json"
   }
 }

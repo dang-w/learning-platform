@@ -248,6 +248,7 @@ Cypress.Commands.add('login', (username: string, password: string) => {
 
       // Define the API endpoints with fallbacks
       const tokenEndpoints = [
+        'http://localhost:3000/api/token',
         'http://localhost:8000/token',
         'http://localhost:8000/auth/token',
         'http://localhost:8000/api/token'
