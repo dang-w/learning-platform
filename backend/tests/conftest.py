@@ -245,6 +245,14 @@ def patch_database():
     # Replace the get_database function
     database.get_database = mock_get_database
 
+    # Create a mock for verify_db_connection to avoid event loop closed errors
+    async def mock_verify_db_connection():
+        """Mock implementation of verify_db_connection that always returns True."""
+        return True
+
+    # Replace verify_db_connection with the mock
+    database.verify_db_connection = mock_verify_db_connection
+
     yield
 
     # Restore the original database

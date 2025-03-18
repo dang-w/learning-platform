@@ -92,3 +92,27 @@ Key accomplishments:
 - Identified and documented remaining issues
 
 We will continue to update the remaining test files and ensure all tests pass with the new standardized approach.
+
+## Recent API Test Fixes (March 2025)
+
+Several API tests were fixed to address issues with test paths and expected responses:
+
+1. **Authentication Endpoint Paths**:
+   - Updated auth test paths from `/token` to `/auth/token`
+   - Updated token refresh test paths from `/token/refresh` to `/auth/token/refresh`
+   - Fixed error message assertions in token refresh invalid token test
+
+2. **Health Check Endpoint**:
+   - Fixed test to expect "healthy" status from `/api/health` endpoint
+
+3. **URL Extractor Integration**:
+   - Added URL extractor router mounting to main.py
+   - Fixed 404 errors in URL extractor API tests
+
+4. **Resource Batch Endpoint**:
+   - Updated ResourceBatchCreateTest model to properly handle validation
+   - Aligned test expectations with actual API response format
+
+### Remaining Test Issues:
+
+- User creation API tests (2 failures) - Asyncio loop errors

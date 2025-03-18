@@ -81,7 +81,7 @@ class ResourceBatchRequest(BaseModel):
 
 # We need to add this model to the top of the file with other models
 class ResourceBatchCreateTest(BaseModel):
-    resources: List[Dict[str, Any]]
+    resources: List[BatchResourceItem]
 
 # Helper functions
 async def get_next_resource_id(db, username, resource_type):
@@ -534,7 +534,7 @@ async def get_next_resources(
 
 @router.post("/batch-resources", response_model=List[Dict[str, Any]], status_code=status.HTTP_200_OK)
 async def create_batch_resources(
-    batch_data: ResourceBatchCreateTest,
+    batch_data: ResourceBatchRequest,
     current_user: User = Depends(get_current_active_user)
 ):
     """Create multiple resources at once using a new endpoint."""
