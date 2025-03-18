@@ -1,5 +1,5 @@
 """Authentication related routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Optional, Dict, Any
 import logging
@@ -173,3 +173,26 @@ async def debug_auth_status(request: Request):
             info["token_error"] = str(e)
 
     return info
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    request: Request,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Logout the user by invalidating their current session"""
+    try:
+        # Get session ID from header or query param
+        session_id = request.headers.get("x-session-id") or request.query_params.get("session_id")
+
+        if session_id:
+            # Import sessions module
+            from routers.sessions import delete_session
+
+            # Delete the session
+            await delete_session(session_id, current_user)
+            logger.info(f"Logged out user {current_user['username']} and invalidated session {session_id}")
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        logger.error(f"Error during logout: {str(e)}")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)

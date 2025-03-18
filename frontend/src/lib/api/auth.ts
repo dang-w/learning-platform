@@ -41,6 +41,16 @@ const authApi = {
     if (response.data.access_token && response.data.refresh_token && typeof window !== 'undefined') {
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('refreshToken', response.data.refresh_token);
+
+      // Create a session for this login
+      try {
+        const sessionResponse = await apiClient.post('/api/sessions/');
+        if (sessionResponse.data && sessionResponse.data.session_id) {
+          localStorage.setItem('sessionId', sessionResponse.data.session_id);
+        }
+      } catch (error) {
+        console.warn('Failed to create session:', error);
+      }
     }
 
     return response.data;
@@ -86,8 +96,19 @@ const authApi = {
 
   logout: async (): Promise<void> => {
     try {
-      // Call the backend logout endpoint to invalidate the token
-      await apiClient.post('/logout');
+      // Get session ID if available
+      const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
+
+      // Call the backend logout endpoint to invalidate the token and session
+      if (sessionId) {
+        await apiClient.post('/auth/logout', {}, {
+          headers: {
+            'x-session-id': sessionId
+          }
+        });
+      } else {
+        await apiClient.post('/auth/logout');
+      }
     } catch (error) {
       // Only log in non-test environments
       if (process.env.NODE_ENV !== 'test') {
@@ -95,10 +116,11 @@ const authApi = {
       }
     }
 
-    // Remove tokens from localStorage
+    // Remove tokens and session from localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('sessionId');
     }
   },
 
@@ -112,6 +134,19 @@ const authApi = {
       old_password: oldPassword,
       new_password: newPassword,
     });
+  },
+
+  updateSessionActivity: async (): Promise<void> => {
+    try {
+      const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
+
+      if (sessionId) {
+        await apiClient.put(`/api/sessions/${sessionId}/activity`);
+      }
+    } catch (error) {
+      // Just log a warning but don't make this a critical operation
+      console.warn('Failed to update session activity:', error);
+    }
   },
 };
 
