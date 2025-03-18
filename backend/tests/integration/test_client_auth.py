@@ -34,13 +34,15 @@ async def test_login_success(async_client):
         "disabled": False
     })
 
-    with patch("auth._db", mock_db):
+    with patch("auth._db", mock_db), \
+         patch("auth.verify_password", return_value=True):  # Also mock verify_password to return True
         login_data = {
             "username": "testuser",
             "password": "password123"
         }
 
-        response = await async_client.post("/token", data=login_data)
+        # Use the correct path /auth/token instead of /token
+        response = await async_client.post("/auth/token", data=login_data)
         assert response.status_code == 200
         token_data = response.json()
         assert "access_token" in token_data
@@ -61,13 +63,15 @@ async def test_login_invalid_credentials(async_client):
         "disabled": False
     })
 
-    with patch("auth._db", mock_db):
+    with patch("auth._db", mock_db), \
+         patch("auth.verify_password", return_value=False):  # Mock verify_password to return False for invalid credentials
         login_data = {
             "username": "testuser",
             "password": "wrongpassword"
         }
 
-        response = await async_client.post("/token", data=login_data)
+        # Use the correct path /auth/token instead of /token
+        response = await async_client.post("/auth/token", data=login_data)
         assert response.status_code == 401
         error_data = response.json()
         assert "detail" in error_data
