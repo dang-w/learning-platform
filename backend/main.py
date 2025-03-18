@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from pymongo.errors import DuplicateKeyError
 import jwt
 from jwt.exceptions import PyJWTError
+import asyncio
+import time
 
 # Import authentication from auth module
 from auth import (
@@ -30,6 +32,16 @@ from utils.error_handlers import APIError, handle_exception
 from utils.response_models import ErrorResponse
 from utils.validators import validate_email, validate_password_strength
 from utils.rate_limiter import rate_limit_dependency
+from utils.monitoring import (
+    track_request_performance,
+    log_auth_metrics,
+    log_error,
+    get_metrics,
+    startup_monitoring,
+    shutdown_monitoring,
+    log_request_metrics,
+    log_session_event
+)
 
 # Import routers
 from routers import (
@@ -41,7 +53,8 @@ from routers import (
     users,
     auth,
     courses,
-    lessons
+    lessons,
+    sessions,
 )
 
 # Load environment variables
@@ -84,9 +97,41 @@ app.include_router(learning_path.router, prefix="/api/learning-path", tags=["lea
 app.include_router(url_extractor.router, prefix="/api/url", tags=["url_extractor"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 app.include_router(lessons.router, prefix="/api/lessons", tags=["lessons"])
+app.include_router(sessions.router, tags=["sessions"])
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+# Startup event to schedule session cleanup
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting learning platform API...")
+
+    # Initialize monitoring
+    await startup_monitoring()
+
+    # Schedule session cleanup task
+    async def cleanup_sessions_periodically():
+        try:
+            while True:
+                # Wait for an hour (3600 seconds)
+                await asyncio.sleep(3600)
+
+                # Run the cleanup
+                from routers.sessions import cleanup_expired_sessions
+                count = await cleanup_expired_sessions()
+                if count > 0:
+                    logger.info(f"Cleaned up {count} expired sessions")
+        except Exception as e:
+            logger.error(f"Error in session cleanup task: {str(e)}")
+
+    # Create the background task for session cleanup
+    asyncio.create_task(cleanup_sessions_periodically())
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down learning platform API...")
+    await shutdown_monitoring()
 
 # Global exception handler
 @app.exception_handler(APIError)
@@ -123,23 +168,62 @@ class UserCreate(BaseModel):
 @app.post("/token", response_model=Token)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    _: None = Depends(rate_limit_dependency(limit=5, window=60, key_prefix="auth"))
+    _: None = Depends(rate_limit_dependency(limit=5, window=60, key_prefix="auth")),
+    request: Request = None,
 ):
     """
     OAuth2 compatible token login, get an access token for future requests.
     """
+    # Log login attempt
+    await log_auth_metrics("login_attempts")
+
     user = await authenticate_user(form_data.username, form_data.password)
     if not user:
+        # Log login failure
+        await log_auth_metrics("login_failure")
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Log login success
+    await log_auth_metrics("login_success")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user["username"]}, expires_delta=access_token_expires
     )
     refresh_token = create_refresh_token(data={"sub": user["username"]})
+
+    # Create a session for the user
+    try:
+        from routers.sessions import create_login_session
+
+        # Get client info if request is available
+        if request:
+            user_agent = request.headers.get("user-agent", "")
+            ip_address = request.client.host
+
+            # Create session and get session ID
+            session_id = await create_login_session(
+                user_id=str(user["_id"]),
+                username=user["username"],
+                user_agent=user_agent,
+                ip_address=ip_address
+            )
+
+            # Log session creation
+            await log_session_event("created")
+
+            if not session_id:
+                logger.warning(f"Failed to create session for user {user['username']}")
+    except Exception as e:
+        logger.error(f"Failed to create session during login: {str(e)}")
+        # Log error
+        await log_error("/token", "SessionCreationError", {"error": str(e), "username": user["username"]})
+
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 class RefreshTokenRequest(BaseModel):
@@ -154,9 +238,15 @@ async def refresh_access_token(
     """
     Refresh the access token using a valid refresh token.
     """
+    # Log token refresh attempt
+    await log_auth_metrics("token_refresh")
+
     # Verify the refresh token
     payload = verify_refresh_token(refresh_data.refresh_token)
     if not payload:
+        # Log token refresh failure
+        await log_auth_metrics("token_refresh_failure")
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
@@ -165,6 +255,9 @@ async def refresh_access_token(
 
     username = payload.get("sub")
     if not username:
+        # Log token refresh failure
+        await log_auth_metrics("token_refresh_failure")
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token claims",
@@ -174,6 +267,9 @@ async def refresh_access_token(
     # Get the user to make sure they still exist and are not disabled
     user = await get_user(username)
     if not user:
+        # Log token refresh failure
+        await log_auth_metrics("token_refresh_failure")
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -181,6 +277,9 @@ async def refresh_access_token(
         )
 
     if user.get("disabled", False):
+        # Log token refresh failure
+        await log_auth_metrics("token_refresh_failure")
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
@@ -216,6 +315,7 @@ async def create_user(
         validate_email(user.email)
     except APIError as e:
         logger.warning(f"Email validation failed for {user.email}: {str(e.detail)}")
+        await log_error("/users/", "ValidationError", {"error": str(e.detail), "field": "email"})
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e.detail)
@@ -226,6 +326,7 @@ async def create_user(
         validate_password_strength(user.password)
     except APIError as e:
         logger.warning(f"Password validation failed for user {user.username}: {str(e.detail)}")
+        await log_error("/users/", "ValidationError", {"error": str(e.detail), "field": "password"})
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e.detail)
@@ -235,6 +336,7 @@ async def create_user(
     existing_user = await db.users.find_one({"username": user.username})
     if existing_user:
         logger.warning(f"Username already exists: {user.username}")
+        await log_error("/users/", "DuplicateUser", {"username": user.username})
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
@@ -284,12 +386,14 @@ async def create_user(
 
     except DuplicateKeyError:
         logger.warning(f"DuplicateKeyError for username: {user.username}")
+        await log_error("/users/", "DuplicateKeyError", {"username": user.username})
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
         )
     except Exception as e:
         logger.error(f"Error creating user {user.username}: {str(e)}", exc_info=True)
+        await log_error("/users/", "ServerError", {"error": str(e), "username": user.username})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create user: {str(e)}"
@@ -369,6 +473,25 @@ async def add_security_headers(request: Request, call_next):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
     return response
+
+# Add performance monitoring middleware
+@app.middleware("http")
+async def monitor_requests(request: Request, call_next):
+    """Monitor request performance and metrics."""
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+
+    # Run metrics logging in the background to avoid impacting response time
+    asyncio.create_task(log_request_metrics(request, response, process_time))
+
+    return response
+
+# Metrics endpoint
+@app.get("/api/metrics", dependencies=[Depends(get_current_active_user)])
+async def metrics_endpoint():
+    """Get current metrics (only for authenticated users)."""
+    return get_metrics()
 
 # Run the application
 if __name__ == "__main__":

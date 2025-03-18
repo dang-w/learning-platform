@@ -18,6 +18,12 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Add session ID to headers if available
+    const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
+    if (sessionId) {
+      config.headers['x-session-id'] = sessionId;
+    }
+
     return config;
   },
   (error) => {

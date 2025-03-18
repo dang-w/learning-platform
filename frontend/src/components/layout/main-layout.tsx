@@ -3,6 +3,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
+import useSessionKeepAlive from '@/lib/hooks/useSessionKeepAlive';
 import Navbar from './navbar';
 import Sidebar from './sidebar';
 
@@ -14,6 +15,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { isAuthenticated, fetchUser } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Keep session alive while authenticated
+  useSessionKeepAlive();
 
   // Check authentication on mount
   useEffect(() => {
