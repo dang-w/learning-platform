@@ -49,5 +49,22 @@ declare namespace Cypress {
      * @example cy.safeRequest({ method: 'GET', url: '/api/data' })
      */
     safeRequest(options: Partial<Cypress.RequestOptions>): Chainable<Cypress.Response<unknown>>;
+
+    /**
+     * Custom command to safely select a file for upload
+     * @example cy.get('[data-testid="file-input"]').selectFile('cypress/fixtures/example.json')
+     */
+    selectFile(filePath: string, options?: Partial<Cypress.SelectFileOptions>): Chainable<JQuery<HTMLElement>>;
+  }
+
+  interface SelectFileOptions {
+    /**
+     * Force the action, even if it is not visible
+     */
+    force?: boolean;
+    /**
+     * Action to perform on the file input element
+     */
+    action?: 'select' | 'drag-drop';
   }
 }
