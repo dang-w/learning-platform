@@ -47,3 +47,4 @@ progress-tracking/*.png
 .env.development.local
 .env.test.local
 .env.production.local
+cypress.env.json

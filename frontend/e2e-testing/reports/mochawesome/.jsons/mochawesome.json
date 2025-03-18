@@ -1,0 +1,191 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-18T17:51:00.851Z",
+    "end": "2025-03-18T17:51:02.276Z",
+    "duration": 1425,
+    "testsRegistered": 5,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 4,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "138eda00-8ac5-4588-8304-de46f615e0e9",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/analytics-visualization.cy.ts",
+      "file": "e2e-testing/cypress/e2e/analytics-visualization.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "4807f13f-9038-494d-a1e7-4a5eb976ed67",
+          "title": "Progress Analytics - Data Visualization",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display the analytics dashboard with charts",
+              "fullTitle": "Progress Analytics - Data Visualization should display the analytics dashboard with charts",
+              "timedOut": null,
+              "duration": 409,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Take screenshot for documentation\n    page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard');\n    // Verify charts are visible\n    page_objects_1.analyticsPage.verifyOverviewChartVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Overview chart is visible');\n        }\n        else {\n            cy.log('Overview chart not visible');\n        }\n    });\n    page_objects_1.analyticsPage.verifyUsageChartVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Usage chart is visible');\n        }\n        else {\n            cy.log('Usage chart not visible');\n        }\n    });\n    page_objects_1.analyticsPage.verifyProgressChartVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Progress chart is visible');\n        }\n        else {\n            cy.log('Progress chart not visible');\n        }\n    });\n});",
+              "err": {
+                "message": "CypressError: `cy.task('createDirectTestUser')` failed with the following error:\n\nThe task 'createDirectTestUser' was not handled in the setupNodeEvents method. The following tasks are registered: log, table, generateJWT, logFailure, logBackendError, getBackendErrors, resetErrorReporter, logTest\n\nFix this in your setupNodeEvents method here:\n/Users/dan/code/learning-platform/frontend/e2e-testing/cypress/config/cypress.dashboard.config.cjs\n\nThis error occurred while creating the session. Because the session setup failed, we failed the test.\n\nhttps://on.cypress.io/api/task\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Progress Analytics - Data V...`",
+                "estack": "CypressError: `cy.task('createDirectTestUser')` failed with the following error:\n\nThe task 'createDirectTestUser' was not handled in the setupNodeEvents method. The following tasks are registered: log, table, generateJWT, logFailure, logBackendError, getBackendErrors, resetErrorReporter, logTest\n\nFix this in your setupNodeEvents method here:\n/Users/dan/code/learning-platform/frontend/e2e-testing/cypress/config/cypress.dashboard.config.cjs\n\nThis error occurred while creating the session. Because the session setup failed, we failed the test.\n\nhttps://on.cypress.io/api/task\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Progress Analytics - Data V...`\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:135878:72)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1667:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)",
+                "diff": null
+              },
+              "uuid": "ba01ed0d-d9c9-4213-86f1-4b18c4e2a693",
+              "parentUUID": "4807f13f-9038-494d-a1e7-4a5eb976ed67",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow filtering analytics by date range",
+              "fullTitle": "Progress Analytics - Data Visualization should allow filtering analytics by date range",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Set custom date range for last 7 days\n    var endDate = new Date().toISOString().split('T')[0];\n    var startDate = new Date();\n    startDate.setDate(startDate.getDate() - 7);\n    var formattedStartDate = startDate.toISOString().split('T')[0];\n    // Apply date filter\n    page_objects_1.analyticsPage.setDateRange(formattedStartDate, endDate);\n    page_objects_1.analyticsPage.takeScreenshot('analytics-7-day-filter');\n    // Verify URL contains filter parameters\n    cy.url().then(function (url) {\n        var hasDateParams = url.includes('start=') || url.includes('range=') || url.includes('period=');\n        if (!hasDateParams) {\n            cy.log('URL does not contain expected date parameters');\n        }\n    });\n    // Verify charts are updated\n    page_objects_1.analyticsPage.verifyOverviewChartVisible();\n});",
+              "err": {},
+              "uuid": "a892d63e-1096-4730-924f-ff3361a0a7b8",
+              "parentUUID": "4807f13f-9038-494d-a1e7-4a5eb976ed67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow toggling between different chart types",
+              "fullTitle": "Progress Analytics - Data Visualization should allow toggling between different chart types",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Check if chart type selector exists\n    cy.get('body').then(function ($body) {\n        var hasChartTypeSelector = $body.find('[data-testid=\"chart-type-toggle\"]').length > 0 ||\n            $body.find('[data-testid=\"chart-type-selector\"]').length > 0;\n        if (hasChartTypeSelector) {\n            // Try clicking on different chart types\n            if ($body.find('[data-testid=\"chart-type-bar\"]').length > 0) {\n                cy.get('[data-testid=\"chart-type-bar\"]').click();\n                page_objects_1.analyticsPage.takeScreenshot('bar-chart-type');\n            }\n            if ($body.find('[data-testid=\"chart-type-line\"]').length > 0) {\n                cy.get('[data-testid=\"chart-type-line\"]').click();\n                page_objects_1.analyticsPage.takeScreenshot('line-chart-type');\n            }\n        }\n        else {\n            cy.log('Chart type selector not available');\n            page_objects_1.analyticsPage.takeScreenshot('no-chart-type-selector');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "a75e655e-035e-4c03-a86d-88cc007d325f",
+              "parentUUID": "4807f13f-9038-494d-a1e7-4a5eb976ed67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow exporting analytics data if available",
+              "fullTitle": "Progress Analytics - Data Visualization should allow exporting analytics data if available",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Check if export functionality exists\n    cy.get('body').then(function ($body) {\n        var hasExportButton = $body.find('[data-testid=\"export-button\"]').length > 0 ||\n            $body.find('[data-testid=\"export-data-button\"]').length > 0;\n        if (hasExportButton) {\n            // Use the page object method to export if available\n            page_objects_1.analyticsPage.exportAsCSV();\n            page_objects_1.analyticsPage.takeScreenshot('export-csv-attempted');\n            // Check for export options\n            cy.get('body').then(function ($updatedBody) {\n                var hasExportOptions = $updatedBody.find('[data-testid=\"export-options\"]').length > 0;\n                if (hasExportOptions) {\n                    cy.log('Export options displayed successfully');\n                }\n            });\n        }\n        else {\n            cy.log('Export functionality not available');\n            page_objects_1.analyticsPage.takeScreenshot('export-not-available');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "57c2d26a-ea03-45e2-a132-a82ff281088f",
+              "parentUUID": "4807f13f-9038-494d-a1e7-4a5eb976ed67",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should navigate between different analytics sections",
+              "fullTitle": "Progress Analytics - Data Visualization should navigate between different analytics sections",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Navigate through available tabs\n    ['overview', 'resources', 'concepts', 'users'].forEach(function (tab) {\n        page_objects_1.analyticsPage.switchToTab(tab);\n        page_objects_1.analyticsPage.takeScreenshot(\"analytics-\".concat(tab, \"-tab\"));\n        cy.wait(500); // Small wait to allow charts to render\n    });\n    // Return to dashboard\n    page_objects_1.dashboardPage.visitDashboard();\n    page_objects_1.dashboardPage.takeScreenshot('return-to-dashboard');\n});",
+              "err": {},
+              "uuid": "2b35b008-5ccc-48c4-83e2-a91aca3415a0",
+              "parentUUID": "4807f13f-9038-494d-a1e7-4a5eb976ed67",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "ba01ed0d-d9c9-4213-86f1-4b18c4e2a693"
+          ],
+          "pending": [],
+          "skipped": [
+            "a892d63e-1096-4730-924f-ff3361a0a7b8",
+            "a75e655e-035e-4c03-a86d-88cc007d325f",
+            "57c2d26a-ea03-45e2-a132-a82ff281088f",
+            "2b35b008-5ccc-48c4-83e2-a91aca3415a0"
+          ],
+          "duration": 409,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

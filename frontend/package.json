@@ -21,6 +21,9 @@
     "e2e:fast": "start-server-and-test dev http://localhost:3000 'bash e2e-testing/cypress/fast-tests.sh'",
     "e2e:fast-logged": "start-server-and-test dev http://localhost:3000 'bash e2e-testing/cypress/fast-tests-with-logs.sh'",
     "cypress:ci": "start-server-and-test dev http://localhost:3000 cypress:report",
+    "cypress:dashboard": "node e2e-testing/scripts/load-env.cjs && cypress run --config-file e2e-testing/cypress/config/cypress.dashboard.config.cjs --record",
+    "e2e:dashboard": "start-server-and-test dev http://localhost:3000 cypress:dashboard",
+    "e2e:dashboard-ci": "node e2e-testing/scripts/load-env.cjs && start-server-and-test dev http://localhost:3000 'cypress run --config-file e2e-testing/cypress/config/cypress.dashboard.config.cjs --record --parallel --group CI-tests'",
     "e2e:resilient": "start-server-and-test dev http://localhost:3000 'bash e2e-testing/cypress/run-resilient-tests.sh'",
     "generate:report": "node e2e-testing/scripts/generate-report.js"
   },
@@ -71,6 +74,7 @@
     "cypress-mochawesome-reporter": "^3.8.2",
     "cypress-multi-reporters": "^1.6.4",
     "cypress-parallel": "^0.14.0",
+    "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "15.2.2",
     "jest": "^29.7.0",
