@@ -1,65 +1,126 @@
-name: Cypress Tests
+name: E2E Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+  workflow_dispatch:
 
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      backend:
+        image: ghcr.io/learning-platform/backend:latest
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DATABASE_URL: 'postgresql://postgres:postgres@postgres:5432/learning_platform'
+        ports:
+          - 8000:8000
+
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: learning_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group: [auth, dashboard, resources, analytics, knowledge]
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: 18
           cache: 'npm'
           cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
-        working-directory: ./frontend
-        run: npm ci
+        run: |
+          cd frontend
+          npm ci
 
-      - name: Build Next.js app
-        working-directory: ./frontend
-        run: npm run build
+      - name: Start frontend
+        run: |
+          cd frontend
+          npm run build
+          npm run start &
+          sleep 10
 
-      - name: Cypress run
+      - name: Run Cypress tests
         uses: cypress-io/github-action@v6
         with:
-          working-directory: ./frontend
-          build: npm run build
-          start: npm start
-          wait-on: 'http://localhost:3000'
           browser: chrome
-          record: false
-          config-file: cypress.config.ts
-          command: npm run cypress:report
+          working-directory: frontend
+          wait-on: 'http://localhost:3000'
+          wait-on-timeout: 120
+          command: npm run test:resilient -- "cypress/e2e/${{ matrix.test-group }}.cy.ts"
+        env:
+          CYPRESS_JWT_SECRET: ${{ secrets.CYPRESS_JWT_SECRET || 'test-secret-key-for-cypress' }}
+          CYPRESS_RESILIENT_MODE: true
 
       - name: Upload screenshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: cypress-screenshots
+          name: cypress-screenshots-${{ matrix.test-group }}
           path: frontend/cypress/screenshots
-          retention-days: 7
 
       - name: Upload videos
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: cypress-videos
+          name: cypress-videos-${{ matrix.test-group }}
           path: frontend/cypress/videos
-          retention-days: 7
 
-      - name: Upload reports
-        uses: actions/upload-artifact@v4
+      - name: Upload test logs
+        uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: cypress-reports
-          path: frontend/cypress/reports
-          retention-days: 7
+          name: cypress-logs-${{ matrix.test-group }}
+          path: |
+            frontend/cypress/logs
+            frontend/cypress/reports
+            frontend/cypress/backend-errors.log
+
+  report:
+    needs: cypress-run
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Generate combined report
+        run: |
+          cd frontend/cypress/ci
+          npm ci
+          npm run test:report
+
+      - name: Upload combined report
+        uses: actions/upload-artifact@v3
+        with:
+          name: cypress-combined-report
+          path: frontend/cypress/reports/html

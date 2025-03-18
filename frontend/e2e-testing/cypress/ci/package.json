@@ -1,0 +1,23 @@
+{
+  "name": "learning-platform-e2e-ci",
+  "version": "1.0.0",
+  "description": "CI tools for E2E testing of Learning Platform",
+  "scripts": {
+    "test": "cypress run",
+    "test:resilient": "../run-resilient-tests.sh",
+    "test:fast": "../fast-tests.sh",
+    "test:fast:logs": "../fast-tests-with-logs.sh",
+    "test:visual": "cypress run --reporter mochawesome",
+    "test:report": "mochawesome-merge cypress/reports/json/*.json > cypress/reports/mochawesome.json && marge cypress/reports/mochawesome.json -f report -o cypress/reports/html",
+    "test:dashboard": "cypress run --record --key $CYPRESS_RECORD_KEY"
+  },
+  "dependencies": {
+    "@testing-library/cypress": "^10.0.1",
+    "cypress": "^13.6.1",
+    "dayjs": "^1.11.10",
+    "jsonwebtoken": "^9.0.2",
+    "mochawesome": "^7.1.3",
+    "mochawesome-merge": "^4.3.0",
+    "marge": "^1.0.1"
+  }
+}
