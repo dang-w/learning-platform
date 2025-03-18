@@ -1,0 +1,10 @@
+{
+  "suites": 1,
+  "tests": 4,
+  "passes": 4,
+  "pending": 0,
+  "failures": 0,
+  "start": "2025-03-17T20:54:53.643Z",
+  "duration": 17194,
+  "file": "cypress/e2e/url-metadata.cy.ts"
+}

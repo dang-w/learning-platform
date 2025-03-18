@@ -34,7 +34,10 @@ export default function Navbar() {
             {/* Profile dropdown */}
             <Menu as="div" className="ml-3 relative">
               <div>
-                <Menu.Button className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <Menu.Button
+                  className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  data-testid="user-menu"
+                >
                   <span className="sr-only">Open user menu</span>
                   <UserCircleIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
                   <span className="ml-2 text-gray-700">{user?.full_name || user?.username}</span>
@@ -66,6 +69,7 @@ export default function Navbar() {
                     {({ active }) => (
                       <button
                         onClick={() => logout()}
+                        data-testid="logout-button"
                         className={`${
                           active ? 'bg-gray-100' : ''
                         } block w-full text-left px-4 py-2 text-sm text-gray-700`}

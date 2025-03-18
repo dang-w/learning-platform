@@ -14,11 +14,11 @@ import {
 } from '@heroicons/react/24/outline';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Resources', href: '/resources', icon: BookOpenIcon },
-  { name: 'Learning Path', href: '/learning-path', icon: AcademicCapIcon },
-  { name: 'Knowledge', href: '/knowledge', icon: LightBulbIcon },
-  { name: 'Progress', href: '/progress', icon: ChartBarIcon },
+  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, testId: 'nav-dashboard' },
+  { name: 'Resources', href: '/resources', icon: BookOpenIcon, testId: 'nav-resources' },
+  { name: 'Learning Path', href: '/learning-path', icon: AcademicCapIcon, testId: 'nav-learning-path' },
+  { name: 'Knowledge', href: '/knowledge', icon: LightBulbIcon, testId: 'nav-knowledge' },
+  { name: 'Progress', href: '/progress', icon: ChartBarIcon, testId: 'nav-analytics' },
 ];
 
 export default function Sidebar() {
@@ -67,6 +67,7 @@ export default function Sidebar() {
                     <Link
                       key={item.name}
                       href={item.href}
+                      data-testid={item.testId}
                       className={`${
                         isActive
                           ? 'bg-indigo-50 text-indigo-600'
@@ -104,6 +105,7 @@ export default function Sidebar() {
                   <Link
                     key={item.name}
                     href={item.href}
+                    data-testid={item.testId}
                     className={`${
                       isActive
                         ? 'bg-indigo-50 text-indigo-600'

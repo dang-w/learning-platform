@@ -1,0 +1,191 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-17T17:52:21.961Z",
+    "end": "2025-03-17T17:52:22.494Z",
+    "duration": 533,
+    "testsRegistered": 5,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 4,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "46e0e0e0-bdc7-4696-812e-4bcff91cd913",
+      "title": "",
+      "fullFile": "cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "file": "cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "ea86f84e-4953-4b0f-870d-d22d32c11a28",
+          "title": "Knowledge Management - Spaced Repetition",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display concepts due for review",
+              "fullTitle": "Knowledge Management - Spaced Repetition should display concepts due for review",
+              "timedOut": null,
+              "duration": 412,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "[\n  {\n    \"title\": \"cypress-mochawesome-reporter-videos-failed\",\n    \"value\": \"cypress/e2e/knowledge-spaced-repetition.cy.ts\"\n  },\n  {\n    \"title\": \"cypress-mochawesome-reporter-screenshots\",\n    \"value\": [\n      [\n        \"/knowledge-spaced-repetition.cy.ts/Knowledge Management - Spaced Repetition -- should display concepts due for review -- before each hook (failed).png\"\n      ]\n    ]\n  }\n]",
+              "code": "// Navigate to the review section\ncy.get('[data-testid=\"nav-knowledge-review\"]').click();\ncy.url().should('include', '/knowledge/review');\n// Check that the review dashboard is displayed\ncy.get('[data-testid=\"review-dashboard\"]').should('be.visible');\n// Check that the concepts due for review section is displayed\ncy.get('[data-testid=\"concepts-due-review\"]').should('be.visible');",
+              "err": {
+                "message": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:8000/token\n\nThe response we received from your web server was:\n\n  > 401: Unauthorized\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:8000/token\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"content-type\": \"application/x-www-form-urlencoded\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-length\": 46\n}\nBody: username=test-user&password=TestPassword123%21\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 401 - Unauthorized\nHeaders: {\n  \"date\": \"Mon, 17 Mar 2025 17:52:21 GMT\",\n  \"server\": \"uvicorn\",\n  \"www-authenticate\": \"Bearer\",\n  \"content-length\": \"43\",\n  \"content-type\": \"application/json\"\n}\nBody: {\n  \"detail\": \"Incorrect username or password\"\n}\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Knowledge Management - Spac...`",
+                "estack": "CypressError: `cy.request()` failed on:\n\nhttp://localhost:8000/token\n\nThe response we received from your web server was:\n\n  > 401: Unauthorized\n\nThis was considered a failure because the status code was not `2xx` or `3xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\n-----------------------------------------------------------\n\nThe request we sent was:\n\nMethod: POST\nURL: http://localhost:8000/token\nHeaders: {\n  \"Connection\": \"keep-alive\",\n  \"user-agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.137 Safari/537.36\",\n  \"accept\": \"*/*\",\n  \"content-type\": \"application/x-www-form-urlencoded\",\n  \"accept-encoding\": \"gzip, deflate\",\n  \"content-length\": 46\n}\nBody: username=test-user&password=TestPassword123%21\n\n-----------------------------------------------------------\n\nThe response we got was:\n\nStatus: 401 - Unauthorized\nHeaders: {\n  \"date\": \"Mon, 17 Mar 2025 17:52:21 GMT\",\n  \"server\": \"uvicorn\",\n  \"www-authenticate\": \"Bearer\",\n  \"content-length\": \"43\",\n  \"content-type\": \"application/json\"\n}\nBody: {\n  \"detail\": \"Incorrect username or password\"\n}\n\n\nhttps://on.cypress.io/request\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Knowledge Management - Spac...`\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:133638:72)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)\nFrom Your Spec Code:\n    at Context.eval (webpack://frontend/./cypress/support/commands.ts:16:0)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138854:43)",
+                "diff": null
+              },
+              "uuid": "df2c1d64-72db-4f8c-a578-8d5fa55ce43e",
+              "parentUUID": "ea86f84e-4953-4b0f-870d-d22d32c11a28",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow reviewing a concept",
+              "fullTitle": "Knowledge Management - Spaced Repetition should allow reviewing a concept",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Navigate to the review section\ncy.get('[data-testid=\"nav-knowledge-review\"]').click();\n// Start a review session\ncy.get('[data-testid=\"start-review-button\"]').click();\n// Check that the review session is displayed\ncy.get('[data-testid=\"review-session\"]').should('be.visible');\n// Check that the concept content is displayed\ncy.get('[data-testid=\"concept-content\"]').should('be.visible');\n// Rate the recall difficulty\ncy.get('[data-testid=\"recall-rating-3\"]').click(); // Medium difficulty\n// Submit the review\ncy.get('[data-testid=\"submit-review-button\"]').click();\n// Check that the next concept is displayed or the session is complete\ncy.get('body').then(function ($body) {\n    if ($body.find('[data-testid=\"review-complete\"]').length > 0) {\n        // Review session is complete\n        cy.get('[data-testid=\"review-complete\"]').should('be.visible');\n        cy.get('[data-testid=\"return-to-dashboard-button\"]').click();\n        cy.url().should('include', '/knowledge');\n    }\n    else {\n        // Next concept is displayed\n        cy.get('[data-testid=\"concept-content\"]').should('be.visible');\n    }\n});",
+              "err": {},
+              "uuid": "836064e9-4c00-4d80-b00e-a5b63c34fc16",
+              "parentUUID": "ea86f84e-4953-4b0f-870d-d22d32c11a28",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should update concept review schedule based on recall rating",
+              "fullTitle": "Knowledge Management - Spaced Repetition should update concept review schedule based on recall rating",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Navigate to the review section\ncy.get('[data-testid=\"nav-knowledge-review\"]').click();\n// Start a review session\ncy.get('[data-testid=\"start-review-button\"]').click();\n// Get the concept ID from the URL or data attribute\ncy.get('[data-testid=\"concept-content\"]').invoke('attr', 'data-concept-id').then(function (conceptId) {\n    // Rate the recall as easy\n    cy.get('[data-testid=\"recall-rating-5\"]').click(); // Easy recall\n    // Submit the review\n    cy.get('[data-testid=\"submit-review-button\"]').click();\n    // Navigate to the concept details page\n    cy.visit(\"/knowledge/concepts/\".concat(conceptId));\n    // Check that the next review date is updated\n    cy.get('[data-testid=\"next-review-date\"]').should('be.visible');\n    // Check that the review history is updated\n    cy.get('[data-testid=\"review-history\"]').should('contain', 'Easy');\n});",
+              "err": {},
+              "uuid": "1142c29e-4b3f-484c-b689-8180dc289ba9",
+              "parentUUID": "ea86f84e-4953-4b0f-870d-d22d32c11a28",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should show review statistics",
+              "fullTitle": "Knowledge Management - Spaced Repetition should show review statistics",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Navigate to the statistics section\ncy.get('[data-testid=\"nav-knowledge-stats\"]').click();\ncy.url().should('include', '/knowledge/statistics');\n// Check that the statistics dashboard is displayed\ncy.get('[data-testid=\"knowledge-statistics\"]').should('be.visible');\n// Check that the review history chart is displayed\ncy.get('[data-testid=\"review-history-chart\"]').should('be.visible');\n// Check that the recall performance chart is displayed\ncy.get('[data-testid=\"recall-performance-chart\"]').should('be.visible');\n// Check that the concepts by status chart is displayed\ncy.get('[data-testid=\"concepts-by-status-chart\"]').should('be.visible');",
+              "err": {},
+              "uuid": "3e6d391b-1183-486f-a23d-fdf6060108d1",
+              "parentUUID": "ea86f84e-4953-4b0f-870d-d22d32c11a28",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow filtering concepts by review status",
+              "fullTitle": "Knowledge Management - Spaced Repetition should allow filtering concepts by review status",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the concepts list is displayed\ncy.get('[data-testid=\"concepts-list\"]').should('be.visible');\n// Filter by review status\ncy.get('[data-testid=\"filter-review-status\"]').click();\ncy.get('[data-testid=\"filter-status-due\"]').click();\n// Check that the URL includes the filter parameter\ncy.url().should('include', 'status=due');\n// Check that the filtered concepts list is displayed\ncy.get('[data-testid=\"concepts-list\"]').should('be.visible');",
+              "err": {},
+              "uuid": "22e460ae-cd2f-490c-bf35-5d46548b4b38",
+              "parentUUID": "ea86f84e-4953-4b0f-870d-d22d32c11a28",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "df2c1d64-72db-4f8c-a578-8d5fa55ce43e"
+          ],
+          "pending": [],
+          "skipped": [
+            "836064e9-4c00-4d80-b00e-a5b63c34fc16",
+            "1142c29e-4b3f-484c-b689-8180dc289ba9",
+            "3e6d391b-1183-486f-a23d-fdf6060108d1",
+            "22e460ae-cd2f-490c-bf35-5d46548b4b38"
+          ],
+          "duration": 412,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

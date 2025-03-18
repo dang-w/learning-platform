@@ -1,0 +1,252 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 7,
+    "passes": 0,
+    "pending": 0,
+    "failures": 7,
+    "start": "2025-03-17T19:49:31.779Z",
+    "end": "2025-03-17T19:54:06.858Z",
+    "duration": 275079,
+    "testsRegistered": 7,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "450b39ad-d391-4ccf-94f0-5372717e7baf",
+      "title": "",
+      "fullFile": "cypress/e2e/analytics-visualization.cy.ts",
+      "file": "cypress/e2e/analytics-visualization.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+          "title": "Progress Analytics - Data Visualization",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display the analytics dashboard with charts",
+              "fullTitle": "Progress Analytics - Data Visualization should display the analytics dashboard with charts",
+              "timedOut": null,
+              "duration": 14062,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the analytics dashboard is displayed\ncy.get('[data-testid=\"analytics-dashboard\"]').should('be.visible');\n// Check that the study time chart is displayed\ncy.get('[data-testid=\"study-time-chart\"]').should('be.visible');\n// Check that the resources completed chart is displayed\ncy.get('[data-testid=\"resources-completed-chart\"]').should('be.visible');\n// Check that the concepts reviewed chart is displayed\ncy.get('[data-testid=\"concepts-reviewed-chart\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"analytics-dashboard\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"analytics-dashboard\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics-visualization.cy.ts:15:0)",
+                "diff": null
+              },
+              "uuid": "5b709428-513b-465e-8fc4-52d3ae2e420f",
+              "parentUUID": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow filtering analytics by date range",
+              "fullTitle": "Progress Analytics - Data Visualization should allow filtering analytics by date range",
+              "timedOut": null,
+              "duration": 13646,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the date range filter is displayed\ncy.get('[data-testid=\"date-range-filter\"]').should('be.visible');\n// Open the date range picker\ncy.get('[data-testid=\"date-range-filter\"]').click();\n// Select the last 7 days\ncy.get('[data-testid=\"range-last-7-days\"]').click();\n// Check that the URL includes the date range parameter\ncy.url().should('include', 'range=7');\n// Check that the charts are updated\ncy.get('[data-testid=\"study-time-chart\"]').should('be.visible');\ncy.get('[data-testid=\"chart-period-label\"]').should('contain', '7 days');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"date-range-filter\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"date-range-filter\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics-visualization.cy.ts:25:0)",
+                "diff": null
+              },
+              "uuid": "2b435789-72d6-44d9-a228-bb32e6ae3e77",
+              "parentUUID": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow selecting custom date range",
+              "fullTitle": "Progress Analytics - Data Visualization should allow selecting custom date range",
+              "timedOut": null,
+              "duration": 13490,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the date range filter is displayed\ncy.get('[data-testid=\"date-range-filter\"]').click();\n// Select custom range option\ncy.get('[data-testid=\"range-custom\"]').click();\n// Set start date (7 days ago)\nvar startDate = new Date();\nstartDate.setDate(startDate.getDate() - 7);\nvar startDateString = startDate.toISOString().split('T')[0];\ncy.get('[data-testid=\"custom-start-date\"]').type(startDateString);\n// Set end date (today)\nvar endDate = new Date();\nvar endDateString = endDate.toISOString().split('T')[0];\ncy.get('[data-testid=\"custom-end-date\"]').type(endDateString);\n// Apply the custom range\ncy.get('[data-testid=\"apply-custom-range\"]').click();\n// Check that the URL includes the date range parameters\ncy.url().should('include', \"start=\".concat(startDateString));\ncy.url().should('include', \"end=\".concat(endDateString));\n// Check that the charts are updated\ncy.get('[data-testid=\"study-time-chart\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"date-range-filter\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"date-range-filter\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics-visualization.cy.ts:38:0)",
+                "diff": null
+              },
+              "uuid": "e8b78f80-c900-49c8-b5a5-d57e7c037768",
+              "parentUUID": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow toggling between different chart types",
+              "fullTitle": "Progress Analytics - Data Visualization should allow toggling between different chart types",
+              "timedOut": null,
+              "duration": 13684,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the chart type toggle is displayed\ncy.get('[data-testid=\"chart-type-toggle\"]').should('be.visible');\n// Switch to bar chart\ncy.get('[data-testid=\"chart-type-bar\"]').click();\n// Check that the URL includes the chart type parameter\ncy.url().should('include', 'chartType=bar');\n// Check that the bar chart is displayed\ncy.get('[data-testid=\"study-time-chart\"]').should('have.attr', 'data-chart-type', 'bar');\n// Switch to line chart\ncy.get('[data-testid=\"chart-type-line\"]').click();\n// Check that the URL includes the chart type parameter\ncy.url().should('include', 'chartType=line');\n// Check that the line chart is displayed\ncy.get('[data-testid=\"study-time-chart\"]').should('have.attr', 'data-chart-type', 'line');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"chart-type-toggle\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"chart-type-toggle\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics-visualization.cy.ts:60:0)",
+                "diff": null
+              },
+              "uuid": "29a8259d-b592-498e-b566-3cc60e8da868",
+              "parentUUID": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow exporting analytics data",
+              "fullTitle": "Progress Analytics - Data Visualization should allow exporting analytics data",
+              "timedOut": null,
+              "duration": 13539,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the export button is displayed\ncy.get('[data-testid=\"export-data-button\"]').should('be.visible');\n// Click the export button\ncy.get('[data-testid=\"export-data-button\"]').click();\n// Check that the export options are displayed\ncy.get('[data-testid=\"export-options\"]').should('be.visible');\n// Select CSV export\ncy.get('[data-testid=\"export-csv\"]').click();\n// Check that the download starts\n// Note: We can't directly test file downloads in Cypress, but we can check that the request is made\ncy.intercept('GET', '/api/analytics/export?format=csv').as('exportCsv');\ncy.wait('@exportCsv').its('response.statusCode').should('eq', 200);",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"export-data-button\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"export-data-button\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics-visualization.cy.ts:76:0)",
+                "diff": null
+              },
+              "uuid": "164490d8-e112-4424-be95-f28366b73cae",
+              "parentUUID": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow adding a new study metric",
+              "fullTitle": "Progress Analytics - Data Visualization should allow adding a new study metric",
+              "timedOut": null,
+              "duration": 13615,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the add metric button is displayed\ncy.get('[data-testid=\"add-metric-button\"]').should('be.visible');\n// Click the add metric button\ncy.get('[data-testid=\"add-metric-button\"]').click();\n// Check that the add metric form is displayed\ncy.get('[data-testid=\"add-metric-form\"]').should('be.visible');\n// Fill out the form\nvar today = new Date().toISOString().split('T')[0];\ncy.get('[data-testid=\"metric-date-input\"]').type(today);\ncy.get('[data-testid=\"study-time-input\"]').type('60');\ncy.get('[data-testid=\"resources-completed-input\"]').type('2');\ncy.get('[data-testid=\"concepts-reviewed-input\"]').type('5');\n// Submit the form\ncy.get('[data-testid=\"save-metric-button\"]').click();\n// Check that the form is closed\ncy.get('[data-testid=\"add-metric-form\"]').should('not.exist');\n// Check that the charts are updated\ncy.get('[data-testid=\"study-time-chart\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"add-metric-button\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"add-metric-button\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics-visualization.cy.ts:90:0)",
+                "diff": null
+              },
+              "uuid": "7d41c4f5-f284-4223-8e2a-9bc17eaa5320",
+              "parentUUID": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should generate a weekly report",
+              "fullTitle": "Progress Analytics - Data Visualization should generate a weekly report",
+              "timedOut": null,
+              "duration": 13494,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Check that the generate report button is displayed\ncy.get('[data-testid=\"generate-report-button\"]').should('be.visible');\n// Click the generate report button\ncy.get('[data-testid=\"generate-report-button\"]').click();\n// Check that the report options are displayed\ncy.get('[data-testid=\"report-options\"]').should('be.visible');\n// Select weekly report\ncy.get('[data-testid=\"weekly-report\"]').click();\n// Check that the report is generated\ncy.get('[data-testid=\"report-content\"]', { timeout: 10000 }).should('be.visible');\n// Check that the report contains the expected sections\ncy.get('[data-testid=\"report-summary\"]').should('be.visible');\ncy.get('[data-testid=\"report-charts\"]').should('be.visible');\ncy.get('[data-testid=\"report-recommendations\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"generate-report-button\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"generate-report-button\"]`, but never found it.\n    at Context.eval (webpack://frontend/./cypress/e2e/analytics-visualization.cy.ts:110:0)",
+                "diff": null
+              },
+              "uuid": "90b33aa3-0a7e-4526-a426-6ebbd046e4c8",
+              "parentUUID": "ded1b938-0dfc-433c-9981-b9b62a6b4f85",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "5b709428-513b-465e-8fc4-52d3ae2e420f",
+            "2b435789-72d6-44d9-a228-bb32e6ae3e77",
+            "e8b78f80-c900-49c8-b5a5-d57e7c037768",
+            "29a8259d-b592-498e-b566-3cc60e8da868",
+            "164490d8-e112-4424-be95-f28366b73cae",
+            "7d41c4f5-f284-4223-8e2a-9bc17eaa5320",
+            "90b33aa3-0a7e-4526-a426-6ebbd046e4c8"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 95530,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "cypress/reports/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

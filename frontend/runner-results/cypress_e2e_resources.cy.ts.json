@@ -1,0 +1,10 @@
+{
+  "suites": 1,
+  "tests": 6,
+  "passes": 0,
+  "pending": 0,
+  "failures": 6,
+  "start": "2025-03-17T20:54:54.551Z",
+  "duration": 317282,
+  "file": "cypress/e2e/resources.cy.ts"
+}

@@ -70,7 +70,7 @@ export default function RegisterPage() {
                 {...register('username')}
               />
               {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+                <p className="mt-1 text-sm text-red-600" data-testid="error-username">{errors.username.message}</p>
               )}
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function RegisterPage() {
                 {...register('email')}
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                <p className="mt-1 text-sm text-red-600" data-testid="error-email">{errors.email.message}</p>
               )}
             </div>
           </div>
@@ -124,7 +124,7 @@ export default function RegisterPage() {
                 {...register('password')}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                <p className="mt-1 text-sm text-red-600" data-testid="error-password">{errors.password.message}</p>
               )}
             </div>
           </div>

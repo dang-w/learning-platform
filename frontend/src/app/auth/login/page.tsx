@@ -66,7 +66,7 @@ export default function LoginPage() {
                 {...register('username')}
               />
               {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+                <p className="mt-1 text-sm text-red-600" data-testid="error-username">{errors.username.message}</p>
               )}
             </div>
           </div>
@@ -84,13 +84,13 @@ export default function LoginPage() {
                 {...register('password')}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                <p className="mt-1 text-sm text-red-600" data-testid="error-password">{errors.password.message}</p>
               )}
             </div>
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-md bg-red-50 p-4" data-testid="login-error">
               <div className="flex">
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-red-800">Login failed</h3>
