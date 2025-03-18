@@ -84,9 +84,11 @@ trap cleanup EXIT
 
 # Run tests in parallel with custom reporter
 echo "Starting parallel test run with enhanced logging..."
-REPORTER_CONFIG_PATH="./e2e-testing/config/multi-reporter-config.json"
+echo "Starting backend log capture..."
+REPORTER_CONFIG_PATH="/Users/dan/code/learning-platform/frontend/multi-reporter-config.json"
+CONFIG_FILE="e2e-testing/cypress/config/cypress.config.cjs"
 
 # First attempt: Run with parallel reporter
-npx cypress-parallel -s cypress:headless -t $THREAD_COUNT -d ./e2e-testing/cypress/e2e --specsDir ./e2e-testing/cypress/e2e --reporter cypress-multi-reporters --reporter-options configFile=$REPORTER_CONFIG_PATH
+npx cypress-parallel -s "cypress run --config-file $CONFIG_FILE" -t $THREAD_COUNT -d ./e2e-testing/cypress/e2e --specsDir ./e2e-testing/cypress/e2e --reporter cypress-multi-reporters --reporter-options configFile=$REPORTER_CONFIG_PATH
 
 echo "Tests completed successfully!"

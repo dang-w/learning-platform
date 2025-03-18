@@ -1,16 +1,7 @@
-// Use ES modules syntax since the project uses ES modules
-import { defineConfig } from 'cypress';
-
-// @ts-ignore
+const { defineConfig } = require('cypress');
 const mochawesomeReporter = require('cypress-mochawesome-reporter/plugin');
 
-// Define types for our tasks
-interface CustomTasks {
-  log(message: string): null;
-  table(message: any): null;
-}
-
-export default defineConfig({
+module.exports = defineConfig({
   reporter: 'cypress-multi-reporters',
   reporterOptions: {
     reporterEnabled: 'cypress-mochawesome-reporter',
@@ -30,7 +21,7 @@ export default defineConfig({
       // Initialize mochawesome reporter
       mochawesomeReporter(on);
 
-      // @ts-ignore - Basic error logging tasks
+      // Basic error logging
       on('task', {
         log(message) {
           console.log(message);
