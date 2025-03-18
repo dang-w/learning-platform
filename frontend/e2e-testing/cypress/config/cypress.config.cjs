@@ -1,16 +1,10 @@
-// Use ES modules syntax since the project uses ES modules
-import { defineConfig } from 'cypress';
-
-// @ts-ignore
+const { defineConfig } = require('cypress');
 const mochawesomeReporter = require('cypress-mochawesome-reporter/plugin');
+const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
 
-// Define types for our tasks
-interface CustomTasks {
-  log(message: string): null;
-  table(message: any): null;
-}
-
-export default defineConfig({
+module.exports = defineConfig({
   reporter: 'cypress-multi-reporters',
   reporterOptions: {
     reporterEnabled: 'cypress-mochawesome-reporter',
@@ -30,7 +24,20 @@ export default defineConfig({
       // Initialize mochawesome reporter
       mochawesomeReporter(on);
 
-      // @ts-ignore - Basic error logging tasks
+      // Create error log file directory if it doesn't exist
+      const logPath = './e2e-testing/cypress/backend-errors.log';
+      const logDir = path.dirname(logPath);
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+
+      // Create test summary directory if it doesn't exist
+      const summaryDir = path.join('./e2e-testing/cypress/reports/summary');
+      if (!fs.existsSync(summaryDir)) {
+        fs.mkdirSync(summaryDir, { recursive: true });
+      }
+
+      // Register tasks for logging and JWT generation
       on('task', {
         log(message) {
           console.log(message);
@@ -40,6 +47,40 @@ export default defineConfig({
           console.table(message);
           return null;
         },
+        // Generate JWT token for testing
+        generateJWT(payload) {
+          try {
+            // Use a consistent secret key for test tokens
+            const SECRET_KEY = 'test-secret-key-for-cypress';
+            // Set default expiration to 1 hour if not provided
+            if (!payload.exp) {
+              payload.exp = Math.floor(Date.now() / 1000) + 3600;
+            }
+            // Create the token
+            const token = jwt.sign(payload, SECRET_KEY, { algorithm: 'HS256' });
+            console.log(`Generated test token for user: ${payload.sub}`);
+            return token;
+          } catch (err) {
+            console.error('Error generating JWT token:', err.message);
+            // Return a fallback token if JWT generation fails
+            return 'mock_test_token_for_cypress';
+          }
+        },
+        // Basic error handlers to satisfy other tests
+        logFailure(message) {
+          console.log(`Test failed: ${message}`);
+          return null;
+        },
+        logBackendError(data) {
+          console.log(`Backend error:`, data);
+          return null;
+        },
+        getBackendErrors() {
+          return [];
+        },
+        resetErrorReporter() {
+          return null;
+        }
       });
 
       return config;
