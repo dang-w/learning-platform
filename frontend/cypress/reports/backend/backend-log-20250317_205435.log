@@ -1,3 +1,0 @@
-Starting backend server and capturing logs to ./cypress/backend-errors.log
-To view logs in real-time, run: tail -f ./cypress/backend-errors.log
-./cypress/backend-logs.sh: line 17: ./cypress/backend-errors.log: No such file or directory
