@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -19,7 +19,7 @@ from auth import (
     get_current_active_user, get_current_user,
     authenticate_user, create_access_token, get_user,
     ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash,
-    SECRET_KEY, ALGORITHM
+    SECRET_KEY, ALGORITHM, create_refresh_token, verify_refresh_token
 )
 
 # Import database connection
@@ -29,6 +29,7 @@ from database import db
 from utils.error_handlers import APIError, handle_exception
 from utils.response_models import ErrorResponse
 from utils.validators import validate_email, validate_password_strength
+from utils.rate_limiter import rate_limit_dependency
 
 # Import routers
 from routers import (
@@ -36,7 +37,11 @@ from routers import (
     progress,
     reviews,
     learning_path,
-    url_extractor
+    url_extractor,
+    users,
+    auth,
+    courses,
+    lessons
 )
 
 # Load environment variables
@@ -68,6 +73,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount routers
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
+app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
+app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
+app.include_router(learning_path.router, prefix="/api/learning-path", tags=["learning_path"])
+app.include_router(url_extractor.router, prefix="/api/url", tags=["url_extractor"])
+app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
+app.include_router(lessons.router, prefix="/api/lessons", tags=["lessons"])
+
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 # Global exception handler
 @app.exception_handler(APIError)
@@ -102,7 +121,13 @@ class UserCreate(BaseModel):
 
 # Authentication routes
 @app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    _: None = Depends(rate_limit_dependency(limit=5, window=60, key_prefix="auth"))
+):
+    """
+    OAuth2 compatible token login, get an access token for future requests.
+    """
     user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -114,110 +139,68 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = create_access_token(
         data={"sub": user["username"]}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = create_refresh_token(data={"sub": user["username"]})
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 @app.post("/token/refresh", response_model=Token)
-async def refresh_access_token(refresh_data: RefreshTokenRequest):
+async def refresh_access_token(
+    request: Request,
+    refresh_data: RefreshTokenRequest,
+    _: None = Depends(rate_limit_dependency(limit=5, window=60, key_prefix="auth"))
+):
     """
-    Refresh the access token using a valid JWT token.
-
-    This endpoint allows clients to get a new access token without requiring the user
-    to re-authenticate with username and password, as long as they have a valid token.
+    Refresh the access token using a valid refresh token.
     """
-    try:
-        # Decode the token to verify it's valid
-        payload = jwt.decode(refresh_data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-
-        if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # Get the user to make sure they still exist and are not disabled
-        try:
-            user = await get_user(username)
-            if user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="User not found",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-
-            if user.get("disabled", False):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Inactive user"
-                )
-
-            # Create a new access token
-            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            access_token = create_access_token(
-                data={"sub": username}, expires_delta=access_token_expires
-            )
-
-            return {"access_token": access_token, "token_type": "bearer"}
-        except RuntimeError as e:
-            if "Event loop is closed" in str(e):
-                # During testing with TestClient, the event loop might be closed
-                # We can work around this by creating a new event loop for this operation
-                import asyncio
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    user = loop.run_until_complete(get_user(username))
-                    if user is None:
-                        raise HTTPException(
-                            status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="User not found",
-                            headers={"WWW-Authenticate": "Bearer"},
-                        )
-
-                    if user.get("disabled", False):
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Inactive user"
-                        )
-
-                    # Create a new access token
-                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-                    access_token = create_access_token(
-                        data={"sub": username}, expires_delta=access_token_expires
-                    )
-
-                    return {"access_token": access_token, "token_type": "bearer"}
-                except Exception as inner_e:
-                    logger.error(f"Error during token refresh after event loop retry: {str(inner_e)}")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Authentication error",
-                        headers={"WWW-Authenticate": "Bearer"},
-                    )
-                finally:
-                    loop.close()
-
-            # For other runtime errors
-            logger.error(f"Error during token refresh: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication error",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-    except PyJWTError:
+    # Verify the refresh token
+    payload = verify_refresh_token(refresh_data.refresh_token)
+    if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
+            detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    username = payload.get("sub")
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token claims",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Get the user to make sure they still exist and are not disabled
+    user = await get_user(username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if user.get("disabled", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+
+    # Create new access and refresh tokens
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": username}, expires_delta=access_token_expires
+    )
+    refresh_token = create_refresh_token(data={"sub": username})
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
 @app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserCreate):
+async def create_user(
+    user: UserCreate,
+    request: Request,
+    _: None = Depends(rate_limit_dependency(limit=3, window=3600, key_prefix="user_creation"))
+):
     """
     Create a new user.
 
@@ -226,10 +209,13 @@ async def create_user(user: UserCreate):
     - Create user document with empty arrays for resources, etc.
     - Insert into database
     """
+    logger.info(f"Attempting to create user: {user.username}, {user.email}")
+
     # Validate email format
     try:
         validate_email(user.email)
     except APIError as e:
+        logger.warning(f"Email validation failed for {user.email}: {str(e.detail)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e.detail)
@@ -239,6 +225,7 @@ async def create_user(user: UserCreate):
     try:
         validate_password_strength(user.password)
     except APIError as e:
+        logger.warning(f"Password validation failed for user {user.username}: {str(e.detail)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e.detail)
@@ -247,6 +234,7 @@ async def create_user(user: UserCreate):
     # Check if username already exists
     existing_user = await db.users.find_one({"username": user.username})
     if existing_user:
+        logger.warning(f"Username already exists: {user.username}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
@@ -255,13 +243,15 @@ async def create_user(user: UserCreate):
     # Hash the password
     hashed_password = get_password_hash(user.password)
 
-    # Create user document
+    # Create user document with all required fields
     user_data = {
         "username": user.username,
         "email": user.email,
         "full_name": user.full_name,
         "hashed_password": hashed_password,
         "disabled": False,
+        "is_active": True,
+        "created_at": datetime.utcnow(),
         "resources": {
             "articles": [],
             "videos": [],
@@ -273,27 +263,37 @@ async def create_user(user: UserCreate):
         "learning_paths": [],
         "reviews": [],
         "concepts": [],
+        "goals": [],
+        "metrics": [],
+        "review_log": {},
+        "milestones": []
     }
 
     try:
         # Insert user into database
-        await db.users.insert_one(user_data)
+        result = await db.users.insert_one(user_data)
+        logger.info(f"User {user.username} created successfully with ID: {result.inserted_id}")
+
+        # Add the ID to the response
+        user_data["id"] = str(result.inserted_id)
+
+        # Remove sensitive data before returning
+        user_data.pop("hashed_password", None)
+
+        return user_data
+
     except DuplicateKeyError:
-        # This is a fallback in case the first check fails
+        logger.warning(f"DuplicateKeyError for username: {user.username}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
         )
     except Exception as e:
-        logger.error(f"Error creating user: {e}")
+        logger.error(f"Error creating user {user.username}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create user: {str(e)}"
         )
-
-    # Return user without hashed password
-    user_data.pop("hashed_password")
-    return user_data
 
 @app.get("/users/me/", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
@@ -305,40 +305,70 @@ async def root():
     return {"message": "Welcome to the Learning Platform API"}
 
 # Health check endpoint
-@app.get("/health")
-def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+@app.get("/api/health")
+async def health_check():
+    """
+    Health check endpoint to verify API is running and
+    database connection is working.
+    """
+    try:
+        # Check database connection
+        db_status = await db.command("ping")
 
-# Include routers
-app.include_router(
-    resources.router,
-    prefix="/api/resources",
-    tags=["resources"],
-)
+        # Count users to further verify database access
+        user_count = await db.users.count_documents({})
 
-app.include_router(
-    progress.router,
-    prefix="/api/progress",
-    tags=["progress"],
-)
+        return {
+            "status": "healthy",
+            "database": "connected" if db_status.get("ok") == 1 else "error",
+            "user_count": user_count,
+            "api_version": "0.1.0",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Health check error: {str(e)}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
-app.include_router(
-    reviews.router,
-    prefix="/api/reviews",
-    tags=["reviews"],
-)
+# Add middleware to include rate limit headers in responses
+@app.middleware("http")
+async def add_rate_limit_headers(request: Request, call_next):
+    """Add rate limit headers to responses."""
+    response = await call_next(request)
 
-app.include_router(
-    learning_path.router,
-    prefix="/api/learning-path",
-    tags=["learning-path"],
-)
+    # Add rate limit headers if they exist
+    if hasattr(request.state, "rate_limit_headers"):
+        for header, value in request.state.rate_limit_headers.items():
+            response.headers[header] = str(value)
 
-app.include_router(
-    url_extractor.router,
-    prefix="/api/url-extractor",
-    tags=["url-extractor"],
-)
+    return response
+
+# Add security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+
+    # Content Security Policy
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+
+    # XSS Protection
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # Content-Type Options
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # Frame Options
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # Strict Transport Security (only enable in production)
+    if os.getenv("ENVIRONMENT", "development") == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    return response
 
 # Run the application
 if __name__ == "__main__":

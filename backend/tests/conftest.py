@@ -1,3 +1,4 @@
+"""Test configuration module."""
 import pytest
 from fastapi.testclient import TestClient
 import sys
@@ -18,6 +19,7 @@ from utils.error_handlers import AuthenticationError, ResourceNotFoundError
 from utils.response_models import StandardResponse, ErrorResponse
 from utils.validators import validate_required_fields
 from database import get_database
+from utils.rate_limiter import redis_client
 
 # Apply nest_asyncio to allow nested event loops
 nest_asyncio.apply()
@@ -248,4 +250,24 @@ def patch_database():
     # Restore the original database
     database.db = original_db
     database.get_database = original_get_database
-    utils.db_utils.db = original_db
+
+# Clear rate limits before and after each test
+@pytest.fixture(autouse=True)
+async def clear_rate_limits():
+    """Clear rate limits before and after each test."""
+    if redis_client:
+        try:
+            # Clear all rate limit keys
+            for key in redis_client.scan_iter("rate_limit:*"):
+                redis_client.delete(key)
+
+            yield
+
+            # Cleanup after test
+            for key in redis_client.scan_iter("rate_limit:*"):
+                redis_client.delete(key)
+        except Exception as e:
+            logger.error(f"Error clearing rate limits: {str(e)}")
+            yield
+    else:
+        yield
