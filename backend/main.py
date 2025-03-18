@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request, Response, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, EmailStr, Field, validator
+from typing import List, Optional, Dict, Any, Union, Tuple
 import os
 import json
 from datetime import datetime, timedelta
@@ -14,6 +14,9 @@ import jwt
 from jwt.exceptions import PyJWTError
 import asyncio
 import time
+import traceback
+import re
+import uuid
 
 # Import authentication from auth module
 from auth import (
@@ -31,31 +34,26 @@ from database import db
 from utils.error_handlers import APIError, handle_exception
 from utils.response_models import ErrorResponse
 from utils.validators import validate_email, validate_password_strength
-from utils.rate_limiter import rate_limit_dependency
+from utils.rate_limiter import rate_limit_dependency, get_client_identifier
 from utils.monitoring import (
     track_request_performance,
     log_auth_metrics,
-    log_error,
-    get_metrics,
+    log_request_metrics,
+    log_session_event,
     startup_monitoring,
     shutdown_monitoring,
-    log_request_metrics,
-    log_session_event
+    get_metrics,
+    log_error
 )
 
-# Import routers
-from routers import (
-    resources,
-    progress,
-    reviews,
-    learning_path,
-    url_extractor,
-    users,
-    auth,
-    courses,
-    lessons,
-    sessions,
-)
+# Import routers directly
+from routers import users, auth
+from routers import resources, progress, learning_path, reviews
+from routers import sessions, lessons
+from routers.users import normalize_user_data
+
+# Import and include URL extractor router
+from routers import url_extractor
 
 # Load environment variables
 load_dotenv()
@@ -67,21 +65,14 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title="Learning Platform API",
-    description="API for the Learning Platform application",
-    version="0.1.0",
+    description="API for managing learning resources, tracking progress, and facilitating spaced repetition learning",
+    version="1.0.0",
 )
 
 # Configure CORS
-origins = [
-    "http://localhost",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:8080",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Restrict to specific origins in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,12 +83,13 @@ app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
 app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
-app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
 app.include_router(learning_path.router, prefix="/api/learning-path", tags=["learning_path"])
-app.include_router(url_extractor.router, prefix="/api/url", tags=["url_extractor"])
-app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
+app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
 app.include_router(lessons.router, prefix="/api/lessons", tags=["lessons"])
 app.include_router(sessions.router, tags=["sessions"])
+
+# Import and include URL extractor router
+app.include_router(url_extractor.router, prefix="/api/url-extractor", tags=["url_extractor"])
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
@@ -400,8 +392,16 @@ async def create_user(
         )
 
 @app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+async def read_users_me(current_user: dict = Depends(get_current_active_user)):
+    # Check if current_user is already a User object or MockUser (for tests)
+    if hasattr(current_user, 'model_dump') and callable(current_user.model_dump):
+        user_data = current_user.model_dump()
+    elif hasattr(current_user, 'dict') and callable(current_user.dict):
+        user_data = current_user.dict()
+    else:
+        # Normalize user data to ensure it conforms to the User model
+        user_data = normalize_user_data(current_user)
+    return User(**user_data)
 
 # Root endpoint
 @app.get("/")

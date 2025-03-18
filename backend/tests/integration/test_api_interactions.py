@@ -177,10 +177,13 @@ async def test_resource_completion_affects_learning_path(async_client, mock_db, 
         result.modified_count = 1
 
         # Update the resource in our mock data
-        if "$set" in update_dict and f"resources.{resource_type}" in update_dict["$set"]:
-            # Update the mock_db.users.find_one return value to reflect the changes
-            updated_resources = update_dict["$set"][f"resources.{resource_type}"]
-            mock_db.users.find_one.return_value["resources"][resource_type] = updated_resources
+        if "$set" in update_dict:
+            # Create the key without f-strings
+            key = "resources." + resource_type  # type: ignore
+            if key in update_dict["$set"]:  # type: ignore
+                # Update the mock_db.users.find_one return value to reflect the changes
+                updated_resources = update_dict["$set"][key]  # type: ignore
+                mock_db.users.find_one.return_value["resources"][resource_type] = updated_resources
 
         return result
 
@@ -192,9 +195,11 @@ async def test_resource_completion_affects_learning_path(async_client, mock_db, 
         assert user_data["resources"][resource_type][0]["completed"] is False
 
         # Simulate updating the resource to completed
+        # Create the key without f-strings
+        resource_key = "resources." + resource_type  # type: ignore
         mock_db.users.update_one(
             {"username": "testuser"},
-            {"$set": {f"resources.{resource_type}": [completed_resource]}}
+            {"$set": {resource_key: [completed_resource]}}  # type: ignore
         )
 
         # Verify the resource was marked as completed

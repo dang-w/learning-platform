@@ -28,9 +28,73 @@ class User(UserBase):
     id: str
     created_at: datetime
     is_active: bool = True
+    disabled: bool = False
+    resources: Dict[str, List[Any]] = {
+        "articles": [],
+        "videos": [],
+        "courses": [],
+        "books": []
+    }
+    study_sessions: List[Any] = []
+    review_sessions: List[Any] = []
+    learning_paths: List[Any] = []
+    reviews: List[Any] = []
+    concepts: List[Any] = []
+    goals: List[Any] = []
+    metrics: List[Any] = []
+    review_log: Dict[str, Any] = {}
+    milestones: List[Any] = []
 
     class Config:
         from_attributes = True
+
+def normalize_user_data(user_dict: dict) -> dict:
+    """
+    Normalize user data to ensure all required fields exist with proper types.
+
+    Args:
+        user_dict: The user dictionary to normalize
+
+    Returns:
+        A normalized user dictionary that conforms to the User model
+    """
+    # Create a copy of the user dict to avoid modifying the original
+    user_data = dict(user_dict)
+
+    # Handle resources field
+    if "resources" not in user_data or not isinstance(user_data["resources"], dict):
+        user_data["resources"] = {
+            "articles": [],
+            "videos": [],
+            "courses": [],
+            "books": []
+        }
+    else:
+        # Ensure all resource types exist in the dictionary
+        for resource_type in ["articles", "videos", "courses", "books"]:
+            if resource_type not in user_data["resources"]:
+                user_data["resources"][resource_type] = []
+            # Ensure each resource list is actually a list
+            elif not isinstance(user_data["resources"][resource_type], list):
+                user_data["resources"][resource_type] = []
+
+    # Ensure other list fields exist
+    for field in ["study_sessions", "review_sessions", "learning_paths", "reviews",
+                 "concepts", "goals", "metrics", "milestones"]:
+        if field not in user_data or not isinstance(user_data[field], list):
+            user_data[field] = []
+
+    # Ensure review_log is a dictionary
+    if "review_log" not in user_data or not isinstance(user_data["review_log"], dict):
+        user_data["review_log"] = {}
+
+    # Ensure boolean fields have proper values
+    if "disabled" not in user_data:
+        user_data["disabled"] = False
+    if "is_active" not in user_data:
+        user_data["is_active"] = True
+
+    return user_data
 
 @router.post("/", response_model=User, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency(limit=3, window=3600, key_prefix="user_creation"))])
 async def create_user(user: UserCreate, request: Request):
@@ -65,13 +129,16 @@ async def create_user(user: UserCreate, request: Request):
             )
 
         # Create user document
-        user_dict = user.dict()
+        user_dict = user.model_dump()
         user_dict["created_at"] = datetime.utcnow()
         user_dict["hashed_password"] = get_password_hash(user.password)
         user_dict["is_active"] = True
 
         # Remove plain password before saving
         del user_dict["password"]
+
+        # Normalize user data to ensure it conforms to the User model
+        user_dict = normalize_user_data(user_dict)
 
         # Insert user into database
         result = await db.users.insert_one(user_dict)
@@ -92,24 +159,15 @@ async def create_user(user: UserCreate, request: Request):
 @router.get("/me", response_model=User)
 async def read_users_me(current_user: dict = Depends(get_current_active_user)):
     """Get current user profile."""
-    # Ensure resources is a dictionary if it exists but is not already a dict
-    if "resources" in current_user and not isinstance(current_user["resources"], dict):
-        current_user["resources"] = {
-            "articles": [],
-            "videos": [],
-            "courses": [],
-            "books": []
-        }
-    # If resources doesn't exist, add it
-    elif "resources" not in current_user:
-        current_user["resources"] = {
-            "articles": [],
-            "videos": [],
-            "courses": [],
-            "books": []
-        }
-
-    return current_user
+    # Check if current_user is already a User object or MockUser (for tests)
+    if hasattr(current_user, 'model_dump') and callable(current_user.model_dump):
+        user_data = current_user.model_dump()
+    elif hasattr(current_user, 'dict') and callable(current_user.dict):
+        user_data = current_user.dict()
+    else:
+        # Normalize user data to ensure it conforms to the User model
+        user_data = normalize_user_data(current_user)
+    return User(**user_data)
 
 @router.get("/{username}", response_model=User)
 async def read_user(username: str):
@@ -120,4 +178,13 @@ async def read_user(username: str):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    return User(**user)
+
+    # Check if user is already a User object or MockUser (for tests)
+    if hasattr(user, 'model_dump') and callable(user.model_dump):
+        user_data = user.model_dump()
+    elif hasattr(user, 'dict') and callable(user.dict):
+        user_data = user.dict()
+    else:
+        # Normalize user data to ensure it conforms to the User model
+        user_data = normalize_user_data(user)
+    return User(**user_data)
