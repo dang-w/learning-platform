@@ -24,6 +24,7 @@ interface AuthState {
   updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>;
   exportUserData: () => Promise<Blob>;
   deleteAccount: () => Promise<void>;
+  _lastTokenRefresh: number;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -36,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
       error: null,
       statistics: null,
       notificationPreferences: null,
+      _lastTokenRefresh: 0,
 
       setDirectAuthState: (token: string, isAuth: boolean) => {
         if (typeof window !== 'undefined') {
@@ -106,38 +108,71 @@ export const useAuthStore = create<AuthState>()(
             full_name: fullName,
           });
 
-          // Auto login after registration
-          await get().login(username, password);
+          // Add a small delay before login to give the backend time to process
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          try {
+            // Auto login after registration
+            await get().login(username, password);
+          } catch (loginError) {
+            // If auto-login fails, don't treat it as a registration error
+            console.warn('Auto login after registration failed:', loginError);
+
+            // Set a specific message for this case
+            set({
+              isLoading: false,
+              error: 'Account created successfully. Please log in with your credentials.',
+            });
+
+            // Rethrow a specific error type to handle in the component
+            throw new Error('AUTO_LOGIN_FAILED');
+          }
         } catch (error) {
-          set({
-            isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to register',
-          });
+          // Only set error state if it's not the AUTO_LOGIN_FAILED case
+          if (!(error instanceof Error) || error.message !== 'AUTO_LOGIN_FAILED') {
+            set({
+              isLoading: false,
+              error: error instanceof Error ? error.message : 'Failed to register',
+            });
+          }
           throw error;
         }
       },
 
       logout: async () => {
         try {
-          set({ isLoading: true });
-
-          await authApi.logout();
-
+          // Clear client-side auth state
           set({
             user: null,
             token: null,
             isAuthenticated: false,
-            isLoading: false,
+            statistics: null,
+            notificationPreferences: null,
           });
+
+          // Clear tokens from localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+
+            // Also clear any cookies
+            document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          }
+
+          // Call logout API (best effort - don't block if it fails)
+          try {
+            await authApi.logout();
+          } catch (e) {
+            console.warn('Logout API call failed, but client state was cleared', e);
+          }
         } catch (error) {
+          console.error('Error during logout:', error);
+          // Still clear the state even if there was an error
           set({
             user: null,
             token: null,
             isAuthenticated: false,
-            isLoading: false,
-            error: 'Failed to logout',
           });
-          throw error;
         }
       },
 
@@ -184,18 +219,44 @@ export const useAuthStore = create<AuthState>()(
 
       refreshToken: async () => {
         try {
+          // Add debouncing to prevent too many refresh attempts
+          const now = Date.now();
+          const lastRefresh = get()._lastTokenRefresh || 0;
+
+          // Don't refresh more than once every 30 seconds
+          if (now - lastRefresh < 30000) {
+            console.log(`Token refresh skipped - last refresh was ${Math.round((now - lastRefresh)/1000)}s ago`);
+            return true; // Return true to prevent auth failures during the cooldown
+          }
+
+          const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+
+          if (!refreshToken) {
+            console.warn('No refresh token available');
+            return false;
+          }
+
+          // Log the token prefix to debug auth issues without exposing the full token
+          const tokenPrefix = refreshToken.substring(0, 10) + '...';
+          console.log(`Attempting to refresh with token prefix: ${tokenPrefix}`);
+
+          // Make the request to refresh the token
           const response = await authApi.refreshToken();
 
           if (response) {
+            console.log('Token refresh successful');
             set({
               token: response.access_token,
               isAuthenticated: true,
+              _lastTokenRefresh: Date.now(), // Update the timestamp
             });
             return true;
           }
 
+          console.warn('Token refresh failed - no valid response');
           return false;
-        } catch {
+        } catch (error) {
+          console.error('Token refresh error:', error);
           // Don't clear auth state on refresh errors, just return false
           return false;
         }

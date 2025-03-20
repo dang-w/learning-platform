@@ -67,8 +67,14 @@ export default function KnowledgePage() {
   const dueConceptsArray = dueConcepts || [];
   const hasDueConcepts = dueConceptsArray.length > 0;
 
-  const hasTopics = hasStatistics && statistics?.topics && statistics.topics.length > 0;
-  const conceptsByTopic = hasStatistics && statistics?.topics
+  // Check if topics is an array and not empty before using reduce
+  const hasTopics = hasStatistics &&
+    statistics?.topics &&
+    Array.isArray(statistics.topics) &&
+    statistics.topics.length > 0;
+
+  // Process topics with safety checks
+  const conceptsByTopic = hasStatistics && hasTopics
     ? statistics.topics.reduce<Record<string, number>>((acc, topic) => {
         if (typeof topic === 'string') {
           return { ...acc, [topic]: statistics.concepts_by_topic?.[topic] || 0 };

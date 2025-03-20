@@ -1,7 +1,7 @@
 import apiClient, { withBackoff } from './client';
 import { AxiosError } from 'axios';
 import axios from 'axios';
-import { API_URL } from '@/config';
+import { API_URL, BACKEND_API_URL } from '@/config';
 
 export interface LoginCredentials {
   username: string;
@@ -62,8 +62,9 @@ const authApi = {
     formData.append('password', credentials.password);
 
     try {
+      // Make direct request to the backend auth token endpoint
       const response = await withBackoff(() =>
-        apiClient.post<AuthResponse>('/token', formData, {
+        axios.post<AuthResponse>(`${BACKEND_API_URL}/auth/token`, formData, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
@@ -77,7 +78,14 @@ const authApi = {
 
         // Create a session for this login
         try {
-          const sessionResponse = await apiClient.post('/sessions/');
+          // Use direct backend URL for session creation too
+          const sessionResponse = await axios.post(`${BACKEND_API_URL}/sessions/`, {}, {
+            headers: {
+              'Authorization': `Bearer ${response.data.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
           if (sessionResponse.data && sessionResponse.data.session_id) {
             localStorage.setItem('sessionId', sessionResponse.data.session_id);
           }
@@ -97,8 +105,16 @@ const authApi = {
       const axiosError = error as AxiosError<ApiErrorResponse>;
 
       if (axiosError.response?.status === 401) {
+        // Check if this is a "user not found" error after registration
+        if (axiosError.response?.data?.detail?.includes('user not found')) {
+          throw new Error('Account created. Please wait a moment and try logging in again.');
+        }
         throw new Error('Invalid username or password. Please try again.');
       } else if (axiosError.response?.data?.detail) {
+        // Check if this is a "user not found" error after registration
+        if (axiosError.response.data.detail.includes('user not found')) {
+          throw new Error('Account created. Please wait a moment and try logging in again.');
+        }
         throw new Error(`Authentication failed: ${axiosError.response.data.detail}`);
       } else {
         throw new Error('Authentication failed. Please try again later.');
@@ -108,20 +124,53 @@ const authApi = {
 
   register: async (data: RegisterData): Promise<User> => {
     try {
-      const response = await apiClient.post<User>('/users/', data);
+      // Make direct request to the backend users endpoint
+      const response = await axios.post<User>(`${BACKEND_API_URL}/users/`, data, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
       return response.data;
     } catch (error) {
       console.error('Registration API error:', error);
 
       const axiosError = error as AxiosError<ApiErrorResponse>;
 
+      // More detailed logging to help debug registration issues
+      if (axiosError.response) {
+        console.log('Registration error response:', {
+          status: axiosError.response.status,
+          data: axiosError.response.data,
+        });
+      }
+
       if (axiosError.response?.status === 400 && axiosError.response?.data) {
         // Extract validation error details
         const details = axiosError.response.data;
-        if (details.username) throw new Error(`Username: ${details.username}`);
-        if (details.email) throw new Error(`Email: ${details.email}`);
-        if (details.password) throw new Error(`Password: ${details.password}`);
-        if (details.detail) throw new Error(details.detail);
+
+        // Check for specific error messages
+        if (details.detail) {
+          if (typeof details.detail === 'string') {
+            if (details.detail.includes("Username already registered")) {
+              throw new Error(`Username is already taken. Please choose another username.`);
+            }
+            if (details.detail.includes("Email already registered")) {
+              throw new Error(`Email is already registered. Please use another email address.`);
+            }
+            if (details.detail.includes("Password too weak")) {
+              throw new Error(`Password is too weak. It must include uppercase, lowercase, number, and special character.`);
+            }
+
+            // If it's another known error, return it directly
+            throw new Error(details.detail);
+          }
+        }
+
+        // Generic error handling for field-specific errors
+        if (details.username && Array.isArray(details.username)) throw new Error(`Username: ${details.username[0]}`);
+        if (details.email && Array.isArray(details.email)) throw new Error(`Email: ${details.email[0]}`);
+        if (details.password && Array.isArray(details.password)) throw new Error(`Password: ${details.password[0]}`);
       }
 
       throw new Error('Registration failed. Please try again later.');
@@ -137,9 +186,8 @@ const authApi = {
         throw new Error('Authentication token not found');
       }
 
-      // Make a direct request to the backend
-      const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${backendUrl}/users/me/`, {
+      // Make a direct request to the backend - use path without trailing slash to avoid 307 redirects
+      const response = await fetch(`${BACKEND_API_URL}/users/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -172,7 +220,7 @@ const authApi = {
         return null;
       }
 
-      const response = await apiClient.post<AuthResponse>('/token/refresh', {
+      const response = await apiClient.post<AuthResponse>('/auth/token/refresh', {
         refresh_token: refreshToken
       });
 

@@ -14,7 +14,7 @@ import {
   ChartOptions,
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
-import progressApi from '@/lib/api/progress'
+import progressApi, { MetricsSummary } from '@/lib/api/progress'
 import { useState } from 'react'
 import { format, subDays } from 'date-fns'
 
@@ -30,15 +30,27 @@ ChartJS.register(
   Legend
 )
 
+// Default empty metrics summary to use when data is not available
+const emptyMetricsSummary: MetricsSummary = {
+  total_hours: 0,
+  average_focus: 0,
+  most_studied_topics: [],
+  streak_days: 0,
+  recent_metrics: []
+}
+
 export function StudyMetrics() {
   const [timeRange, setTimeRange] = useState<'7days' | '30days' | '90days'>('7days')
 
-  const { data: metricsSummary, isLoading } = useQuery({
+  const { data: metricsData, isLoading } = useQuery({
     queryKey: ['metricsSummary', timeRange],
     queryFn: () => progressApi.getRecentMetricsSummary(
       timeRange === '7days' ? 7 : timeRange === '30days' ? 30 : 90
     ),
   })
+
+  // Create a safe version of the data with fallbacks
+  const metricsSummary = metricsData || emptyMetricsSummary
 
   const { data: metrics } = useQuery({
     queryKey: ['metrics', timeRange],
@@ -206,19 +218,19 @@ export function StudyMetrics() {
               <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-blue-700">Total Study Hours</p>
                 <p className="text-2xl font-bold text-blue-900">
-                  {metricsSummary?.total_hours.toFixed(1) || 0}
+                  {metricsSummary?.total_hours?.toFixed(1 || 0)}
                 </p>
               </div>
               <div className="bg-purple-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-purple-700">Average Focus</p>
                 <p className="text-2xl font-bold text-purple-900">
-                  {metricsSummary?.average_focus.toFixed(1) || 0}/10
+                  {metricsSummary?.average_focus?.toFixed(1) || 0}/10
                 </p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-green-700">Streak</p>
                 <p className="text-2xl font-bold text-green-900">
-                  {metricsSummary?.streak_days || 0} days
+                  {metricsSummary.streak_days || 0} days
                 </p>
               </div>
             </div>

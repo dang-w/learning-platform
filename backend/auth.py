@@ -21,22 +21,34 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Constants
-SECRET_KEY = "test_secret_key_for_testing"  # Change in production
+SECRET_KEY = os.getenv("SECRET_KEY", "test_secret_key_for_testing")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+REDIS_ENABLED = os.getenv("REDIS_ENABLED", "true").lower() == "true"
 
-try:
-    redis_client = redis.Redis.from_url(REDIS_URL, db=REDIS_DB, decode_responses=True)
-    redis_client.ping()  # Test connection
-    logger.info("Successfully connected to Redis")
-except redis.ConnectionError as e:
-    logger.error(f"Failed to connect to Redis: {str(e)}")
-    redis_client = None
+# Initialize redis client
+redis_client = None
+
+# Only attempt Redis connection if enabled
+if REDIS_ENABLED:
+    try:
+        redis_client = redis.Redis.from_url(REDIS_URL, db=REDIS_DB, decode_responses=True, socket_timeout=2.0)
+        redis_client.ping()  # Test connection with a short timeout
+        logger.info("Successfully connected to Redis")
+    except redis.ConnectionError as e:
+        logger.warning(f"Failed to connect to Redis: {str(e)}")
+        logger.warning("Token reuse prevention will be disabled")
+        redis_client = None
+    except Exception as e:
+        logger.error(f"Unexpected Redis error: {str(e)}")
+        redis_client = None
+else:
+    logger.info("Redis disabled by configuration. Token reuse prevention will be disabled.")
 
 # Database connection - import the get_db function instead of db directly
 # This makes it easier to mock the database for testing
@@ -143,17 +155,29 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        logger.debug("Attempting to decode JWT token")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
         username: str = payload.get("sub")
         if username is None:
+            logger.warning("Token missing 'sub' claim")
             raise credentials_exception
+
         token_data = TokenData(username=username)
-    except JWTError:
+        logger.debug(f"JWT token decoded for user: {username}")
+    except JWTError as e:
+        logger.error(f"JWT decode error: {str(e)}")
         raise credentials_exception
-    user = await get_user(username=token_data.username)
-    if user is None:
+
+    try:
+        user = await get_user(username=token_data.username)
+        if user is None:
+            logger.warning(f"User not found: {token_data.username}")
+            raise credentials_exception
+        return user
+    except Exception as e:
+        logger.error(f"Failed to get user: {str(e)}")
         raise credentials_exception
-    return user
 
 async def get_current_active_user(current_user: dict = Depends(get_current_user)) -> dict:
     """Get current active user."""
@@ -164,12 +188,17 @@ async def get_current_active_user(current_user: dict = Depends(get_current_user)
 def verify_refresh_token(token: str) -> Optional[Dict[str, Any]]:
     """Verify a refresh token and return its payload if valid."""
     try:
+        logger.debug(f"Attempting to verify refresh token")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        # Verify token type
         if payload.get("type") != "refresh":
+            logger.debug("Token type is not 'refresh'")
             return None
 
         # Check if token has been used before
         if redis_client and redis_client.get(f"used_token:{token}"):
+            logger.debug("Token has been used before")
             return None
 
         # Mark token as used in Redis with expiration
@@ -179,7 +208,14 @@ def verify_refresh_token(token: str) -> Optional[Dict[str, Any]]:
             if exp:
                 ttl = max(0, int(exp - datetime.utcnow().timestamp()))
                 redis_client.setex(f"used_token:{token}", ttl, "1")
+                logger.debug(f"Token marked as used with TTL: {ttl}")
+        else:
+            logger.warning("Redis client not available, token reuse prevention disabled")
 
         return payload
-    except JWTError:
+    except JWTError as e:
+        logger.debug(f"Failed to verify refresh token: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error verifying refresh token: {str(e)}")
         return None

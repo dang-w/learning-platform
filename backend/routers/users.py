@@ -85,6 +85,14 @@ def normalize_user_data(user_dict: dict) -> dict:
     # Create a copy of the user dict to avoid modifying the original
     user_data = dict(user_dict)
 
+    # Convert MongoDB _id to id expected by Pydantic
+    if "_id" in user_data and "id" not in user_data:
+        # Convert ObjectId to string if needed
+        if hasattr(user_data["_id"], "__str__"):
+            user_data["id"] = str(user_data["_id"])
+        else:
+            user_data["id"] = user_data["_id"]
+
     # Handle resources field
     if "resources" not in user_data or not isinstance(user_data["resources"], dict):
         user_data["resources"] = {
@@ -118,9 +126,13 @@ def normalize_user_data(user_dict: dict) -> dict:
     if "is_active" not in user_data:
         user_data["is_active"] = True
 
+    # Ensure created_at is present
+    if "created_at" not in user_data:
+        user_data["created_at"] = datetime.utcnow()
+
     return user_data
 
-@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency(limit=3, window=3600, key_prefix="user_creation"))])
+@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency(limit=10, window=600, key_prefix="user_creation"))])
 async def create_user(user: UserCreate, request: Request):
     """Create a new user."""
     try:
@@ -140,6 +152,7 @@ async def create_user(user: UserCreate, request: Request):
 
         # Check if username already exists
         if await db.users.find_one({"username": user.username}):
+            logger.warning(f"Username already exists: {user.username}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already registered"
@@ -147,6 +160,7 @@ async def create_user(user: UserCreate, request: Request):
 
         # Check if email already exists
         if await db.users.find_one({"email": user.email}):
+            logger.warning(f"Email already exists: {user.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
@@ -173,6 +187,10 @@ async def create_user(user: UserCreate, request: Request):
         logger.info(f"Created new user: {user.username}")
         return User(**user_dict)
 
+    except HTTPException as he:
+        # Re-raise HTTP exceptions directly to preserve status code and detail
+        logger.warning(f"HTTP error during user creation: {he.status_code}: {he.detail}")
+        raise
     except Exception as e:
         logger.error(f"Error creating user: {str(e)}")
         raise HTTPException(
@@ -183,6 +201,19 @@ async def create_user(user: UserCreate, request: Request):
 @router.get("/me", response_model=User)
 async def read_users_me(current_user: dict = Depends(get_current_active_user)):
     """Get current user profile."""
+    # Check if current_user is already a User object or MockUser (for tests)
+    if hasattr(current_user, 'model_dump') and callable(current_user.model_dump):
+        user_data = current_user.model_dump()
+    elif hasattr(current_user, 'dict') and callable(current_user.dict):
+        user_data = current_user.dict()
+    else:
+        # Normalize user data to ensure it conforms to the User model
+        user_data = normalize_user_data(current_user)
+    return User(**user_data)
+
+@router.get("/me", response_model=User)
+async def read_users_me_no_slash(current_user: dict = Depends(get_current_active_user)):
+    """Get current user profile (endpoint without trailing slash)."""
     # Check if current_user is already a User object or MockUser (for tests)
     if hasattr(current_user, 'model_dump') and callable(current_user.model_dump):
         user_data = current_user.model_dump()
