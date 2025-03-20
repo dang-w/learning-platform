@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { withBackoff } from './client';
 import { AxiosError } from 'axios';
 
 export interface LoginCredentials {
@@ -41,11 +41,13 @@ const authApi = {
     formData.append('password', credentials.password);
 
     try {
-      const response = await apiClient.post<AuthResponse>('/token', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
+      const response = await withBackoff(() =>
+        apiClient.post<AuthResponse>('/token', formData, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        })
+      );
 
       // Store tokens in localStorage
       if (response.data.access_token && response.data.refresh_token && typeof window !== 'undefined') {

@@ -98,12 +98,14 @@ export const ResourceForm = ({
             type="url"
             placeholder="Enter resource URL"
             className="flex-1"
+            data-testid="resource-url"
           />
           <Button
             type="button"
             onClick={handleExtractMetadata}
             disabled={isExtracting}
             variant="secondary"
+            data-testid="extract-metadata"
           >
             {isExtracting ? 'Extracting...' : 'Extract Metadata'}
           </Button>
@@ -121,6 +123,7 @@ export const ResourceForm = ({
           id="title"
           {...register('title')}
           placeholder="Resource title"
+          data-testid="resource-title-input"
         />
         {errors.title && <FormError>{errors.title.message}</FormError>}
       </FormGroup>
@@ -132,6 +135,7 @@ export const ResourceForm = ({
           {...register('description')}
           placeholder="Resource description"
           className="w-full h-32 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="resource-description"
         />
         {errors.description && <FormError>{errors.description.message}</FormError>}
       </FormGroup>
@@ -142,12 +146,13 @@ export const ResourceForm = ({
           id="resourceType"
           {...register('resourceType')}
           className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="resource-type"
         >
           <option value="">Select Resource Type</option>
-          <option value="articles">Article</option>
-          <option value="videos">Video</option>
-          <option value="courses">Course</option>
-          <option value="books">Book</option>
+          <option value="articles" data-testid="resource-type-articles">Article</option>
+          <option value="videos" data-testid="resource-type-videos">Video</option>
+          <option value="courses" data-testid="resource-type-courses">Course</option>
+          <option value="books" data-testid="resource-type-books">Book</option>
         </select>
         {errors.resourceType && <FormError>{errors.resourceType.message}</FormError>}
       </FormGroup>
@@ -159,6 +164,7 @@ export const ResourceForm = ({
           {...register('estimated_time', { valueAsNumber: true })}
           type="number"
           placeholder="Estimated completion time"
+          data-testid="resource-estimated-time"
         />
         {errors.estimated_time && <FormError>{errors.estimated_time.message}</FormError>}
       </FormGroup>
@@ -169,13 +175,60 @@ export const ResourceForm = ({
           id="difficulty"
           {...register('difficulty')}
           className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          data-testid="resource-difficulty"
         >
           <option value="">Select Difficulty</option>
-          <option value="beginner">Beginner</option>
-          <option value="intermediate">Intermediate</option>
-          <option value="advanced">Advanced</option>
+          <option value="beginner" data-testid="resource-difficulty-beginner">Beginner</option>
+          <option value="intermediate" data-testid="resource-difficulty-intermediate">Intermediate</option>
+          <option value="advanced" data-testid="resource-difficulty-advanced">Advanced</option>
         </select>
         {errors.difficulty && <FormError>{errors.difficulty.message}</FormError>}
+      </FormGroup>
+
+      <FormGroup>
+        <Label htmlFor="topics">Topics</Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {watch('topics')?.map((topic, index) => (
+            <span
+              key={index}
+              className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center"
+            >
+              {topic}
+              <button
+                type="button"
+                className="ml-1.5 text-blue-600 hover:text-blue-800"
+                onClick={() => {
+                  const currentTopics = watch('topics').filter((_, i) => i !== index);
+                  setValue('topics', currentTopics, { shouldValidate: true });
+                }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex">
+          <Input
+            id="topics-input"
+            placeholder="Add a topic and press Enter"
+            data-testid="resource-topics"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const target = e.target as HTMLInputElement;
+                const value = target.value.trim();
+                if (value) {
+                  const currentTopics = watch('topics') || [];
+                  if (!currentTopics.includes(value)) {
+                    setValue('topics', [...currentTopics, value], { shouldValidate: true });
+                  }
+                  target.value = '';
+                }
+              }
+            }}
+          />
+        </div>
+        {errors.topics && <FormError>{errors.topics.message}</FormError>}
       </FormGroup>
 
       <div className="flex gap-4 justify-end">
@@ -183,12 +236,14 @@ export const ResourceForm = ({
           type="button"
           onClick={onCancel}
           variant="outline"
+          data-testid="cancel-button"
         >
           Cancel
         </Button>
         <Button
           type="submit"
           disabled={isSubmitting}
+          data-testid="submit-button"
         >
           {isSubmitting ? 'Saving...' : resource ? 'Update Resource' : 'Create Resource'}
         </Button>

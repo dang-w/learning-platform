@@ -17,7 +17,9 @@ export async function POST(request: NextRequest) {
 
     // Forward the request to the backend API
     const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${backendUrl}/resources/batch`, {
+
+    // First try the /api/resources/batch endpoint
+    let response = await fetch(`${backendUrl}/api/resources/batch`, {
       method: 'POST',
       body: JSON.stringify(body),
       headers: {
@@ -25,6 +27,19 @@ export async function POST(request: NextRequest) {
         'Authorization': authHeader,
       },
     });
+
+    // If that fails with a 404, try the /batch endpoint
+    if (response.status === 404) {
+      console.log('Batch endpoint not found at /api/resources/batch, trying /batch');
+      response = await fetch(`${backendUrl}/batch`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,
+        },
+      });
+    }
 
     // Get the response data
     const data = await response.json();

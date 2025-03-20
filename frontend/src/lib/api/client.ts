@@ -72,15 +72,122 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Add retry functionality for failed requests
+export const withRetry = async <T>(
+  requestFn: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry if it's a client error (4xx) except for rate limiting (429)
+      if (axios.isAxiosError(error) && error.response && error.response.status >= 400 && error.response.status < 500 && error.response.status !== 429) {
+        break;
+      }
+
+      // Wait before retrying
+      if (attempt < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+// Add exponential backoff for rate-limited requests
+export const withBackoff = async <T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> => {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 429) {
+        // Get retry delay from headers
+        const retryAfter = parseInt(error.response.headers['retry-after'] || '0', 10);
+        const resetTime = parseInt(error.response.headers['x-ratelimit-reset'] || '0', 10);
+        const remaining = parseInt(error.response.headers['x-ratelimit-remaining'] || '0', 10);
+        const limit = parseInt(error.response.headers['x-ratelimit-limit'] || '0', 10);
+
+        // Calculate delay based on headers or fallback to exponential backoff
+        let delay: number;
+        if (retryAfter > 0) {
+          // Use the server's suggested retry delay
+          delay = retryAfter * 1000;
+        } else if (resetTime > 0) {
+          // Use time until rate limit reset
+          const now = Math.floor(Date.now() / 1000);
+          delay = Math.max(0, (resetTime - now) * 1000);
+        } else {
+          // Fallback to exponential backoff
+          delay = Math.pow(2, attempt) * 1000;
+        }
+
+        // Log rate limit info for debugging
+        console.warn(`Rate limit info - Remaining: ${remaining}/${limit}, Reset: ${new Date(resetTime * 1000).toISOString()}`);
+        console.warn(`Retrying after ${delay}ms delay...`);
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Max retry attempts reached');
+};
+
 // Response interceptor
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Store rate limit info in response headers for monitoring
+    const rateLimitHeaders = {
+      limit: response.headers['x-ratelimit-limit'],
+      remaining: response.headers['x-ratelimit-remaining'],
+      reset: response.headers['x-ratelimit-reset']
+    };
+
+    if (rateLimitHeaders.remaining) {
+      // Log when approaching rate limit
+      const remaining = parseInt(rateLimitHeaders.remaining, 10);
+      const limit = parseInt(rateLimitHeaders.limit || '0', 10);
+      if (remaining < limit * 0.2) { // Warning at 20% remaining
+        console.warn(`Rate limit warning: ${remaining}/${limit} requests remaining`);
+      }
+    }
+
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
     // Handle network errors
     if (!error.response) {
       return Promise.reject(handleNetworkError(error));
+    }
+
+    // Handle rate limiting with exponential backoff
+    if (error.response?.status === 429 && !originalRequest._backoff) {
+      originalRequest._backoff = true;
+      try {
+        return await withBackoff(() => apiClient(originalRequest));
+      } catch (backoffError) {
+        // Add rate limit context to error
+        if (error.response?.headers) {
+          const rateLimitInfo = {
+            limit: error.response.headers['x-ratelimit-limit'],
+            remaining: error.response.headers['x-ratelimit-remaining'],
+            reset: error.response.headers['x-ratelimit-reset'],
+            retryAfter: error.response.headers['retry-after']
+          };
+          console.error('Rate limit exceeded:', rateLimitInfo);
+        }
+        return Promise.reject(backoffError);
+      }
     }
 
     // Handle 401 errors (unauthorized)
@@ -164,34 +271,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Add retry functionality for failed requests
-export const withRetry = async <T>(
-  requestFn: () => Promise<T>,
-  retries = 3,
-  delay = 1000
-): Promise<T> => {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      return await requestFn();
-    } catch (error) {
-      lastError = error;
-
-      // Don't retry if it's a client error (4xx)
-      if (axios.isAxiosError(error) && error.response && error.response.status >= 400 && error.response.status < 500) {
-        break;
-      }
-
-      // Wait before retrying
-      if (attempt < retries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
-      }
-    }
-  }
-
-  throw lastError;
-};
 
 export default apiClient;

@@ -682,3 +682,97 @@ async def create_batch_resources(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create resources: {str(e)}"
         )
+
+@router.post("/batch", response_model=List[Dict[str, Any]], status_code=status.HTTP_201_CREATED)
+async def create_batch_resources_api(
+    batch_data: ResourceBatchRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Create multiple resources in a single batch request.
+    This endpoint is specifically designed to match frontend expectations.
+    """
+    try:
+        # Extract username from current_user
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+        if not username:
+            logger.error("Username not found in current_user object")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User information is incomplete"
+            )
+
+        # Array to store created resources
+        created_resources = []
+
+        # Process each resource
+        for idx, resource_data in enumerate(batch_data.resources):
+            try:
+                # Validate resource type
+                resource_type = resource_data.get("type") or resource_data.get("resource_type", "articles")
+                if not validate_resource_type(resource_type):
+                    resource_type = "articles"  # Default to articles if invalid
+
+                # Validate URL
+                url = resource_data.get("url", "")
+                if not validate_url(url):
+                    url = "https://example.com/invalid"  # Default URL if invalid
+
+                # Get next ID for this resource type
+                resource_id = await get_next_resource_id(db, username, resource_type)
+
+                # Create resource object
+                new_resource = {
+                    "id": resource_id,
+                    "title": resource_data.get("title", f"Resource {resource_id}"),
+                    "url": url,
+                    "topics": resource_data.get("tags", []) or resource_data.get("topics", []),
+                    "difficulty": resource_data.get("difficulty", "beginner"),
+                    "estimated_time": resource_data.get("estimated_time", 30),
+                    "completed": False,
+                    "date_added": datetime.now().isoformat(),
+                    "notes": resource_data.get("notes", "") or resource_data.get("description", "")
+                }
+
+                # Initialize resources collection for this user if it doesn't exist
+                user = await db.users.find_one({"username": username})
+                if "resources" not in user:
+                    await db.users.update_one(
+                        {"username": username},
+                        {"$set": {"resources": {}}}
+                    )
+
+                # Initialize resource type collection if it doesn't exist
+                if resource_type not in user.get("resources", {}):
+                    await db.users.update_one(
+                        {"username": username},
+                        {"$set": {f"resources.{resource_type}": []}}
+                    )
+
+                # Add resource to user's resources
+                await db.users.update_one(
+                    {"username": username},
+                    {"$push": {f"resources.{resource_type}": new_resource}}
+                )
+
+                # Add to created resources list
+                created_resources.append({
+                    **new_resource,
+                    "resource_type": resource_type
+                })
+
+                logger.info(f"Created resource {resource_id} of type {resource_type} for user {username}")
+
+            except Exception as e:
+                logger.error(f"Error creating resource item {idx}: {str(e)}")
+                # Continue to next resource if one fails
+
+        return created_resources
+
+    except Exception as e:
+        logger.error(f"Error in batch resource creation: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create resources: {str(e)}"
+        )

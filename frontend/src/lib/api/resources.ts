@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios'
-import apiClient from './client'
+import apiClient, { withBackoff } from './client'
 import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resources'
 
 export interface ResourceStatistics {
@@ -34,7 +34,7 @@ class ResourcesApi {
 
   async getAllResources(): Promise<Resource[]> {
     try {
-      const { data } = await apiClient.get<Resource[]>('/api/resources')
+      const { data } = await withBackoff(() => apiClient.get<Resource[]>('/api/resources'))
       return data
     } catch (error) {
       return this.handleError(error)
@@ -43,7 +43,7 @@ class ResourcesApi {
 
   async getResourcesByType(type: ResourceType): Promise<Resource[]> {
     try {
-      const { data } = await apiClient.get<Resource[]>(`/api/resources/${type}`)
+      const { data } = await withBackoff(() => apiClient.get<Resource[]>(`/api/resources/${type}`))
       return data
     } catch (error) {
       return this.handleError(error)
@@ -52,7 +52,7 @@ class ResourcesApi {
 
   async createResource(type: ResourceType, resource: ResourceCreateInput): Promise<Resource> {
     try {
-      const { data } = await apiClient.post<Resource>(`/api/resources/${type}`, resource)
+      const { data } = await withBackoff(() => apiClient.post<Resource>(`/api/resources/${type}`, resource))
       return data
     } catch (error) {
       return this.handleError(error)
@@ -61,7 +61,7 @@ class ResourcesApi {
 
   async updateResource(type: ResourceType, id: string, resource: ResourceUpdateInput): Promise<Resource> {
     try {
-      const { data } = await apiClient.put<Resource>(`/api/resources/${type}/${id}`, resource)
+      const { data } = await withBackoff(() => apiClient.put<Resource>(`/api/resources/${type}/${id}`, resource))
       return data
     } catch (error) {
       return this.handleError(error)
@@ -70,7 +70,7 @@ class ResourcesApi {
 
   async deleteResource(type: ResourceType, id: string): Promise<void> {
     try {
-      await apiClient.delete(`/api/resources/${type}/${id}`)
+      await withBackoff(() => apiClient.delete(`/api/resources/${type}/${id}`))
     } catch (error) {
       this.handleError(error)
     }
@@ -78,7 +78,7 @@ class ResourcesApi {
 
   async completeResource(type: ResourceType, id: string, notes: string): Promise<Resource> {
     try {
-      const { data } = await apiClient.post<Resource>(`/api/resources/${type}/${id}/complete`, { notes })
+      const { data } = await withBackoff(() => apiClient.post<Resource>(`/api/resources/${type}/${id}/complete`, { notes }))
       return data
     } catch (error) {
       return this.handleError(error)
@@ -87,7 +87,7 @@ class ResourcesApi {
 
   async toggleResourceCompletion(type: ResourceType, id: string): Promise<Resource> {
     try {
-      const { data } = await apiClient.post<Resource>(`/api/resources/${type}/${id}/toggle-completion`)
+      const { data } = await withBackoff(() => apiClient.post<Resource>(`/api/resources/${type}/${id}/toggle-completion`))
       return data
     } catch (error) {
       return this.handleError(error)
@@ -96,7 +96,7 @@ class ResourcesApi {
 
   async getResourceStatistics(): Promise<ResourceStatistics> {
     try {
-      const { data } = await apiClient.get<ResourceStatistics>('/api/resources/statistics')
+      const { data } = await withBackoff(() => apiClient.get<ResourceStatistics>('/api/resources/statistics'))
       return data
     } catch (error) {
       return this.handleError(error)
@@ -108,6 +108,6 @@ export const resourcesApi = new ResourcesApi()
 export default resourcesApi
 
 export async function fetchResourceStats(): Promise<ResourceStats> {
-  const response = await apiClient.get<ResourceStats>('/api/resources/stats')
+  const response = await withBackoff(() => apiClient.get<ResourceStats>('/api/resources/stats'))
   return response.data
 }
