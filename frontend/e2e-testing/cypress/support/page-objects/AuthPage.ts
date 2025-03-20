@@ -119,11 +119,11 @@ export class AuthPage extends BasePage {
     // Wait for redirect or token to be set
     cy.wait(2000);
 
-    // Check for successful login - avoid nesting cy commands
+    // Check for successful login - fixed chaining issue
     cy.log('Checking if login was successful');
-    cy.window().then(win => {
-      const token = win.localStorage.getItem('token');
-      cy.log(token ? 'Login successful - token was set in localStorage' : 'Login might have failed - token not found in localStorage');
+    // Use an alias to properly chain the commands
+    cy.window().its('localStorage').invoke('getItem', 'token').as('authToken');
+    cy.get('@authToken').then(token => {
       if (!token) {
         this.takeScreenshot('login-attempt');
       }
@@ -147,12 +147,10 @@ export class AuthPage extends BasePage {
     // Wait for redirect or response
     cy.wait(2000);
 
-    // Check for successful registration - avoid nesting cy commands
-    cy.url().then(url => {
-      const isStillOnRegisterPage = url.includes('/register');
-      cy.log(isStillOnRegisterPage ?
-        'Registration might have failed - still on registration page' :
-        'Registration successful - redirected away from registration page');
+    // Check for successful registration - fixed chaining issue
+    cy.url().as('currentUrl');
+    cy.get('@currentUrl').then(url => {
+      const isStillOnRegisterPage = String(url).includes('/register');
 
       if (isStillOnRegisterPage) {
         this.takeScreenshot('registration-attempt');
@@ -165,12 +163,13 @@ export class AuthPage extends BasePage {
    * @returns Boolean indicating if validation errors are present
    */
   hasValidationErrors(): Cypress.Chainable<boolean> {
-    return cy.get('body').then($body => {
-      const bodyText = $body.text().toLowerCase();
+    // Using a different approach to avoid Promise chaining issues
+    return cy.document().then(doc => {
+      const bodyText = doc.body.textContent?.toLowerCase() || '';
       const hasInvalidText = bodyText.indexOf('invalid') >= 0;
       const hasErrorText = bodyText.indexOf('error') >= 0;
       const hasRequiredText = bodyText.indexOf('required') >= 0;
-      const hasErrorElements = $body.find('[data-testid*="error"]').length > 0;
+      const hasErrorElements = doc.querySelectorAll('[data-testid*="error"]').length > 0;
 
       return hasInvalidText || hasErrorText || hasRequiredText || hasErrorElements;
     });

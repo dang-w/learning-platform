@@ -191,84 +191,153 @@ export default function ReviewSessionPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Review Session</h1>
-        <div className="text-gray-500">
-          {currentIndex + 1} of {dueConcepts.length}
-        </div>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Review Session</h1>
+        <Button
+          onClick={handleBackToDashboard}
+          variant="outline"
+        >
+          Back to Dashboard
+        </Button>
       </div>
 
-      {currentConcept && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6" data-testid="review-session">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-2xl font-semibold">{currentConcept.title}</h2>
-            <Badge variant="secondary">{currentConcept.difficulty}</Badge>
+      {errorMessage && (
+        <Alert variant="error" className="mb-6">
+          <div className="flex justify-between items-center">
+            <div>{errorMessage}</div>
+            <Button onClick={handleRetry} size="sm">Retry</Button>
+          </div>
+        </Alert>
+      )}
+
+      {isInitializingSession ? (
+        <div className="flex justify-center my-12">
+          <Spinner size="lg" />
+        </div>
+      ) : dueConcepts.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-md p-8 text-center"  data-testid="review-complete">
+          <h2 className="text-xl font-semibold mb-2">No Concepts Due for Review</h2>
+          <p className="text-gray-600 mb-6">
+            You&apos;re all caught up! There are no concepts due for review at this time.
+          </p>
+          <Button
+            onClick={handleBackToDashboard}
+            data-testid="return-to-dashboard-button"
+          >
+            Return to Dashboard
+          </Button>
+        </div>
+      ) : sessionComplete ? (
+        <div className="bg-white rounded-lg shadow-md p-8 text-center" data-testid="review-complete">
+          <h2 className="text-xl font-semibold mb-2">Review Session Complete</h2>
+          <p className="text-gray-600 mb-6">
+            You have completed reviewing all due concepts. Great job!
+          </p>
+          <div className="flex justify-center">
+            <Button
+              onClick={handleBackToDashboard}
+              className="mx-2"
+              data-testid="return-to-dashboard-button"
+            >
+              Return to Dashboard
+            </Button>
+            <Button
+              onClick={handleRetry}
+              variant="outline"
+              className="mx-2"
+            >
+              Start New Session
+            </Button>
+          </div>
+        </div>
+      ) : currentConcept ? (
+        <div className="bg-white rounded-lg shadow-md" data-testid="review-session">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">{currentConcept.title}</h2>
+              <Badge>{`${currentIndex + 1} of ${dueConcepts.length}`}</Badge>
+            </div>
+            <div className="flex space-x-2 mb-4">
+              {currentConcept.topics.map(topic => (
+                <Badge key={topic} variant="secondary">{topic}</Badge>
+              ))}
+            </div>
           </div>
 
-          <div className="mb-6">
-            <h3 className="text-lg font-medium mb-2">Review this concept:</h3>
+          <div className="p-6" data-testid="concept-content">
             {!showAnswer ? (
-              <div className="p-6 bg-gray-50 rounded-lg mb-4">
-                <p className="text-gray-700">Try to recall the details of this concept before revealing the answer.</p>
-                <div className="mt-4">
-                  <Button onClick={() => setShowAnswer(true)}>Show Answer</Button>
-                </div>
+              <div>
+                <p className="text-lg font-medium mb-4">Try to recall this concept:</p>
+                <Button
+                  onClick={() => setShowAnswer(true)}
+                  className="w-full"
+                >
+                  Show Answer
+                </Button>
               </div>
             ) : (
-              <div className="p-6 bg-gray-50 rounded-lg mb-4 prose max-w-none" data-testid="concept-content">
-                <ReactMarkdown>{currentConcept.content}</ReactMarkdown>
+              <div>
+                <div className="prose max-w-none mb-8">
+                  <ReactMarkdown>{currentConcept.content}</ReactMarkdown>
+                </div>
+
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-medium mb-4">How well did you recall this concept?</h3>
+                  <div className="grid grid-cols-5 gap-2 mb-6">
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => handleConfidenceSelect(level)}
+                        className={`py-3 px-4 rounded-md text-center transition-colors ${
+                          confidenceLevel === level
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        }`}
+                        data-testid={`recall-rating-${level}`}
+                      >
+                        {level === 1 && 'Very Hard'}
+                        {level === 2 && 'Hard'}
+                        {level === 3 && 'Medium'}
+                        {level === 4 && 'Easy'}
+                        {level === 5 && 'Very Easy'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes (optional):
+                    </label>
+                    <textarea
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      className="w-full p-2 border rounded-md"
+                      rows={3}
+                      placeholder="Add any notes about this review..."
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleReviewSubmit}
+                      disabled={confidenceLevel === 0 || isSubmitting}
+                      data-testid="submit-review-button"
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
-
-          {showAnswer && (
-            <>
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">How well did you recall this concept?</h3>
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5].map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => handleConfidenceSelect(level)}
-                      className={`px-4 py-2 rounded-md flex-1 ${
-                        confidenceLevel === level
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                      }`}
-                      data-testid={`recall-rating-${level}`}
-                    >
-                      {level === 1 && 'Not at all (1)'}
-                      {level === 2 && 'Barely (2)'}
-                      {level === 3 && 'Somewhat (3)'}
-                      {level === 4 && 'Mostly (4)'}
-                      {level === 5 && 'Perfectly (5)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Notes (Optional)</h3>
-                <textarea
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  placeholder="Add any notes about your understanding of this concept..."
-                  className="w-full h-32 p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleReviewSubmit}
-                  disabled={isSubmitting || confidenceLevel === 0}
-                  variant="default"
-                  data-testid="submit-review-button"
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit & Continue'}
-                </Button>
-              </div>
-            </>
-          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <h2 className="text-xl font-semibold mb-2">No Concept Available</h2>
+          <p className="text-gray-600 mb-6">
+            There was an issue loading the current concept. Please try again.
+          </p>
+          <Button onClick={handleRetry}>Retry</Button>
         </div>
       )}
     </div>

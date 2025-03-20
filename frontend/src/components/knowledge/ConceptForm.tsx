@@ -119,12 +119,12 @@ export default function ConceptForm({
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       {error && (
-        <Alert variant="error" className="mb-6">
+        <Alert variant="error" className="mb-6" data-testid="concept-form-error">
           {error}
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6" data-testid="concept-form">
         <FormGroup>
           <Label htmlFor="title">Title</Label>
           <Input
@@ -133,13 +133,14 @@ export default function ConceptForm({
             placeholder="Enter concept title"
             aria-describedby={errors.title ? "title-error" : ""}
             className={errors.title ? "border-red-500" : ""}
+            data-testid="concept-title-input"
           />
-          {errors.title && <FormError id="title-error">{errors.title.message}</FormError>}
+          {errors.title && <FormError id="title-error" data-testid="title-error">{errors.title.message}</FormError>}
         </FormGroup>
 
         <FormGroup>
           <Label htmlFor="content">Content</Label>
-          <div className={`border rounded-md ${errors.content ? "border-red-500" : ""}`}>
+          <div className={`border rounded-md ${errors.content ? "border-red-500" : ""}`} data-testid="concept-content-editor">
             <MarkdownEditor
               value={markdownContent}
               onChange={handleEditorChange}
@@ -149,7 +150,7 @@ export default function ConceptForm({
             />
           </div>
           <input type="hidden" {...register('content')} />
-          {errors.content && <FormError>{errors.content.message}</FormError>}
+          {errors.content && <FormError data-testid="content-error">{errors.content.message}</FormError>}
           <small className="text-gray-500 mt-1">
             Use Markdown formatting for text styling, lists, and code snippets.
           </small>
@@ -162,8 +163,9 @@ export default function ConceptForm({
             {...register('notes')}
             placeholder="Enter additional notes"
             className={`w-full h-24 p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.notes ? "border-red-500" : ""}`}
+            data-testid="concept-notes-input"
           />
-          {errors.notes && <FormError>{errors.notes.message}</FormError>}
+          {errors.notes && <FormError data-testid="notes-error">{errors.notes.message}</FormError>}
         </FormGroup>
 
         <FormGroup>
@@ -174,8 +176,9 @@ export default function ConceptForm({
             placeholder="e.g. machine learning, neural networks, python"
             aria-describedby={errors.topics ? "topics-error" : ""}
             className={errors.topics ? "border-red-500" : ""}
+            data-testid="concept-topics-input"
           />
-          {errors.topics && <FormError id="topics-error">{errors.topics.message}</FormError>}
+          {errors.topics && <FormError id="topics-error" data-testid="topics-error">{errors.topics.message}</FormError>}
           <small className="text-gray-500 mt-1">
             Separate each topic with a comma (e.g., &quot;machine learning, neural networks&quot;)
           </small>
@@ -187,12 +190,13 @@ export default function ConceptForm({
             id="difficulty"
             {...register('difficulty')}
             className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.difficulty ? "border-red-500" : ""}`}
+            data-testid="concept-difficulty-select"
           >
             <option value="beginner">Beginner</option>
             <option value="intermediate">Intermediate</option>
             <option value="advanced">Advanced</option>
           </select>
-          {errors.difficulty && <FormError>{errors.difficulty.message}</FormError>}
+          {errors.difficulty && <FormError data-testid="difficulty-error">{errors.difficulty.message}</FormError>}
         </FormGroup>
 
         <div className="flex justify-end space-x-4 pt-4">
@@ -201,6 +205,7 @@ export default function ConceptForm({
             onClick={onCancel}
             variant="outline"
             disabled={isSubmitting}
+            data-testid="concept-cancel-button"
           >
             Cancel
           </Button>
@@ -208,6 +213,7 @@ export default function ConceptForm({
             type="submit"
             variant="default"
             disabled={isSubmitting}
+            data-testid="concept-submit-button"
             onClick={async (e) => {
               const isValid = await handleFormValidation();
               if (!isValid) {

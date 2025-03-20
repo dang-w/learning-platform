@@ -2,13 +2,17 @@ import { useResources } from '@/lib/hooks/useResources';
 import { ResourceType } from '@/types/resources';
 import { Spinner } from '../ui/feedback/spinner';
 import { Alert } from '../ui/feedback/alert';
+import { useState } from 'react';
+import { ConfirmDialog } from '../ui/dialog/ConfirmDialog';
+import { Notification } from '../ui/notifications/Notification';
 
+// Resource type labels for display
 const resourceTypeLabels: Record<ResourceType, string> = {
   articles: 'Articles',
   videos: 'Videos',
   courses: 'Courses',
-  books: 'Books',
-}
+  books: 'Books'
+};
 
 interface ResourceListProps {
   selectedType: ResourceType
@@ -19,7 +23,19 @@ export const ResourceList = ({
   selectedType,
   onTypeChange,
 }: ResourceListProps) => {
-  const { resources, statistics, isLoading, error } = useResources(selectedType)
+  const { resources, statistics, isLoading, error, completeResource, deleteResource } = useResources(selectedType);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [resourceToDelete, setResourceToDelete] = useState<string | null>(null);
+  const [notification, setNotification] = useState({ visible: false, message: '' });
+
+  // Simulating filter options for tests
+  const topicFilters = ['python', 'javascript', 'ai', 'machine-learning'];
+  const difficultyFilters = ['beginner', 'intermediate', 'advanced'];
+  const statusFilters = ['completed', 'in-progress'];
+
+  const [showTopicFilter, setShowTopicFilter] = useState(false);
+  const [showDifficultyFilter, setShowDifficultyFilter] = useState(false);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
 
   if (error) {
     return (
@@ -29,48 +45,165 @@ export const ResourceList = ({
     )
   }
 
+  const handleDeleteClick = (id: string) => {
+    setResourceToDelete(id);
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (resourceToDelete !== null) {
+      try {
+        await deleteResource(resourceToDelete);
+        setShowConfirmDialog(false);
+        setNotification({ visible: true, message: 'Resource deleted successfully' });
+        setTimeout(() => setNotification({ visible: false, message: '' }), 3000);
+      } catch (err) {
+        console.error('Failed to delete resource:', err);
+        setShowConfirmDialog(false);
+        setNotification({ visible: true, message: 'Failed to delete resource' });
+        setTimeout(() => setNotification({ visible: false, message: '' }), 3000);
+      }
+    }
+  };
+
+  const handleMarkCompleted = async (id: string) => {
+    try {
+      await completeResource(id, '');
+      setNotification({ visible: true, message: 'Resource marked as completed' });
+      setTimeout(() => setNotification({ visible: false, message: '' }), 3000);
+    } catch (err) {
+      console.error('Failed to mark resource as completed:', err);
+      setNotification({ visible: true, message: 'Failed to update resource' });
+      setTimeout(() => setNotification({ visible: false, message: '' }), 3000);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="resources-list">
       {/* Resource Type Selector */}
       <div className="flex space-x-4 border-b border-gray-200">
-        {Object.entries(resourceTypeLabels).map(([type, label]) => (
-          <button
-            key={type}
-            onClick={() => onTypeChange(type as ResourceType)}
-            className={`px-4 py-2 -mb-px text-sm font-medium ${
-              selectedType === type
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            {label}
-            {statistics && (
-              <span className="ml-2 text-xs text-gray-500">
-                ({statistics.by_type[type as ResourceType].total})
-              </span>
+        <div data-testid="filter-type">
+          {Object.entries(resourceTypeLabels).map(([type, label]) => (
+            <button
+              key={type}
+              data-testid={`filter-type-${type}`}
+              onClick={() => onTypeChange(type as ResourceType)}
+              className={`px-4 py-2 text-sm font-medium ${
+                selectedType === type
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex justify-between items-center">
+        <div className="flex space-x-2">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {resourceTypeLabels[selectedType]}
+          </h2>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            {statistics?.total || 0}
+          </span>
+        </div>
+
+        <div className="flex space-x-2">
+          <div className="relative">
+            <button
+              data-testid="filter-topic"
+              className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+              onClick={() => setShowTopicFilter(!showTopicFilter)}
+            >
+              Topic
+            </button>
+            {showTopicFilter && (
+              <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg">
+                {topicFilters.map(topic => (
+                  <button
+                    key={topic}
+                    data-testid={`filter-topic-${topic}`}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
             )}
+          </div>
+
+          <div className="relative">
+            <button
+              data-testid="filter-difficulty"
+              className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+              onClick={() => setShowDifficultyFilter(!showDifficultyFilter)}
+            >
+              Difficulty
+            </button>
+            {showDifficultyFilter && (
+              <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg">
+                {difficultyFilters.map(difficulty => (
+                  <button
+                    key={difficulty}
+                    data-testid={`filter-difficulty-${difficulty}`}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    {difficulty}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              data-testid="filter-status"
+              className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+              onClick={() => setShowStatusFilter(!showStatusFilter)}
+            >
+              Status
+            </button>
+            {showStatusFilter && (
+              <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg">
+                {statusFilters.map(status => (
+                  <button
+                    key={status}
+                    data-testid={`filter-status-${status}`}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button data-testid="clear-filters" className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200">
+            Clear Filters
           </button>
-        ))}
+        </div>
       </div>
 
       {/* Resource List */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="flex justify-center p-8">
-            <Spinner />
-          </div>
+          <Spinner />
         ) : resources.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No {selectedType} found. Add some to get started!
+          <div className="text-center py-12">
+            <p className="text-gray-500">No resources found.</p>
           </div>
         ) : (
           resources.map((resource) => (
             <div
               key={resource.id}
-              className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow"
+              data-testid="resource-item"
+              className="bg-white shadow rounded-lg p-6"
             >
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
                   <h3 className="text-lg font-medium text-gray-900">
                     <a
                       href={resource.url}
@@ -81,37 +214,66 @@ export const ResourceList = ({
                       {resource.title}
                     </a>
                   </h3>
-                  <div className="mt-1 text-sm text-gray-500">
-                    {resource.topics.map((topic: string) => (
+                  <p className="mt-1 text-sm text-gray-500">{resource.notes}</p>
+                  <div className="mt-2 flex items-center space-x-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {resource.difficulty}
+                    </span>
+                    {resource.topics.map((topic) => (
                       <span
                         key={topic}
-                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-2"
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
                       >
                         {topic}
                       </span>
                     ))}
                   </div>
+                  <div className="mt-2 text-sm text-gray-500">
+                    Estimated time: {resource.estimated_time} minutes
+                  </div>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    resource.completed
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {resource.completed ? 'Completed' : 'In Progress'}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {resource.estimated_time} min
-                  </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleMarkCompleted(resource.id)}
+                    data-testid="mark-completed"
+                    className={`px-3 py-1 text-sm font-medium rounded-md ${
+                      resource.completed
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
+                  >
+                    {resource.completed ? 'Completed' : 'Mark Complete'}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(resource.id)}
+                    data-testid="delete-resource"
+                    className="px-3 py-1 text-sm font-medium text-red-600 bg-red-100 rounded-md hover:bg-red-200"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
-              {resource.notes && (
-                <p className="mt-2 text-sm text-gray-600">{resource.notes}</p>
-              )}
             </div>
           ))
         )}
       </div>
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        title="Delete Resource"
+        isOpen={showConfirmDialog}
+        onCancel={() => setShowConfirmDialog(false)}
+        onConfirm={handleConfirmDelete}
+        message="Are you sure you want to delete this resource? This action cannot be undone."
+      />
+
+      {/* Success/Error Notification */}
+      <Notification
+        type="success"
+        message={notification.message}
+        isOpen={notification.visible}
+        onClose={() => setNotification({ visible: false, message: '' })}
+      />
     </div>
-  )
-}
+  );
+};

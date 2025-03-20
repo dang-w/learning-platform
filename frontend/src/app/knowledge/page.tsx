@@ -8,6 +8,12 @@ import { Button } from '@/components/ui/buttons';
 import { Alert, Spinner } from '@/components/ui/feedback';
 import { Concept, ReviewStatistics } from '@/types/knowledge';
 
+// Define a type for topic with count
+interface TopicWithCount {
+  name: string;
+  count: number;
+}
+
 export default function KnowledgePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'concepts' | 'due' | 'statistics'>('concepts');
@@ -54,9 +60,26 @@ export default function KnowledgePage() {
     }
   }, [statsError, dueError]);
 
-  // Handle retry for loading failed data
+  const isLoading = isLoadingStats || isLoadingDue;
+
+  // Process data for UI
+  const hasStatistics = statistics && Object.keys(statistics).length > 0;
+  const dueConceptsArray = dueConcepts || [];
+  const hasDueConcepts = dueConceptsArray.length > 0;
+
+  const hasTopics = hasStatistics && statistics?.topics && statistics.topics.length > 0;
+  const conceptsByTopic = hasStatistics && statistics?.topics
+    ? statistics.topics.reduce<Record<string, number>>((acc, topic) => {
+        if (typeof topic === 'string') {
+          return { ...acc, [topic]: statistics.concepts_by_topic?.[topic] || 0 };
+        } else {
+          const typedTopic = topic as TopicWithCount;
+          return { ...acc, [typedTopic.name]: typedTopic.count };
+        }
+      }, {})
+    : {};
+
   const handleRetry = () => {
-    setErrorMessage(null);
     refetchStatistics();
     refetchDueConcepts();
   };
@@ -66,35 +89,45 @@ export default function KnowledgePage() {
   };
 
   const handleCreateConcept = () => {
-    router.push('/knowledge/concepts/create');
+    router.push('/knowledge/concepts/new');
   };
 
   const handleViewConcepts = () => {
     router.push('/knowledge/concepts');
   };
 
-  // Loading state
-  const isLoading = isLoadingStats || isLoadingDue;
-
-  // Safely access statistics
-  const dueConceptsArray = dueConcepts || [];
-  const hasDueConcepts = Array.isArray(dueConceptsArray) && dueConceptsArray.length > 0;
-  const conceptsByTopic = statistics?.concepts_by_topic || {};
-  const hasTopics = Object.keys(conceptsByTopic).length > 0;
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Knowledge Management</h1>
-        <div className="flex gap-4">
-          <Button onClick={handleCreateConcept}>
-            Create Concept
-          </Button>
+        <h1 className="text-3xl font-bold text-gray-900">Knowledge Management</h1>
+        <div className="flex space-x-4">
           {hasDueConcepts && (
-            <Button onClick={handleStartReview}>
-              Start Review ({dueConceptsArray.length})
+            <Button
+              onClick={handleStartReview}
+              data-testid="start-review-button"
+            >
+              Start Review Session
             </Button>
           )}
+          <Button
+            onClick={handleViewConcepts}
+            variant="outline"
+          >
+            View All Concepts
+          </Button>
+          <Button
+            onClick={handleCreateConcept}
+            variant="outline"
+          >
+            Create Concept
+          </Button>
+          <Button
+            onClick={() => router.push('/knowledge/reviews')}
+            variant="outline"
+            data-testid="nav-knowledge-review"
+          >
+            Review Dashboard
+          </Button>
         </div>
       </div>
 
@@ -152,6 +185,13 @@ export default function KnowledgePage() {
             >
               Statistics
             </button>
+            <a
+              href="/knowledge/reviews"
+              className="py-4 px-6 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              data-testid="nav-knowledge-review"
+            >
+              Reviews
+            </a>
           </nav>
         </div>
       )}
@@ -176,12 +216,12 @@ export default function KnowledgePage() {
                 {hasTopics ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {Object.entries(conceptsByTopic)
-                      .sort(([, a], [, b]) => (b as number) - (a as number))
+                      .sort(([, a], [, b]) => (Number(b) - Number(a)))
                       .slice(0, 8)
                       .map(([topic, count]) => (
                         <div key={topic} className="bg-gray-50 rounded-lg p-4">
                           <div className="font-medium">{topic}</div>
-                          <div className="text-sm text-gray-500">{count} concepts</div>
+                          <div className="text-sm text-gray-500">{String(count)} concepts</div>
                         </div>
                       ))}
                   </div>
@@ -198,19 +238,40 @@ export default function KnowledgePage() {
                 <div className="bg-white rounded-lg shadow-md p-6">
                   <h2 className="text-xl font-semibold mb-4">Concepts Due for Review</h2>
                   <p className="text-gray-600 mb-4">
-                    You have {dueConceptsArray.length} concepts due for review. Start a review session to reinforce your knowledge.
+                    You have {dueConceptsArray.length} concepts that are due for review. Regular reviews help strengthen your memory and improve retention.
                   </p>
-                  <Button onClick={handleStartReview} data-testid="start-review-button">
-                    Start Review Session
-                  </Button>
+                  <div className="divide-y divide-gray-200">
+                    {dueConceptsArray.map((concept) => (
+                      <div key={concept.id} className="py-4 flex justify-between items-center">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{concept.title}</h3>
+                          <div className="mt-1 text-sm text-gray-500">
+                            {concept.topics.map(topic => (
+                              <span key={topic} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                                {topic}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Last reviewed: {concept.last_reviewed_at ? new Date(concept.last_reviewed_at).toLocaleDateString() : 'Never'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6">
+                    <Button onClick={handleStartReview} data-testid="start-due-review-button">
+                      Review All Due Concepts
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-xl font-semibold mb-4">No Concepts Due</h2>
+                <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                  <h2 className="text-xl font-semibold mb-2">No Concepts Due for Review</h2>
                   <p className="text-gray-600 mb-4">
-                    You don&apos;t have any concepts due for review. Create new concepts or check back later.
+                    You&apos;re all caught up! There are no concepts due for review at this time.
                   </p>
-                  <Button onClick={handleCreateConcept}>
+                  <Button onClick={handleCreateConcept} variant="secondary">
                     Create New Concept
                   </Button>
                 </div>
@@ -219,50 +280,74 @@ export default function KnowledgePage() {
           )}
 
           {activeTab === 'statistics' && (
-            <div data-testid="knowledge-statistics">
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold mb-4">Overview</h2>
-                {statistics ? (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-sm text-gray-500">Total Concepts</div>
-                      <div className="text-2xl font-bold">{statistics.total_concepts || 0}</div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-sm text-gray-500">Due for Review</div>
-                      <div className="text-2xl font-bold">{statistics.concepts_due || 0}</div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-sm text-gray-500">Review Streak</div>
-                      <div className="text-2xl font-bold">{statistics.review_streak || 0} days</div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-sm text-gray-500">Avg. Confidence</div>
-                      <div className="text-2xl font-bold">
-                        {statistics.average_confidence
-                          ? `${statistics.average_confidence.toFixed(1)}/5`
-                          : 'N/A'}
+            <div data-testid="review-statistics">
+              {hasStatistics ? (
+                <div className="space-y-6">
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-xl font-semibold mb-4">Review Statistics</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="text-sm text-gray-500">Total Concepts</div>
+                        <div className="text-3xl font-semibold">{statistics.total_concepts}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="text-sm text-gray-500">Total Reviews</div>
+                        <div className="text-3xl font-semibold">{statistics.total_reviews}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="text-sm text-gray-500">Average Confidence</div>
+                        <div className="text-3xl font-semibold">{statistics.average_confidence.toFixed(1)}</div>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-gray-500">No statistics available yet. Start reviewing concepts to see your progress.</p>
-                )}
-              </div>
 
-              {statistics?.concepts_by_confidence && (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-xl font-semibold mb-4">Confidence Levels</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {[1, 2, 3, 4, 5].map(level => (
-                      <div key={level} className="bg-gray-50 rounded-lg p-4">
-                        <div className="text-sm text-gray-500">Level {level}</div>
-                        <div className="text-2xl font-bold">
-                          {statistics.concepts_by_confidence[level] || 0}
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-xl font-semibold mb-4">Confidence Distribution</h2>
+                    <div className="flex h-16 mb-2">
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <div
+                          key={level}
+                          className="flex-1 mx-1 bg-blue-100 relative"
+                          style={{
+                            height: '100%',
+                            backgroundColor: level <= 2 ? '#FEE2E2' : level === 3 ? '#FEF3C7' : '#DCFCE7',
+                          }}
+                        >
+                          <div
+                            className="absolute bottom-0 w-full"
+                            style={{
+                              height: `${(statistics?.concepts_by_confidence && statistics.concepts_by_confidence[level]) ?
+                                statistics.concepts_by_confidence[level] * 100 : 0}%`,
+                              backgroundColor: level <= 2 ? '#EF4444' : level === 3 ? '#F59E0B' : '#10B981',
+                            }}
+                          ></div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <div className="flex text-xs text-gray-500 justify-between">
+                      <div>1 - Very Hard</div>
+                      <div>2 - Hard</div>
+                      <div>3 - Medium</div>
+                      <div>4 - Easy</div>
+                      <div>5 - Very Easy</div>
+                    </div>
                   </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                  <h2 className="text-xl font-semibold mb-2">No Statistics Available</h2>
+                  <p className="text-gray-600 mb-4">
+                    You haven&apos;t reviewed any concepts yet. Start reviewing to see your statistics.
+                  </p>
+                  {hasDueConcepts ? (
+                    <Button onClick={handleStartReview} variant="default">
+                      Start Review Session
+                    </Button>
+                  ) : (
+                    <Button onClick={handleCreateConcept} variant="secondary">
+                      Create New Concept
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
