@@ -26,6 +26,7 @@ const publicPaths = [
   '/_next', // Next.js assets
   '/favicon.ico',
   '/public',
+  '/e2e-test-fixes', // Special test pages for Cypress
 ];
 
 export function middleware(request: NextRequest) {
@@ -81,14 +82,10 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
+// Specify paths for which the middleware should run
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    // Apply to all routes except static files and api routes that don't need auth
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)',
   ],
 };

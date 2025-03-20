@@ -1,0 +1,305 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 10,
+    "passes": 5,
+    "pending": 0,
+    "failures": 5,
+    "start": "2025-03-20T10:22:28.307Z",
+    "end": "2025-03-20T10:25:05.765Z",
+    "duration": 157458,
+    "testsRegistered": 10,
+    "passPercent": 50,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "d7c5b465-5674-469a-9772-98409b055b74",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "file": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+          "title": "User Profile",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display user profile information",
+              "fullTitle": "User Profile should display user profile information",
+              "timedOut": null,
+              "duration": 2359,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if profile page loaded properly\npage_objects_1.profilePage.isProfilePageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Profile page not loaded properly, skipping test');\n        page_objects_1.profilePage.takeScreenshot('profile-not-loaded');\n        return;\n    }\n    // Take screenshot of profile page\n    page_objects_1.profilePage.takeScreenshot('profile-information');\n    // Check if profile info elements exist\n    cy.get('body').then(function ($body) {\n        var hasProfileInfo = $body.find('[data-testid=\"profile-info\"]').length > 0;\n        var hasUsername = $body.find('[data-testid=\"profile-username\"]').length > 0;\n        var hasEmail = $body.find('[data-testid=\"profile-email\"]').length > 0;\n        if (hasProfileInfo && hasUsername && hasEmail) {\n            cy.log('Profile information is displayed correctly');\n        }\n        else {\n            cy.log('Some profile information elements are missing');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "4e90b51b-0965-4b3f-9fe5-ead558c4323f",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow updating profile information if editable",
+              "fullTitle": "User Profile should allow updating profile information if editable",
+              "timedOut": null,
+              "duration": 2190,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if profile page loaded properly\npage_objects_1.profilePage.isProfilePageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Profile page not loaded properly, skipping test');\n        page_objects_1.profilePage.takeScreenshot('profile-not-loaded');\n        return;\n    }\n    // Check if edit profile button exists\n    cy.get('body').then(function ($body) {\n        var hasEditButton = $body.find('[data-testid=\"edit-profile-button\"]').length > 0 ||\n            $body.find('[data-testid=\"edit-profile\"]').length > 0;\n        if (hasEditButton) {\n            // Click edit profile\n            page_objects_1.profilePage.clickEditProfile();\n            page_objects_1.profilePage.takeScreenshot('edit-profile-form');\n            // Update profile info with unique name\n            var newName = \"Test User \".concat(Date.now());\n            page_objects_1.profilePage.updateProfileInfo(newName, 'This is an updated bio from Cypress test');\n            // Check for success message\n            page_objects_1.profilePage.hasSuccessMessage().then(function (hasSuccess) {\n                if (hasSuccess) {\n                    cy.log('Profile updated successfully');\n                    page_objects_1.profilePage.takeScreenshot('profile-update-success');\n                }\n                else {\n                    cy.log('No success message displayed after profile update');\n                    page_objects_1.profilePage.takeScreenshot('profile-update-no-success');\n                }\n            });\n        }\n        else {\n            cy.log('Edit profile button not found, skipping profile update test');\n            page_objects_1.profilePage.takeScreenshot('no-edit-profile-button');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "a349882a-45b6-41fa-baed-cc00c0b0b9c3",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow changing password if feature available",
+              "fullTitle": "User Profile should allow changing password if feature available",
+              "timedOut": null,
+              "duration": 2309,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if profile page loaded properly\npage_objects_1.profilePage.isProfilePageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Profile page not loaded properly, skipping test');\n        page_objects_1.profilePage.takeScreenshot('profile-not-loaded');\n        return;\n    }\n    // Check if change password button/section exists\n    cy.get('body').then(function ($body) {\n        var hasChangePasswordButton = $body.find('[data-testid=\"change-password-button\"]').length > 0 ||\n            $body.find('[data-testid=\"change-password-tab\"]').length > 0;\n        if (hasChangePasswordButton) {\n            // If it's a tab rather than a button\n            if ($body.find('[data-testid=\"change-password-tab\"]').length > 0) {\n                cy.get('[data-testid=\"change-password-tab\"]').click();\n            }\n            else {\n                page_objects_1.profilePage.click(page_objects_1.profilePage['selectors'].changePasswordButton);\n            }\n            page_objects_1.profilePage.takeScreenshot('change-password-form');\n            // Check if password form fields exist before proceeding\n            cy.get('body').then(function ($updatedBody) {\n                var hasPasswordFields = $updatedBody.find('input[name=\"current_password\"]').length > 0 ||\n                    $updatedBody.find('[data-testid=\"current-password-input\"]').length > 0;\n                if (hasPasswordFields) {\n                    // Get the current password field selector\n                    var currentPasswordSelector = $updatedBody.find('input[name=\"current_password\"]').length > 0\n                        ? 'input[name=\"current_password\"]'\n                        : '[data-testid=\"current-password-input\"]';\n                    var newPasswordSelector = $updatedBody.find('input[name=\"new_password\"]').length > 0\n                        ? 'input[name=\"new_password\"]'\n                        : '[data-testid=\"new-password-input\"]';\n                    var confirmPasswordSelector = $updatedBody.find('input[name=\"confirm_password\"]').length > 0\n                        ? 'input[name=\"confirm_password\"]'\n                        : '[data-testid=\"confirm-password-input\"]';\n                    // Fill password form\n                    cy.get(currentPasswordSelector).type(testUser.password);\n                    cy.get(newPasswordSelector).type(newPassword);\n                    cy.get(confirmPasswordSelector).type(newPassword);\n                    // Submit form - find the submit button\n                    cy.get('button[type=\"submit\"]').click();\n                    // Check for success message\n                    page_objects_1.profilePage.hasSuccessMessage().then(function (hasSuccess) {\n                        if (hasSuccess) {\n                            cy.log('Password changed successfully');\n                            page_objects_1.profilePage.takeScreenshot('password-change-success');\n                            // Skip login verification for simplicity in this test migration\n                        }\n                        else {\n                            cy.log('No success message displayed after password change');\n                            page_objects_1.profilePage.takeScreenshot('password-change-no-success');\n                        }\n                    });\n                }\n                else {\n                    cy.log('Password form fields not found, skipping password change test');\n                    page_objects_1.profilePage.takeScreenshot('no-password-form-fields');\n                }\n            });\n        }\n        else {\n            cy.log('Change password button/tab not found, skipping password change test');\n            page_objects_1.profilePage.takeScreenshot('no-change-password-button');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "32e53d41-9b17-4d90-81ac-d9e614f70e3e",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display account statistics if available",
+              "fullTitle": "User Profile should display account statistics if available",
+              "timedOut": null,
+              "duration": 2271,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if profile page loaded properly\npage_objects_1.profilePage.isProfilePageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Profile page not loaded properly, skipping test');\n        page_objects_1.profilePage.takeScreenshot('profile-not-loaded');\n        return;\n    }\n    // Check if account statistics tab exists\n    cy.get('body').then(function ($body) {\n        var hasStatsTab = $body.find('[data-testid=\"account-statistics-tab\"]').length > 0;\n        if (hasStatsTab) {\n            cy.get('[data-testid=\"account-statistics-tab\"]').click();\n            page_objects_1.profilePage.takeScreenshot('account-statistics');\n            // Check if stats are displayed\n            cy.get('body').then(function ($updatedBody) {\n                var hasStats = $updatedBody.find('[data-testid=\"account-statistics\"]').length > 0;\n                if (hasStats) {\n                    cy.log('Account statistics are displayed');\n                }\n                else {\n                    cy.log('Account statistics section not found after clicking tab');\n                }\n            });\n        }\n        else {\n            cy.log('Account statistics tab not found, skipping statistics test');\n            page_objects_1.profilePage.takeScreenshot('no-statistics-tab');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "55bcd635-71dc-41ae-96a1-0ce8ebe7f579",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display notification preferences if available",
+              "fullTitle": "User Profile should display notification preferences if available",
+              "timedOut": null,
+              "duration": 2666,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if profile page loaded properly\npage_objects_1.profilePage.isProfilePageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Profile page not loaded properly, skipping test');\n        page_objects_1.profilePage.takeScreenshot('profile-not-loaded');\n        return;\n    }\n    // Check if notifications tab exists\n    cy.get('body').then(function ($body) {\n        var hasNotificationsTab = $body.find('[data-testid=\"notifications-tab\"]').length > 0;\n        if (hasNotificationsTab) {\n            cy.get('[data-testid=\"notifications-tab\"]').click();\n            page_objects_1.profilePage.takeScreenshot('notification-preferences');\n            // Check if notification toggles exist\n            cy.get('body').then(function ($updatedBody) {\n                var hasEmailToggle = $updatedBody.find('[data-testid=\"email-notifications-toggle\"]').length > 0;\n                if (hasEmailToggle) {\n                    // Toggle email notifications using the page object\n                    page_objects_1.profilePage.toggleEmailNotifications(true);\n                    page_objects_1.profilePage.takeScreenshot('notification-toggled');\n                    // Check for save button and click it\n                    if ($updatedBody.find('[data-testid=\"save-preferences\"]').length > 0) {\n                        cy.get('[data-testid=\"save-preferences\"]').click();\n                        // Check for success message\n                        page_objects_1.profilePage.hasSuccessMessage().then(function (hasSuccess) {\n                            if (hasSuccess) {\n                                cy.log('Notification preferences saved successfully');\n                            }\n                            else {\n                                cy.log('No success message displayed after saving preferences');\n                            }\n                        });\n                    }\n                }\n                else {\n                    cy.log('Email notifications toggle not found');\n                }\n            });\n        }\n        else {\n            cy.log('Notifications tab not found, skipping preferences test');\n            page_objects_1.profilePage.takeScreenshot('no-notifications-tab');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "232dc141-2c57-4576-b2b1-381bed069248",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow changing password",
+              "fullTitle": "User Profile should allow changing password",
+              "timedOut": null,
+              "duration": 9709,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on change password tab\ncy.get('[data-testid=\"change-password-tab\"]').click();\n// Fill out the change password form\ncy.get('input[name=\"current_password\"]').type(testUser.password);\ncy.get('input[name=\"new_password\"]').type(newPassword);\ncy.get('input[name=\"confirm_password\"]').type(newPassword);\n// Submit the form\ncy.get('button[type=\"submit\"]').click();\n// Verify the password was changed\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');\n// Logout\ncy.get('[data-testid=\"user-menu\"]').click();\ncy.get('[data-testid=\"logout-button\"]').click();\n// Login with new password\ncy.visit('/auth/login');\ncy.get('input[name=\"username\"]').type(testUser.username);\ncy.get('input[name=\"password\"]').type(newPassword);\ncy.get('button[type=\"submit\"]').click();\n// Verify login was successful\ncy.url().should('include', '/dashboard');\n// Change password back for future tests\ncy.get('[data-testid=\"user-menu\"]').click();\ncy.get('[data-testid=\"profile-link\"]').click();\ncy.get('[data-testid=\"change-password-tab\"]').click();\ncy.get('input[name=\"current_password\"]').type(newPassword);\ncy.get('input[name=\"new_password\"]').type(testUser.password);\ncy.get('input[name=\"confirm_password\"]').type(testUser.password);\ncy.get('button[type=\"submit\"]').click();",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"change-password-tab\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"change-password-tab\"]`, but never found it.\n    at Context.eval (webpack:///../e2e/profile.cy.ts:239:0)",
+                "diff": null
+              },
+              "uuid": "83e20d69-bdb5-48c2-91a5-8e9fad764881",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display account statistics",
+              "fullTitle": "User Profile should display account statistics",
+              "timedOut": null,
+              "duration": 9664,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on statistics tab\ncy.get('[data-testid=\"account-statistics-tab\"]').click();\n// Check that account statistics are displayed\ncy.get('[data-testid=\"account-statistics\"]').should('be.visible');\n// Check that resources count is displayed\ncy.get('[data-testid=\"resources-count\"]').should('be.visible');\n// Check that concepts count is displayed\ncy.get('[data-testid=\"concepts-count\"]').should('be.visible');\n// Check that study hours is displayed\ncy.get('[data-testid=\"study-hours\"]').should('be.visible');\n// Check that goals count is displayed\ncy.get('[data-testid=\"goals-count\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"account-statistics-tab\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"account-statistics-tab\"]`, but never found it.\n    at Context.eval (webpack:///../e2e/profile.cy.ts:269:0)",
+                "diff": null
+              },
+              "uuid": "4755e9c2-6180-4afc-a208-46d0bfd0cf97",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display notification preferences",
+              "fullTitle": "User Profile should display notification preferences",
+              "timedOut": null,
+              "duration": 9837,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on notifications tab\ncy.get('[data-testid=\"notifications-tab\"]').click();\n// Check that notification preferences are displayed\ncy.get('[data-testid=\"notification-preferences\"]').should('be.visible');\n// Toggle email notifications\ncy.get('[data-testid=\"email-notifications-toggle\"]').click();\n// Toggle review reminders\ncy.get('[data-testid=\"review-reminders-toggle\"]').click();\n// Toggle goal reminders\ncy.get('[data-testid=\"goal-reminders-toggle\"]').click();\n// Save preferences\ncy.get('[data-testid=\"save-preferences\"]').click();\n// Verify preferences were saved\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"notifications-tab\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"notifications-tab\"]`, but never found it.\n    at Context.eval (webpack:///../e2e/profile.cy.ts:283:0)",
+                "diff": null
+              },
+              "uuid": "09f79b61-4a17-48ec-86b6-ded51f716334",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow exporting user data",
+              "fullTitle": "User Profile should allow exporting user data",
+              "timedOut": null,
+              "duration": 9670,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on data export tab\ncy.get('[data-testid=\"data-export-tab\"]').click();\n// Check that data export options are displayed\ncy.get('[data-testid=\"data-export-options\"]').should('be.visible');\n// Select export format\ncy.get('[data-testid=\"export-format-json\"]').click();\n// Select data to export\ncy.get('[data-testid=\"export-resources\"]').check();\ncy.get('[data-testid=\"export-concepts\"]').check();\ncy.get('[data-testid=\"export-metrics\"]').check();\ncy.get('[data-testid=\"export-goals\"]').check();\n// Click export button\ncy.get('[data-testid=\"export-data\"]').click();\n// Verify export was initiated\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"data-export-tab\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"data-export-tab\"]`, but never found it.\n    at Context.eval (webpack:///../e2e/profile.cy.ts:299:0)",
+                "diff": null
+              },
+              "uuid": "33f8defb-c701-4156-b12e-d9059af49670",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display account deletion option",
+              "fullTitle": "User Profile should display account deletion option",
+              "timedOut": null,
+              "duration": 9639,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": null,
+              "code": "// Click on account tab\ncy.get('[data-testid=\"account-tab\"]').click();\n// Check that account deletion option is displayed\ncy.get('[data-testid=\"delete-account-section\"]').should('be.visible');\n// Click delete account button\ncy.get('[data-testid=\"delete-account-button\"]').click();\n// Verify confirmation dialog is displayed\ncy.get('[data-testid=\"delete-account-confirmation\"]').should('be.visible');\n// Cancel deletion\ncy.get('[data-testid=\"cancel-deletion\"]').click();\n// Verify confirmation dialog is closed\ncy.get('[data-testid=\"delete-account-confirmation\"]').should('not.exist');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"account-tab\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 8000ms: Expected to find element: `[data-testid=\"account-tab\"]`, but never found it.\n    at Context.eval (webpack:///../e2e/profile.cy.ts:316:0)",
+                "diff": null
+              },
+              "uuid": "c7f811ce-59c5-4abe-a5e1-242c1586e08e",
+              "parentUUID": "2ddb7e65-4e5c-492d-bf50-bebee569a325",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "4e90b51b-0965-4b3f-9fe5-ead558c4323f",
+            "a349882a-45b6-41fa-baed-cc00c0b0b9c3",
+            "32e53d41-9b17-4d90-81ac-d9e614f70e3e",
+            "55bcd635-71dc-41ae-96a1-0ce8ebe7f579",
+            "232dc141-2c57-4576-b2b1-381bed069248"
+          ],
+          "failures": [
+            "83e20d69-bdb5-48c2-91a5-8e9fad764881",
+            "4755e9c2-6180-4afc-a208-46d0bfd0cf97",
+            "09f79b61-4a17-48ec-86b6-ded51f716334",
+            "33f8defb-c701-4156-b12e-d9059af49670",
+            "c7f811ce-59c5-4abe-a5e1-242c1586e08e"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 60314,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "reporterEnabled": "cypress-mochawesome-reporter",
+        "cypressMochawesomeReporterReporterOptions": {
+          "reportDir": "e2e-testing/reports",
+          "charts": true,
+          "reportPageTitle": "Learning Platform E2E Tests",
+          "embeddedScreenshots": true,
+          "inlineAssets": true
+        },
+        "reportDir": "./e2e-testing/cypress/reports/resilient",
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

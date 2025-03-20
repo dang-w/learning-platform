@@ -2,8 +2,8 @@ import axios, { AxiosError } from 'axios';
 
 // Configure the default settings for all Axios requests
 const apiClient = axios.create({
-  // Use relative URLs for API requests
-  baseURL: '/api',
+  // Use relative URLs for API requests - avoid doubled /api/api/ prefix
+  baseURL: '/',
   headers: {
     'Content-Type': 'application/json',
   },
