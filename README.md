@@ -107,39 +107,48 @@ The platform has been transformed from a local script-based system to a modern w
 - **Backend**: FastAPI Python application
 - **Database**: MongoDB for data storage
 
-For detailed architecture information, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For detailed architecture information, see [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md).
 
 ## Repository Structure
 
 ```
 learning-platform/
-├── backend/                # Python FastAPI backend
-│   ├── main.py             # Main application entry point
-│   ├── requirements.txt    # Python dependencies
-│   ├── auth.py             # Authentication logic
-│   ├── database.py         # Database connection
-│   ├── tests/              # Backend test suite
-│   │   ├── api/            # API endpoint tests
-│   │   ├── services/       # Service layer tests
-│   │   └── utils/          # Utility function tests
-│   ├── routers/            # API route handlers
-│   │   ├── resources.py    # Learning resources API
-│   │   ├── progress.py     # Progress tracking API
-│   │   ├── reviews.py      # Spaced repetition API
+├── docs/                  # Project documentation
+│   ├── architecture/      # System design and architecture
+│   ├── api/               # API documentation
+│   ├── testing/           # Testing documentation
+│   ├── development/       # Development status and guides
+│   └── README.md          # Documentation index
+├── backend/               # Python FastAPI backend
+│   ├── main.py            # Main application entry point
+│   ├── requirements.txt   # Python dependencies
+│   ├── auth.py            # Authentication logic
+│   ├── database.py        # Database connection
+│   ├── tests/             # Backend test suite
+│   │   ├── api/           # API endpoint tests
+│   │   ├── services/      # Service layer tests
+│   │   └── utils/         # Utility function tests
+│   ├── routers/           # API route handlers
+│   │   ├── resources.py   # Learning resources API
+│   │   ├── progress.py    # Progress tracking API
+│   │   ├── reviews.py     # Spaced repetition API
 │   │   └── learning_path.py # Learning goals and roadmap API
-│   └── .env.example        # Example environment variables
-├── frontend/               # Next.js frontend
-│   ├── src/                # Source code
-│   │   ├── app/            # Next.js App Router
-│   │   ├── components/     # Reusable UI components
-│   │   ├── lib/            # Utility functions and hooks
-│   │   ├── types/          # TypeScript type definitions
-│   │   └── __tests__/      # Frontend test suite
-│   ├── cypress/            # End-to-end tests
-│   │   └── e2e/            # E2E test specifications
-│   └── jest.config.mjs     # Jest configuration
-├── ARCHITECTURE.md         # Detailed architecture documentation
-└── README.md               # This file
+│   └── .env.example       # Example environment variables
+├── frontend/              # Next.js frontend
+│   ├── src/               # Source code
+│   │   ├── app/           # Next.js App Router
+│   │   ├── components/    # Reusable UI components
+│   │   ├── lib/           # Utility functions and hooks
+│   │   ├── types/         # TypeScript type definitions
+│   │   └── __tests__/     # Frontend test suite
+│   ├── e2e-testing/       # End-to-end tests
+│   │   ├── cypress/       # Cypress test files
+│   │   │   ├── e2e/       # E2E test specifications
+│   │   │   └── support/   # Test support files
+│   │   └── test-pages/    # Test-specific page components
+│   └── jest.config.mjs    # Jest configuration
+├── PROJECT_ANALYSIS.md    # Project analysis and improvement plan
+└── README.md              # This file
 ```
 
 ## Getting Started
