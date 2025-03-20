@@ -38,20 +38,11 @@ import {
 // Load page objects for easier test maintenance
 import './page-objects';
 
-// Import Cypress Resilient Plugin to improve test reliability
-import 'cypress-set-resilient-tests';
-
 // Use Mochawesome reporter for better reports
 import 'cypress-mochawesome-reporter/register';
 
 // Add Testing Library support
 import '@testing-library/cypress/add-commands';
-
-// Import Cypress Axe for accessibility testing
-import 'cypress-axe';
-
-// Setup visibility tracking for hidden elements
-import 'cypress-real-events/support';
 
 // Expose getRandomInt utility for test data generation
 Cypress.getRandomInt = (min, max) => {

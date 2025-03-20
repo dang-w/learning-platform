@@ -249,7 +249,33 @@ Extend the existing Page Object Model:
    - Create reusable component objects for common UI elements
    - Implement validation methods for each component
 
-### 5.3 E2E Test Automation Script
+### 5.3 API-Based Testing Approach ✅
+
+For more reliable testing, especially in CI/CD environments, we've implemented an API-based testing pattern that complements UI testing:
+
+1. **Core Benefits**
+   - More resilient than UI-based tests
+   - Faster execution time
+   - Less prone to environmental issues
+   - More reliable in CI/CD pipelines
+
+2. **Implemented Test Suites** ✅
+   - Resources API testing (CRUD operations)
+   - Knowledge concepts API testing (CRUD operations)
+
+3. **Implementation Pattern**
+   - Authentication via JWT tokens
+   - Resilient request handling with failOnStatusCode: false
+   - Flexible response validation
+   - Test continuity despite failures in individual steps
+
+4. **Documentation**
+   - See [API_TESTING_PATTERN.md](./API_TESTING_PATTERN.md) for detailed implementation guidance
+   - Examples in `/frontend/e2e-testing/cypress/e2e/resources.cy.ts` and `knowledge.cy.ts`
+
+This approach provides a reliable foundation for verifying critical functionality without the brittleness of UI tests, while still allowing UI tests to verify the visual and interactive aspects of the application.
+
+### 5.4 E2E Test Automation Script
 
 Create a comprehensive E2E test runner:
 
