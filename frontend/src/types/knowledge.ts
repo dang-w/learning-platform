@@ -37,8 +37,12 @@ export interface ConceptUpdateInput extends Partial<ConceptCreateInput> {
 
 // Review represents a review session for a concept
 export interface Review {
-  date: string;
-  confidence: number; // 1-5
+  id: string;
+  concept_id: string;
+  user_id: string;
+  confidence_level: number; // 1-5
+  notes?: string;
+  created_at: string;
 }
 
 // ReviewCreateInput is used when creating a new review

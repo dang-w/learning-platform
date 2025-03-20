@@ -60,6 +60,27 @@ const knowledgeApi = {
     }
   },
 
+  getConceptReviewHistory: async (conceptId: string): Promise<Review[]> => {
+    try {
+      const response = await apiClient.get<Review[]>(`/api/reviews/concepts/${conceptId}/reviews`);
+      return response.data;
+    } catch (error) {
+      console.error(`Get concept review history API error for concept ${conceptId}:`, error);
+
+      const axiosError = error as AxiosError<ApiErrorResponse>;
+
+      if (axiosError.response?.status === 404) {
+        throw new Error(`Concept not found: ${conceptId}`);
+      } else if (axiosError.response?.data?.detail) {
+        throw new Error(`Failed to get review history: ${axiosError.response.data.detail}`);
+      } else if (axiosError.message) {
+        throw new Error(`Failed to get review history: ${axiosError.message}`);
+      }
+
+      throw new Error('Failed to get review history. Please try again later.');
+    }
+  },
+
   createConcept: async (concept: ConceptCreateInput): Promise<Concept> => {
     try {
       const response = await apiClient.post<Concept>('/api/reviews/concepts', concept);

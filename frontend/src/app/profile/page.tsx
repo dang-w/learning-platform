@@ -350,7 +350,7 @@ export default function ProfilePage() {
                     'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium'
                   )}
                   onClick={() => setActiveTab('password')}
-                  data-testid="change-password-tab"
+                  data-testid="password-tab"
                 >
                   Password
                 </button>
@@ -374,7 +374,7 @@ export default function ProfilePage() {
                     'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium'
                   )}
                   onClick={() => setActiveTab('statistics')}
-                  data-testid="account-statistics-tab"
+                  data-testid="statistics-tab"
                 >
                   Account Statistics
                 </button>
@@ -398,7 +398,7 @@ export default function ProfilePage() {
                     'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium'
                   )}
                   onClick={() => setActiveTab('export')}
-                  data-testid="data-export-tab"
+                  data-testid="export-tab"
                 >
                   Data Export
                 </button>
@@ -585,7 +585,7 @@ export default function ProfilePage() {
         {activeTab === 'export' && renderExportTab()}
 
         {activeTab === 'account' && (
-          <div className="px-4 py-5 sm:p-6" data-testid="account-settings">
+          <div className="px-4 py-5 sm:p-6" data-testid="delete-account-section">
             <div className="space-y-6">
               <div data-testid="delete-account-section">
                 <h3 className="text-lg font-medium leading-6 text-gray-900">Delete Account</h3>

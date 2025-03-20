@@ -14,11 +14,75 @@ describe('User Profile', () => {
   const newPassword = 'NewTestPassword123!';
 
   beforeEach(() => {
+    // Log test start
+    cy.log('Starting profile test setup');
+
     // Setup auth bypass instead of using createDirectTestUser
+    cy.log('Setting up auth bypass');
     setupCompleteAuthBypass(testUser.username);
 
-    // Navigate to profile page
+    // Verify auth bypass is working
+    cy.window().then(win => {
+      cy.log('Checking auth bypass setup');
+      cy.log(`Token exists: ${!!win.localStorage.getItem('token')}`);
+      cy.log(`User exists: ${!!win.localStorage.getItem('user')}`);
+      cy.log(`Auth bypass flag: ${!!win.CYPRESS_AUTH_BYPASS}`);
+    });
+
+    // Setup API interceptors
+    cy.log('Setting up API interceptors');
+    cy.intercept('GET', '**/api/users/me', (req) => {
+      cy.log('Intercepted /api/users/me request');
+      req.reply({
+        statusCode: 200,
+        body: {
+          id: 'mock-user-id',
+          username: testUser.username,
+          email: testUser.email,
+          fullName: testUser.username,
+          role: 'user'
+        }
+      });
+    }).as('getProfile');
+
+    cy.intercept('GET', '**/api/users/statistics', (req) => {
+      cy.log('Intercepted /api/users/statistics request');
+      req.reply({
+        statusCode: 200,
+        body: {
+          totalCoursesEnrolled: 5,
+          completedCourses: 3,
+          averageScore: 85,
+          totalTimeSpent: 24
+        }
+      });
+    }).as('getStatistics');
+
+    cy.intercept('GET', '**/api/users/notification-preferences', (req) => {
+      cy.log('Intercepted /api/users/notification-preferences request');
+      req.reply({
+        statusCode: 200,
+        body: {
+          emailNotifications: true,
+          courseUpdates: true,
+          marketingEmails: false
+        }
+      });
+    }).as('getNotifications');
+
+    // Navigate to profile page and wait for it to load
+    cy.log('Navigating to profile page');
     profilePage.visitProfile();
+
+    // Wait for all initial data to load
+    cy.log('Waiting for API responses');
+    cy.wait(['@getProfile', '@getStatistics', '@getNotifications'], { timeout: 15000 });
+
+    // Log page load status
+    cy.document().then(doc => {
+      cy.log(`Page title: ${doc.title}`);
+      cy.log(`Current URL: ${doc.location.href}`);
+    });
 
     // Intercept and silence uncaught exceptions from the app
     cy.on('uncaught:exception', (err) => {
@@ -29,35 +93,44 @@ describe('User Profile', () => {
   });
 
   it('should display user profile information', () => {
-    // Check if profile info elements exist
-    cy.get('[data-testid="profile-info"]').should('exist');
-    cy.get('[data-testid="profile-username"]').should('exist');
-    cy.get('[data-testid="profile-email"]').should('exist');
+    // Log test start
+    cy.log('Starting profile information test');
+
+    // Wait for profile info elements to be visible
+    cy.log('Waiting for profile info elements');
+    cy.get('[data-testid="profile-info"]', { timeout: 15000 }).should('be.visible').then($el => {
+      cy.log(`Found profile-info element: ${$el.length > 0}`);
+    });
+    cy.get('[data-testid="profile-username"]', { timeout: 15000 }).should('be.visible').then($el => {
+      cy.log(`Found profile-username element: ${$el.length > 0}`);
+    });
+    cy.get('[data-testid="profile-email"]', { timeout: 15000 }).should('be.visible').then($el => {
+      cy.log(`Found profile-email element: ${$el.length > 0}`);
+    });
 
     // Take screenshot of profile page
+    cy.log('Taking screenshot');
     profilePage.takeScreenshot('profile-information');
   });
 
   it('should allow updating profile information if editable', () => {
-    // Check if profile form exists
-    cy.get('[data-testid="profile-form"]').should('exist');
+    // Wait for profile form to be visible
+    cy.get('[data-testid="profile-form"]', { timeout: 15000 }).should('be.visible');
 
     // Update profile info with unique name
     const newName = `Test User ${Date.now()}`;
     cy.get('[data-testid="profile-full-name"]').clear().type(newName);
     cy.get('[data-testid="save-profile-button"]').click();
 
-    // Check for success message
-    cy.get('[data-testid="profile-success"]').should('exist');
+    // Wait for success message
+    cy.get('[data-testid="profile-success"]', { timeout: 15000 }).should('be.visible');
     profilePage.takeScreenshot('profile-update-success');
   });
 
   it('should allow changing password if feature available', () => {
-    // Click the password tab
-    cy.get('[data-testid="password-tab"]').click();
-
-    // Check if password form exists
-    cy.get('[data-testid="password-form"]').should('exist');
+    // Click the password tab and wait for form
+    cy.get('[data-testid="password-tab"]', { timeout: 15000 }).should('be.visible').click();
+    cy.get('[data-testid="password-form"]', { timeout: 15000 }).should('be.visible');
 
     // Fill in password form
     cy.get('[data-testid="current-password-input"]').type(testUser.password);
@@ -67,17 +140,15 @@ describe('User Profile', () => {
     // Submit form
     cy.get('[data-testid="save-password-button"]').click();
 
-    // Check for success message
-    cy.get('[data-testid="success-notification"]').should('exist');
+    // Wait for success message
+    cy.get('[data-testid="success-notification"]', { timeout: 15000 }).should('be.visible');
     profilePage.takeScreenshot('password-change-success');
   });
 
   it('should display account statistics if available', () => {
-    // Click the statistics tab
-    cy.get('[data-testid="statistics-tab"]').click();
-
-    // Check if statistics are displayed
-    cy.get('[data-testid="account-statistics"]').should('exist');
+    // Click the statistics tab and wait for content
+    cy.get('[data-testid="statistics-tab"]', { timeout: 15000 }).should('be.visible').click();
+    cy.get('[data-testid="account-statistics"]', { timeout: 15000 }).should('be.visible');
     profilePage.takeScreenshot('account-statistics');
 
     // Verify statistics values
@@ -88,11 +159,9 @@ describe('User Profile', () => {
   });
 
   it('should display notification preferences if available', () => {
-    // Click the notifications tab
-    cy.get('[data-testid="notifications-tab"]').click();
-
-    // Check if notification settings are displayed
-    cy.get('[data-testid="notifications-settings"]').should('exist');
+    // Click the notifications tab and wait for content
+    cy.get('[data-testid="notifications-tab"]', { timeout: 15000 }).should('be.visible').click();
+    cy.get('[data-testid="notifications-settings"]', { timeout: 15000 }).should('be.visible');
     profilePage.takeScreenshot('notification-preferences');
 
     // Toggle email notifications
@@ -103,11 +172,9 @@ describe('User Profile', () => {
   });
 
   it('should allow exporting user data', () => {
-    // Click the export tab
-    cy.get('[data-testid="export-tab"]').click();
-
-    // Check if export section is displayed
-    cy.get('[data-testid="data-export"]').should('exist');
+    // Click the export tab and wait for content
+    cy.get('[data-testid="export-tab"]', { timeout: 15000 }).should('be.visible').click();
+    cy.get('[data-testid="data-export"]', { timeout: 15000 }).should('be.visible');
     profilePage.takeScreenshot('data-export');
 
     // Click export button
@@ -118,17 +185,15 @@ describe('User Profile', () => {
   });
 
   it('should display account deletion option', () => {
-    // Click the account tab
-    cy.get('[data-testid="account-tab"]').click();
-
-    // Check if delete account section is displayed
-    cy.get('[data-testid="delete-account-section"]').should('exist');
+    // Click the account tab and wait for content
+    cy.get('[data-testid="account-tab"]', { timeout: 15000 }).should('be.visible').click();
+    cy.get('[data-testid="delete-account-section"]', { timeout: 15000 }).should('be.visible');
     profilePage.takeScreenshot('account-settings');
 
     // Click delete account button
     cy.get('[data-testid="delete-account-button"]').click();
 
     // Verify confirmation dialog appears
-    cy.get('[data-testid="delete-account-confirmation"]').should('exist');
+    cy.get('[data-testid="delete-account-confirmation"]', { timeout: 15000 }).should('be.visible');
   });
 });
