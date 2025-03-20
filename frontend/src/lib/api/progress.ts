@@ -47,12 +47,12 @@ export interface WeeklyReport {
 
 const progressApi = {
   addMetric: async (data: MetricCreate): Promise<Metric> => {
-    const response = await apiClient.post<Metric>('/api/progress/metrics', data);
+    const response = await apiClient.post<Metric>('/progress/metrics', data);
     return response.data;
   },
 
   getMetrics: async (startDate?: string, endDate?: string): Promise<Metric[]> => {
-    let url = '/api/progress/metrics';
+    let url = '/progress/metrics';
     const params = new URLSearchParams();
 
     if (startDate) params.append('start_date', startDate);
@@ -67,12 +67,19 @@ const progressApi = {
   },
 
   getRecentMetricsSummary: async (days: number = 7): Promise<MetricsSummary> => {
-    const response = await apiClient.get<MetricsSummary>(`/api/progress/metrics/recent?days=${days}`);
-    return response.data;
+    try {
+      console.log('Fetching recent metrics...');
+      const response = await apiClient.get(`/progress/metrics/recent?days=${days}`);
+      console.log('Recent metrics response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching recent metrics:', error);
+      throw error;
+    }
   },
 
   generateWeeklyReport: async (date?: string): Promise<WeeklyReport> => {
-    let url = '/api/progress/report/weekly';
+    let url = '/progress/report/weekly';
     if (date) {
       url += `?date=${date}`;
     }
@@ -82,12 +89,32 @@ const progressApi = {
   },
 
   deleteMetric: async (metricId: string): Promise<void> => {
-    await apiClient.delete(`/api/progress/metrics/${metricId}`);
+    await apiClient.delete(`/progress/metrics/${metricId}`);
   },
 
   fetchLearningProgress: async (): Promise<LearningProgress> => {
-    const response = await apiClient.get<LearningProgress>('/api/progress');
+    const response = await apiClient.get<LearningProgress>('/progress');
     return response.data;
+  },
+
+  getAllMetrics: async () => {
+    try {
+      const response = await apiClient.get('/progress/metrics');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all metrics:', error);
+      throw error;
+    }
+  },
+
+  getStudySessions: async () => {
+    try {
+      const response = await apiClient.get('/progress/study-session');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching study sessions:', error);
+      throw error;
+    }
   },
 };
 

@@ -18,6 +18,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { login, error, clearError } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
@@ -33,6 +34,11 @@ export default function LoginPage() {
   // Clear error when component mounts or when search params change
   useEffect(() => {
     clearError();
+
+    // Check if redirected from successful registration
+    if (searchParams?.get('registered') === 'true') {
+      setRegistrationSuccess(true);
+    }
   }, [clearError, searchParams]);
 
   const onSubmit = async (data: LoginFormValues) => {
@@ -109,6 +115,19 @@ export default function LoginPage() {
               )}
             </div>
           </div>
+
+          {registrationSuccess && (
+            <div className="rounded-md bg-green-50 p-4 mb-4" data-testid="registration-success">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">Registration successful</h3>
+                  <div className="mt-2 text-sm text-green-700">
+                    <p>Your account has been created. Please log in with your credentials.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="rounded-md bg-red-50 p-4" data-testid="login-error">

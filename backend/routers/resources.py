@@ -117,127 +117,110 @@ async def get_next_resource_id(db, username, resource_type):
         # Return 1 as default if any error occurs
         return 1
 
+# Helper function to get username from current_user (which might be dict or User object)
+def get_username(current_user):
+    """
+    Extract username from current_user which could be either a User object or a dict.
+    """
+    if hasattr(current_user, "username"):
+        return current_user.username
+    else:
+        return current_user.get("username")
+
 # Routes
 @router.get("/", response_model=Dict[str, List[Resource]])
-async def get_all_resources(current_user: User = Depends(get_current_active_user)):
+async def get_all_resources(current_user: dict = Depends(get_current_active_user)):
     """Get all resources for the current user."""
-    try:
-        # Try to handle both cases where current_user is a User object or a dictionary
-        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username(current_user)
 
-        if not username:
-            logger.error("Username not found in current_user object")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="User information is incomplete"
-            )
+    # Get user's resources
+    user = await db.users.find_one({"username": username})
+    if not user or "resources" not in user:
+        # Return empty resource structure
+        return {
+            "articles": [],
+            "videos": [],
+            "courses": [],
+            "books": []
+        }
 
-        user = await db.users.find_one({"username": username})
-        if not user or "resources" not in user:
-            return {"articles": [], "videos": [], "courses": [], "books": []}
-
-        return user["resources"]
-    except Exception as e:
-        logger.error(f"Error in get_all_resources: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve resources: {str(e)}"
-        )
+    return user["resources"]
 
 # Statistics endpoint - moved before the resource_type parameter route
 @router.get("/statistics", response_model=Dict[str, Any])
-async def get_resource_statistics(current_user: User = Depends(get_current_active_user)):
-    """Get statistics about the user's resources."""
-    try:
-        # Ensure current_user is a dict
-        if not isinstance(current_user, dict):
-            current_user_dict = current_user.dict() if hasattr(current_user, "dict") else current_user
-            username = current_user_dict.get("username")
-        else:
-            username = current_user.get("username")
+async def get_resource_statistics(current_user: dict = Depends(get_current_active_user)):
+    """Get statistics about user's resources."""
+    username = get_username(current_user)
 
-        if not username:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="User information is incomplete"
-            )
-
-        # Get user data from database
-        user = await db.users.find_one({"username": username})
-        if not user or "resources" not in user:
-            return {
-                "total": 0,
-                "completed": 0,
-                "completion_percentage": 0,
-                "by_type": {},
-                "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
-                "by_topic": {},
-                "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
-            }
-
-        # Initialize statistics
-        stats = {
+    # Get user data
+    user = await db.users.find_one({"username": username})
+    if not user or "resources" not in user:
+        return {
             "total": 0,
             "completed": 0,
-            "by_type": {},
-            "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
-            "by_topic": {},
-            "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
+            "byType": {},
+            "byTopic": {},
+            "byDifficulty": {},
+            "recentActivity": []
         }
 
-        # Calculate statistics
-        for resource_type in ["articles", "videos", "courses", "books"]:
-            if resource_type not in user["resources"]:
-                continue
+    # Initialize statistics
+    stats = {
+        "total": 0,
+        "completed": 0,
+        "by_type": {},
+        "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
+        "by_topic": {},
+        "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
+    }
 
-            resources = user["resources"][resource_type]
-            type_count = len(resources)
-            type_completed = sum(1 for r in resources if r.get("completed", False))
+    # Calculate statistics
+    for resource_type in ["articles", "videos", "courses", "books"]:
+        if resource_type not in user["resources"]:
+            continue
 
-            stats["total"] += type_count
-            stats["completed"] += type_completed
+        resources = user["resources"][resource_type]
+        type_count = len(resources)
+        type_completed = sum(1 for r in resources if r.get("completed", False))
 
-            stats["by_type"][resource_type] = {
-                "total": type_count,
-                "completed": type_completed
-            }
+        stats["total"] += type_count
+        stats["completed"] += type_completed
 
-            # Accumulate time statistics and counts by difficulty/topic
-            for resource in resources:
-                # Add to difficulty stats
-                difficulty = resource.get("difficulty", "beginner")
-                if difficulty in stats["by_difficulty"]:
-                    stats["by_difficulty"][difficulty] += 1
-                else:
-                    stats["by_difficulty"][difficulty] = 1
+        stats["by_type"][resource_type] = {
+            "total": type_count,
+            "completed": type_completed
+        }
 
-                # Add to topic stats
-                for topic in resource.get("topics", []):
-                    if topic not in stats["by_topic"]:
-                        stats["by_topic"][topic] = 0
-                    stats["by_topic"][topic] += 1
+        # Accumulate time statistics and counts by difficulty/topic
+        for resource in resources:
+            # Add to difficulty stats
+            difficulty = resource.get("difficulty", "beginner")
+            if difficulty in stats["by_difficulty"]:
+                stats["by_difficulty"][difficulty] += 1
+            else:
+                stats["by_difficulty"][difficulty] = 1
 
-                # Add to time stats
-                time = resource.get("estimated_time", 0)
-                stats["estimated_time"]["total"] += time
-                if resource.get("completed", False):
-                    stats["estimated_time"]["completed"] += time
-                else:
-                    stats["estimated_time"]["remaining"] += time
+            # Add to topic stats
+            for topic in resource.get("topics", []):
+                if topic not in stats["by_topic"]:
+                    stats["by_topic"][topic] = 0
+                stats["by_topic"][topic] += 1
 
-        # Calculate completion percentage
-        if stats["total"] > 0:
-            stats["completion_percentage"] = round((stats["completed"] / stats["total"]) * 100, 1)
-        else:
-            stats["completion_percentage"] = 0
+            # Add to time stats
+            time = resource.get("estimated_time", 0)
+            stats["estimated_time"]["total"] += time
+            if resource.get("completed", False):
+                stats["estimated_time"]["completed"] += time
+            else:
+                stats["estimated_time"]["remaining"] += time
 
-        return stats
-    except Exception as e:
-        logger.error(f"Error in resource statistics: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get resource statistics: {str(e)}"
-        )
+    # Calculate completion percentage
+    if stats["total"] > 0:
+        stats["completion_percentage"] = round((stats["completed"] / stats["total"]) * 100, 1)
+    else:
+        stats["completion_percentage"] = 0
+
+    return stats
 
 @router.get("/{resource_type}", response_model=List[Resource])
 async def get_resources_by_type(
@@ -375,9 +358,11 @@ async def update_resource(
     resource_type: str,
     resource_id: int,
     resource_update: ResourceUpdate,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Update an existing resource."""
+    username = get_username(current_user)
+
     if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -385,7 +370,7 @@ async def update_resource(
         )
 
     # Get user's resources
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": username})
     if not user or "resources" not in user or resource_type not in user["resources"]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -413,7 +398,7 @@ async def update_resource(
 
     # Save updated resources
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$set": {f"resources.{resource_type}": resources}}
     )
 
@@ -430,9 +415,11 @@ async def mark_resource_completed(
     resource_type: str,
     resource_id: int,
     completion_data: ResourceComplete,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
-    """Mark a resource as completed or uncompleted."""
+    """Mark a resource as completed."""
+    username = get_username(current_user)
+
     if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -440,7 +427,7 @@ async def mark_resource_completed(
         )
 
     # Get user's resources
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": username})
     if not user or "resources" not in user or resource_type not in user["resources"]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -476,7 +463,7 @@ async def mark_resource_completed(
 
     # Save updated resources
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$set": {f"resources.{resource_type}": resources}}
     )
 
@@ -492,9 +479,11 @@ async def mark_resource_completed(
 async def delete_resource(
     resource_type: str,
     resource_id: int,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Delete a resource."""
+    username = get_username(current_user)
+
     # Validate resource type
     if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
@@ -503,43 +492,34 @@ async def delete_resource(
         )
 
     # Get user document
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": username})
     if not user or "resources" not in user or resource_type not in user["resources"]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No {resource_type} found for user"
         )
 
-    # Find the resource
-    resources = user["resources"][resource_type]
-    resource_index = None
-    for i, resource in enumerate(resources):
-        if "id" in resource and resource["id"] == resource_id:
-            resource_index = i
-            break
-
-    if resource_index is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Resource with ID {resource_id} not found"
-        )
-
-    # Remove the resource
-    resources.pop(resource_index)
-
-    # Update user document
-    await db.users.update_one(
-        {"username": current_user.username},
-        {"$set": {f"resources.{resource_type}": resources}}
+    # Find and delete the resource
+    result = await db.users.update_one(
+        {"username": username},
+        {"$pull": {f"resources.{resource_type}": {"id": resource_id}}}
     )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete resource"
+        )
 
 @router.get("/{resource_type}/{resource_id}", response_model=Resource)
 async def get_resource_by_id(
     resource_type: str,
     resource_id: int,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get a specific resource by ID."""
+    username = get_username(current_user)
+
     # Validate resource type
     if resource_type not in ["articles", "videos", "courses", "books"]:
         raise HTTPException(
@@ -548,11 +528,11 @@ async def get_resource_by_id(
         )
 
     # Get user document
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": username})
     if not user or "resources" not in user or resource_type not in user["resources"]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No {resource_type} found for user"
+            detail="Resources not found"
         )
 
     # Find the resource
@@ -572,7 +552,8 @@ async def get_next_resources(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get the next N uncompleted resources."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+    user = await db.users.find_one({"username": username})
     if not user or "resources" not in user:
         return []
 
@@ -600,11 +581,7 @@ async def create_batch_resources(
     """Create multiple resources at once using a new endpoint."""
     try:
         # Ensure current_user is a dict and get username
-        if not isinstance(current_user, dict):
-            current_user_dict = current_user.dict() if hasattr(current_user, "dict") else current_user
-            username = current_user_dict.get("username")
-        else:
-            username = current_user.get("username")
+        username = get_username(current_user)
 
         if not username:
             raise HTTPException(
@@ -694,7 +671,7 @@ async def create_batch_resources_api(
     """
     try:
         # Extract username from current_user
-        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+        username = get_username(current_user)
 
         if not username:
             logger.error("Username not found in current_user object")

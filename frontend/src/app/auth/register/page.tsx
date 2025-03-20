@@ -34,9 +34,17 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
   });
 
-  // Clear error when component mounts
+  // Clear error and any existing token when component mounts
   useEffect(() => {
     clearError();
+    // Clear any existing tokens from localStorage to prevent middleware redirects
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+
+      // Also clear the cookie if possible
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    }
   }, [clearError]);
 
   const onSubmit = async (data: RegisterFormValues) => {
@@ -48,6 +56,13 @@ export default function RegisterPage() {
       router.push('/dashboard');
     } catch (error) {
       console.error('Registration error:', error);
+
+      // If it's the auto-login failure error, redirect to login page
+      if (error instanceof Error && error.message === 'AUTO_LOGIN_FAILED') {
+        // Redirect to login with a success message
+        router.push('/auth/login?registered=true');
+      }
+      // If it's a different error, the auth-store will set the error state
     } finally {
       setIsLoading(false);
     }

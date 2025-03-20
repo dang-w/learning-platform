@@ -27,14 +27,25 @@ const publicPaths = [
   '/favicon.ico',
   '/public',
   '/e2e-test-fixes', // Special test pages for Cypress
+  '/', // Allow the landing page
 ];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Add debug logging
+  console.log(`Middleware processing: ${pathname}`);
+
+  // Always allow direct access to register page regardless of auth status
+  if (pathname === '/auth/register') {
+    console.log('Allowing direct access to register page');
+    return NextResponse.next();
+  }
+
   // Special bypass for Cypress tests
   // The cookie is set by Cypress tests to bypass authentication
   if (request.cookies.get('cypress_auth_bypass')?.value === 'true') {
+    console.log('Cypress bypass active, skipping auth checks');
     return NextResponse.next();
   }
 
@@ -45,15 +56,18 @@ export function middleware(request: NextRequest) {
 
   // If it's a public path, allow the request
   if (isPublicPath) {
+    console.log(`Public path detected: ${pathname}`);
     return NextResponse.next();
   }
 
   // Check if the user has a token (either in cookie or localStorage)
   const token = request.cookies.get('token')?.value;
+  console.log(`Auth check - Token exists: ${!!token}`);
   const isAuthenticated = !!token;
 
   // If trying to access a protected route without authentication
   if (protectedRoutes.some(route => pathname.startsWith(route)) && !isAuthenticated) {
+    console.log(`Redirecting to login: unauthenticated access to protected route ${pathname}`);
     const url = new URL('/auth/login', request.url);
     url.searchParams.set('callbackUrl', encodeURI(pathname));
     return NextResponse.redirect(url);
@@ -61,6 +75,7 @@ export function middleware(request: NextRequest) {
 
   // If trying to access auth routes while already authenticated
   if (authRoutes.some(route => pathname.startsWith(route)) && isAuthenticated) {
+    console.log(`Redirecting to dashboard: authenticated user accessing auth route ${pathname}`);
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

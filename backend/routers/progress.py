@@ -89,13 +89,25 @@ def fig_to_base64(fig):
     plt.close(fig)
     return f"data:image/png;base64,{img_str}"
 
+# Helper function to get username from current_user (which might be dict or User object)
+def get_username(current_user):
+    """
+    Extract username from current_user which could be either a User object or a dict.
+    """
+    if hasattr(current_user, "username"):
+        return current_user.username
+    else:
+        return current_user.get("username")
+
 # Routes
 @router.post("/metrics", response_model=Metric, status_code=status.HTTP_201_CREATED)
 async def add_daily_metrics(
     metric: MetricCreate,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
-    """Add daily study metrics."""
+    """Add daily study metrics for the current user."""
+    username = get_username(current_user)
+
     # Validate date format
     try:
         if not validate_date_format(metric.date):
@@ -117,12 +129,12 @@ async def add_daily_metrics(
     # Create metric object with ID
     metric_dict = metric.model_dump()
     metric_dict["id"] = str(ObjectId())
-    metric_dict["user_id"] = current_user.username
+    metric_dict["user_id"] = username
 
     # Add to user's metrics
     try:
         await db.users.update_one(
-            {"username": current_user.username},
+            {"username": username},
             {"$push": {"metrics": metric_dict}}
         )
     except Exception as e:
@@ -137,10 +149,12 @@ async def add_daily_metrics(
 async def get_metrics(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
-    """Get study metrics with optional date filtering."""
-    user = await db.users.find_one({"username": current_user.username})
+    """Get study metrics for the current user."""
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user or "metrics" not in user:
         return []
 
@@ -167,10 +181,12 @@ async def get_metrics(
 @router.get("/metrics/recent", response_model=Dict[str, Any])
 async def get_recent_metrics(
     days: int = 7,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get metrics summary for the last N days."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user or "metrics" not in user:
         return {
             "total_hours": 0,
@@ -231,10 +247,12 @@ async def get_recent_metrics(
 
 @router.get("/report/weekly", response_model=WeeklyReport)
 async def generate_weekly_report(
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Generate a weekly learning progress report with visualizations."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -477,11 +495,13 @@ Period: {week_start} to {week_end}
 @router.delete("/metrics/{metric_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_metric(
     metric_id: str,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Delete a metric entry."""
+    username = get_username(current_user)
+
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": username},
         {"$pull": {"metrics": {"id": metric_id}}}
     )
 
@@ -495,11 +515,13 @@ async def delete_metric(
 @router.post("/study-session", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def add_study_session(
     session: StudySessionCreate,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Add a study session."""
+    username = get_username(current_user)
+
     # Check if user exists
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -513,14 +535,14 @@ async def add_study_session(
     # Add to user's study sessions
     try:
         result = await db.users.update_one(
-            {"username": current_user.username},
+            {"username": username},
             {"$push": {"study_sessions": session_dict}}
         )
 
         if result.modified_count == 0:
             # If the study_sessions array doesn't exist yet, create it
             result = await db.users.update_one(
-                {"username": current_user.username},
+                {"username": username},
                 {"$set": {"study_sessions": [session_dict]}}
             )
 
@@ -538,9 +560,11 @@ async def add_study_session(
     return session_dict
 
 @router.get("/", response_model=Dict[str, List])
-async def get_progress(current_user: User = Depends(get_current_active_user)):
+async def get_progress(current_user: dict = Depends(get_current_active_user)):
     """Get all progress data for the current user."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user:
         return {"metrics": [], "reviews": []}
 
@@ -555,10 +579,12 @@ async def get_study_sessions_alt(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     date: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Alternative endpoint for getting study sessions with optional date filtering."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user or "study_sessions" not in user:
         return []
 
@@ -594,11 +620,13 @@ async def get_study_sessions_alt(
 @router.post("/review", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def add_review_session(
     session: ReviewSessionCreate,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Add a review session."""
+    username = get_username(current_user)
+
     # Check if user exists
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -612,14 +640,14 @@ async def add_review_session(
     # Add to user's review sessions
     try:
         result = await db.users.update_one(
-            {"username": current_user.username},
+            {"username": username},
             {"$push": {"review_sessions": session_dict}}
         )
 
         if result.modified_count == 0:
             # If the review_sessions array doesn't exist yet, create it
             result = await db.users.update_one(
-                {"username": current_user.username},
+                {"username": username},
                 {"$set": {"review_sessions": [session_dict]}}
             )
 
@@ -640,7 +668,7 @@ async def add_review_session(
 async def get_review_sessions_alt(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Alternative endpoint for getting review sessions with optional date filtering."""
     return await get_review_sessions(start_date, end_date, current_user)
@@ -649,10 +677,12 @@ async def get_review_sessions_alt(
 async def get_review_sessions(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get review sessions with optional date filtering."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user or "review_sessions" not in user:
         return []
 
@@ -678,10 +708,12 @@ async def get_review_sessions(
 
 @router.get("/summary", response_model=Dict[str, Any])
 async def get_progress_summary(
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get a summary of the user's progress."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -785,10 +817,12 @@ async def get_progress_summary(
 
 @router.get("/recommended-reviews", response_model=List[Dict[str, Any]])
 async def get_recommended_reviews(
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get topics recommended for review based on study history."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -834,10 +868,12 @@ async def get_recommended_reviews(
 async def get_study_sessions(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get study sessions with optional date filtering."""
-    user = await db.users.find_one({"username": current_user.username})
+    username = get_username(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user or "study_sessions" not in user:
         return []
 

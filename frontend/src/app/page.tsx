@@ -1,6 +1,24 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 export default function HomePage() {
+  // Clear any lingering tokens on the home page to prevent redirect issues
+  useEffect(() => {
+    // If we're on the client, clear any tokens that might cause redirect issues
+    if (typeof window !== 'undefined') {
+      // Don't clear tokens if the user is truly logged in
+      const shouldClearToken = !document.cookie.includes('userConfirmedLoggedIn=true');
+
+      if (shouldClearToken) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      }
+    }
+  }, []);
+
   return (
     <div className="bg-white">
       <div className="relative isolate px-6 pt-14 lg:px-8">

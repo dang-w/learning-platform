@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+# Check if we're in development mode
+IS_DEVELOPMENT = ENVIRONMENT.lower() == "development"
 
 # Rate limit settings
 RATE_LIMIT_SETTINGS = {
@@ -72,7 +76,8 @@ def get_client_identifier(request: Request) -> str:
 def check_rate_limit(
     identifier: str,
     limit: int,
-    window: int
+    window: int,
+    key_prefix: Optional[str] = None
 ) -> Tuple[bool, int, int, int]:
     """
     Check if the rate limit has been exceeded.
@@ -81,16 +86,22 @@ def check_rate_limit(
         identifier: Unique identifier for the client
         limit: Maximum number of requests allowed in the window
         window: Time window in seconds
+        key_prefix: Optional prefix for the rate limit key
 
     Returns:
-        Tuple of (is_allowed, remaining, retry_after, reset_time)
+        Tuple of (is_allowed, retry_after, remaining, reset_time)
     """
     if not redis_client:
         logger.warning("Redis not available - rate limiting disabled")
-        return True, limit, 0, int(time.time() + window)
+        return True, 0, limit, int(time.time() + window)
 
     current_time = int(time.time())
-    key = f"rate_limit:{identifier}"
+
+    # Build the key using prefix if provided
+    if key_prefix:
+        key = f"rate_limit:{key_prefix}:{identifier}"
+    else:
+        key = f"rate_limit:default:{identifier}"
 
     try:
         # Use pipeline for atomic operations
@@ -120,49 +131,63 @@ def check_rate_limit(
         # Fail open if Redis is unavailable
         return True, limit, 0, current_time + window
 
+def reset_rate_limit(identifier: str, key_prefix: Optional[str] = None):
+    """Reset the rate limit counter for a given identifier and key prefix.
+    This should only be used in development and testing environments.
+
+    Args:
+        identifier: The client identifier (IP, user ID, etc.)
+        key_prefix: Optional prefix for the rate limit key
+    """
+    if not redis_client:
+        logger.warning("Redis is not available, can't reset rate limit")
+        return False
+
+    if key_prefix:
+        key = f"rate_limit:{key_prefix}:{identifier}"
+    else:
+        key = f"rate_limit:default:{identifier}"
+
+    result = redis_client.delete(key)
+    logger.info(f"Rate limit reset for {key}: {result == 1}")
+    return result == 1
+
 def rate_limit_dependency(
     limit: int = 60,  # requests
     window: int = 60,  # seconds
     key_prefix: Optional[str] = None
 ):
-    """
-    FastAPI dependency for rate limiting.
+    """Create a FastAPI dependency for rate limiting."""
 
-    Args:
-        limit: Maximum number of requests allowed in the window
-        window: Time window in seconds
-        key_prefix: Optional prefix for rate limit key
-
-    Usage:
-        @app.post("/endpoint")
-        async def endpoint(
-            rate_limit: None = Depends(rate_limit_dependency(limit=5, window=60))
-        ):
-            ...
-    """
     async def dependency(request: Request):
-        identifier = get_client_identifier(request)
-        if key_prefix:
-            identifier = f"{key_prefix}:{identifier}"
+        # Skip rate limiting in development environment when explicitly requested
+        if IS_DEVELOPMENT and request.headers.get("X-Skip-Rate-Limit") == "true":
+            logger.info("Skipping rate limit check in development mode")
+            return
 
-        is_allowed, remaining, retry_after, reset_time = check_rate_limit(
-            identifier,
-            limit,
-            window
+        # Get client identifier (IP address by default)
+        identifier = get_client_identifier(request)
+
+        # If Redis is not available, skip rate limiting
+        if not redis_client:
+            logger.warning("Redis is not available, skipping rate limiting")
+            return
+
+        # Check if rate limit is exceeded
+        is_allowed, retry_after, remaining, reset_time = check_rate_limit(
+            identifier=identifier,
+            limit=limit,
+            window=window,
+            key_prefix=key_prefix
         )
 
-        # Set rate limit headers
-        headers = {
-            "X-RateLimit-Limit": str(limit),
-            "X-RateLimit-Remaining": str(remaining),
-            "X-RateLimit-Reset": str(reset_time)
-        }
-
         if not is_allowed:
-            raise RateLimitExceeded(retry_after, limit, remaining, reset_time)
-
-        # Store headers in request state
-        request.state.rate_limit_headers = headers
+            raise RateLimitExceeded(
+                retry_after=retry_after,
+                limit=limit,
+                remaining=remaining,
+                reset_time=reset_time
+            )
 
     return dependency
 
@@ -206,7 +231,8 @@ def rate_limit(
             is_allowed, remaining, retry_after, reset_time = check_rate_limit(
                 identifier,
                 limit,
-                window
+                window,
+                key_prefix
             )
 
             # Set rate limit headers

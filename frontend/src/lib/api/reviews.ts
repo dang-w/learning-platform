@@ -53,12 +53,12 @@ export interface ReviewStatistics {
 
 const reviewsApi = {
   createConcept: async (data: ConceptCreate): Promise<Concept> => {
-    const response = await apiClient.post<Concept>('/api/reviews/concepts', data);
+    const response = await apiClient.post<Concept>('/reviews/concepts', data);
     return response.data;
   },
 
   getConcepts: async (topic?: string): Promise<Concept[]> => {
-    let url = '/api/reviews/concepts';
+    let url = '/reviews/concepts';
     if (topic) {
       url += `?topic=${encodeURIComponent(topic)}`;
     }
@@ -68,42 +68,49 @@ const reviewsApi = {
   },
 
   getConcept: async (conceptId: string): Promise<Concept> => {
-    const response = await apiClient.get<Concept>(`/api/reviews/concepts/${conceptId}`);
+    const response = await apiClient.get<Concept>(`/reviews/concepts/${conceptId}`);
     return response.data;
   },
 
   updateConcept: async (conceptId: string, data: ConceptUpdate): Promise<Concept> => {
-    const response = await apiClient.put<Concept>(`/api/reviews/concepts/${conceptId}`, data);
+    const response = await apiClient.put<Concept>(`/reviews/concepts/${conceptId}`, data);
     return response.data;
   },
 
   deleteConcept: async (conceptId: string): Promise<void> => {
-    await apiClient.delete(`/api/reviews/concepts/${conceptId}`);
+    await apiClient.delete(`/reviews/concepts/${conceptId}`);
   },
 
   markConceptReviewed: async (conceptId: string, data: ReviewCreate): Promise<Concept> => {
-    const response = await apiClient.post<Concept>(`/api/reviews/concepts/${conceptId}/review`, data);
+    const response = await apiClient.post<Concept>(`/reviews/concepts/${conceptId}/review`, data);
     return response.data;
   },
 
   getDueConcepts: async (): Promise<Concept[]> => {
-    const response = await apiClient.get<Concept[]>('/api/reviews/due');
+    const response = await apiClient.get<Concept[]>('/reviews/due');
     return response.data;
   },
 
   getNewConcepts: async (count: number = 3): Promise<Concept[]> => {
-    const response = await apiClient.get<Concept[]>(`/api/reviews/new?count=${count}`);
+    const response = await apiClient.get<Concept[]>(`/reviews/new?count=${count}`);
     return response.data;
   },
 
   generateReviewSession: async (maxReviews: number = 5): Promise<ReviewSession> => {
-    const response = await apiClient.get<ReviewSession>(`/api/reviews/session?max_reviews=${maxReviews}`);
+    const response = await apiClient.get<ReviewSession>(`/reviews/session?max_reviews=${maxReviews}`);
     return response.data;
   },
 
   getReviewStatistics: async (): Promise<ReviewStatistics> => {
-    const response = await apiClient.get<ReviewStatistics>('/api/reviews/statistics');
-    return response.data;
+    try {
+      console.log('Fetching review statistics...');
+      const response = await apiClient.get('/reviews/statistics');
+      console.log('Review statistics response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching review statistics:', error);
+      throw error;
+    }
   },
 };
 
