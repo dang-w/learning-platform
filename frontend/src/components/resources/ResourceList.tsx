@@ -3,8 +3,6 @@ import { ResourceType } from '@/types/resources';
 import { Spinner } from '../ui/feedback/spinner';
 import { Alert } from '../ui/feedback/alert';
 import { useState } from 'react';
-import { ConfirmDialog } from '../ui/dialog/ConfirmDialog';
-import { Notification } from '../ui/notifications/Notification';
 
 // Resource type labels for display
 const resourceTypeLabels: Record<ResourceType, string> = {
@@ -15,8 +13,8 @@ const resourceTypeLabels: Record<ResourceType, string> = {
 };
 
 interface ResourceListProps {
-  selectedType: ResourceType
-  onTypeChange: (type: ResourceType) => void
+  selectedType: ResourceType;
+  onTypeChange: (type: ResourceType) => void;
 }
 
 export const ResourceList = ({
@@ -42,7 +40,7 @@ export const ResourceList = ({
       <Alert variant="error">
         Failed to load resources: {error}
       </Alert>
-    )
+    );
   }
 
   const handleDeleteClick = (id: string) => {
@@ -68,7 +66,7 @@ export const ResourceList = ({
 
   const handleMarkCompleted = async (id: string) => {
     try {
-      await completeResource(id, '');
+      await completeResource(id, 'Completed via UI');
       setNotification({ visible: true, message: 'Resource marked as completed' });
       setTimeout(() => setNotification({ visible: false, message: '' }), 3000);
     } catch (err) {
@@ -76,6 +74,11 @@ export const ResourceList = ({
       setNotification({ visible: true, message: 'Failed to update resource' });
       setTimeout(() => setNotification({ visible: false, message: '' }), 3000);
     }
+  };
+
+  const handleEditClick = (id: string) => {
+    // In a real implementation, this would open an edit form or navigate to an edit page
+    console.log('Edit resource with ID:', id);
   };
 
   return (
@@ -181,11 +184,21 @@ export const ResourceList = ({
             )}
           </div>
 
-          <button data-testid="clear-filters" className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200">
+          <button
+            data-testid="clear-filters"
+            className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
             Clear Filters
           </button>
         </div>
       </div>
+
+      {/* Success Notification */}
+      {notification.visible && (
+        <div data-testid="success-notification" className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+          {notification.message}
+        </div>
+      )}
 
       {/* Resource List */}
       <div className="space-y-4">
@@ -210,11 +223,12 @@ export const ResourceList = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:text-blue-600"
+                      data-testid="resource-title"
                     >
                       {resource.title}
                     </a>
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500">{resource.notes}</p>
+                  <p className="mt-1 text-sm text-gray-500" data-testid="resource-description">{resource.notes}</p>
                   <div className="mt-2 flex items-center space-x-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {resource.difficulty}
@@ -223,31 +237,45 @@ export const ResourceList = ({
                       <span
                         key={topic}
                         className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                        data-testid="resource-tags"
                       >
                         {topic}
                       </span>
                     ))}
+                    {resource.completed && (
+                      <span
+                        data-testid="completed-badge"
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                      >
+                        Completed
+                      </span>
+                    )}
                   </div>
                   <div className="mt-2 text-sm text-gray-500">
                     Estimated time: {resource.estimated_time} minutes
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="ml-4 flex-shrink-0 flex space-x-2">
+                  {!resource.completed && (
+                    <button
+                      data-testid="complete-resource"
+                      onClick={() => handleMarkCompleted(resource.id)}
+                      className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200"
+                    >
+                      Complete
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleMarkCompleted(resource.id)}
-                    data-testid="mark-completed"
-                    className={`px-3 py-1 text-sm font-medium rounded-md ${
-                      resource.completed
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
+                    data-testid="edit-resource"
+                    onClick={() => handleEditClick(resource.id)}
+                    className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded hover:bg-blue-200"
                   >
-                    {resource.completed ? 'Completed' : 'Mark Complete'}
+                    Edit
                   </button>
                   <button
-                    onClick={() => handleDeleteClick(resource.id)}
                     data-testid="delete-resource"
-                    className="px-3 py-1 text-sm font-medium text-red-600 bg-red-100 rounded-md hover:bg-red-200"
+                    onClick={() => handleDeleteClick(resource.id)}
+                    className="px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200"
                   >
                     Delete
                   </button>
@@ -258,22 +286,30 @@ export const ResourceList = ({
         )}
       </div>
 
-      {/* Confirm Delete Dialog */}
-      <ConfirmDialog
-        title="Delete Resource"
-        isOpen={showConfirmDialog}
-        onCancel={() => setShowConfirmDialog(false)}
-        onConfirm={handleConfirmDelete}
-        message="Are you sure you want to delete this resource? This action cannot be undone."
-      />
-
-      {/* Success/Error Notification */}
-      <Notification
-        type="success"
-        message={notification.message}
-        isOpen={notification.visible}
-        onClose={() => setNotification({ visible: false, message: '' })}
-      />
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Deletion</h3>
+            <p className="text-sm text-gray-500 mb-4">Are you sure you want to delete this resource? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="confirm-delete"
+                onClick={handleConfirmDelete}
+                className="px-3 py-2 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

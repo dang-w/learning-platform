@@ -1,0 +1,209 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 2,
+    "passes": 1,
+    "pending": 5,
+    "failures": -4,
+    "start": "2025-03-20T10:34:10.346Z",
+    "end": "2025-03-20T10:34:30.784Z",
+    "duration": 20438,
+    "testsRegistered": 6,
+    "passPercent": 100,
+    "pendingPercent": 83.33333333333334,
+    "other": 4,
+    "hasOther": true,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "7c252c65-bc3a-48e0-971c-16b0ad9411e9",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/resources.cy.ts",
+      "file": "e2e-testing/cypress/e2e/resources.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "e88b342e-2205-45d7-8548-3b1887e1d9e4",
+          "title": "Resources Management",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display the resources test page",
+              "fullTitle": "Resources Management should display the resources test page",
+              "timedOut": null,
+              "duration": 4191,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check the current URL\ncy.url().then(function (url) {\n    cy.log(\"Current URL: \".concat(url));\n    // Take a screenshot for evidence\n    cy.screenshot('resources-page-test');\n    // Check for the page heading to confirm we're on the right page\n    cy.contains('Test Resources Page').should('be.visible');\n    // Add a simple test for the add resource button\n    cy.get('[data-testid=\"add-resource\"]').should('be.visible');\n    // Log success\n    cy.log('✅ Successfully loaded the resources test page');\n});",
+              "err": {},
+              "uuid": "ccf24c85-0b38-4a83-b2c0-b3e622176645",
+              "parentUUID": "e88b342e-2205-45d7-8548-3b1887e1d9e4",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow creating a new resource",
+              "fullTitle": "Resources Management should allow creating a new resource",
+              "timedOut": null,
+              "duration": 0,
+              "state": "pending",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": true,
+              "context": null,
+              "code": "// To be implemented when the form functionality is fixed",
+              "err": {},
+              "uuid": "f5cca8e3-6d49-4e1b-bac6-df8b7d2c656e",
+              "parentUUID": "e88b342e-2205-45d7-8548-3b1887e1d9e4",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow editing an existing resource",
+              "fullTitle": "Resources Management should allow editing an existing resource",
+              "timedOut": null,
+              "duration": 0,
+              "state": "pending",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": true,
+              "context": null,
+              "code": "// To be implemented",
+              "err": {},
+              "uuid": "6ee851c4-79c2-43f8-ba9b-b23c760370a5",
+              "parentUUID": "e88b342e-2205-45d7-8548-3b1887e1d9e4",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow marking a resource as completed",
+              "fullTitle": "Resources Management should allow marking a resource as completed",
+              "timedOut": null,
+              "duration": 0,
+              "state": "pending",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": true,
+              "context": null,
+              "code": "// To be implemented",
+              "err": {},
+              "uuid": "5a466e61-7e6f-4883-b362-23d2582e5941",
+              "parentUUID": "e88b342e-2205-45d7-8548-3b1887e1d9e4",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow deleting a resource",
+              "fullTitle": "Resources Management should allow deleting a resource",
+              "timedOut": null,
+              "duration": 0,
+              "state": "pending",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": true,
+              "context": null,
+              "code": "// To be implemented",
+              "err": {},
+              "uuid": "9dabc19e-730b-4602-9560-15c40fa2d903",
+              "parentUUID": "e88b342e-2205-45d7-8548-3b1887e1d9e4",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should extract metadata from URL",
+              "fullTitle": "Resources Management should extract metadata from URL",
+              "timedOut": null,
+              "duration": 0,
+              "state": "pending",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": true,
+              "context": null,
+              "code": "// To be implemented",
+              "err": {},
+              "uuid": "52dbf6b1-5552-4f96-82f4-7b8bf62f8d6e",
+              "parentUUID": "e88b342e-2205-45d7-8548-3b1887e1d9e4",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "ccf24c85-0b38-4a83-b2c0-b3e622176645"
+          ],
+          "failures": [],
+          "pending": [
+            "f5cca8e3-6d49-4e1b-bac6-df8b7d2c656e",
+            "6ee851c4-79c2-43f8-ba9b-b23c760370a5",
+            "5a466e61-7e6f-4883-b362-23d2582e5941",
+            "9dabc19e-730b-4602-9560-15c40fa2d903",
+            "52dbf6b1-5552-4f96-82f4-7b8bf62f8d6e"
+          ],
+          "skipped": [],
+          "duration": 4191,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "reporterEnabled": "cypress-mochawesome-reporter",
+        "cypressMochawesomeReporterReporterOptions": {
+          "reportDir": "e2e-testing/reports",
+          "charts": true,
+          "reportPageTitle": "Learning Platform E2E Tests",
+          "embeddedScreenshots": true,
+          "inlineAssets": true
+        },
+        "reportDir": "./e2e-testing/cypress/reports/resilient",
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

@@ -12,6 +12,29 @@ This platform provides a structured approach to learning AI/ML concepts with:
 - Focus and productivity tools
 - Interactive data visualizations
 
+## Documentation
+
+The project documentation has been reorganized for better clarity and maintenance:
+
+### Architecture and Design
+- [Architecture Documentation](docs/architecture/ARCHITECTURE.md) - System design and architecture
+
+### API Documentation
+- [API Documentation](docs/api/API_DOCUMENTATION.md) - Comprehensive API endpoints documentation
+
+### Testing
+- [Comprehensive Testing Plan](docs/testing/COMPREHENSIVE_TESTING_PLAN.md) - Testing strategy and plans
+- [Testing Guide](docs/testing/TESTING_GUIDE.md) - Guide for testing the application
+- [E2E Testing Fixes](docs/testing/e2e-testing-fixes.md) - Fixes for E2E test issues
+- [Test Results Template](docs/testing/TEST_RESULTS_TEMPLATE.md) - Template for documenting test results
+
+### Development
+- [Development Status](docs/development/DEVELOPMENT_STATUS.md) - Current status of development
+- [Findings](docs/development/FINDINGS.md) - Recent findings and progress updates
+
+### Project Analysis
+- [Project Analysis](PROJECT_ANALYSIS.md) - Comprehensive analysis and improvement plan
+
 ## Current Implementation Status
 
 ### Completed
@@ -30,7 +53,7 @@ This platform provides a structured approach to learning AI/ML concepts with:
 - 🔄 Testing suite implementation
   - ✅ Backend unit tests with pytest
   - ✅ Frontend unit tests with Jest
-  - ✅ End-to-end tests with Cypress
+  - 🔄 End-to-end tests with Cypress
   - ✅ Backend integration tests
   - ✅ Frontend integration tests
 
@@ -189,151 +212,3 @@ For test coverage report:
 ```bash
 pytest --cov=app tests/api tests/services tests/utils
 ```
-
-#### Integration Tests
-
-Run the backend integration tests with:
-
-```bash
-cd backend
-pytest tests/integration
-```
-
-The integration tests verify:
-- Complete user workflows across multiple API endpoints
-- Interactions between different API endpoints
-- Database operations and data model integrity
-
-### Frontend Tests
-
-The frontend has comprehensive test coverage with both unit tests and end-to-end integration tests:
-
-#### Unit Tests
-
-Run the frontend unit tests with:
-
-```bash
-cd frontend
-npm test
-```
-
-#### End-to-End Tests
-
-Run the end-to-end tests with:
-
-```bash
-cd frontend
-npm run cypress
-```
-
-The end-to-end tests verify:
-- Authentication flows
-- Dashboard functionality
-- Resource management
-- Knowledge management
-- Learning path management
-- Progress analytics
-- User profile management
-
-## Deployment Status
-
-The platform is **not yet ready for deployment**. The following steps need to be completed before deployment:
-
-1. ~~Complete the implementation of the knowledge management system~~
-2. ~~Finish the progress analytics dashboard~~
-3. Complete comprehensive testing
-4. Configure deployment settings for both frontend and backend
-5. Set up CI/CD pipeline
-
-## Next Steps
-
-1. ~~Finish the progress analytics dashboard~~
-2. Complete comprehensive testing
-   - Finish integration tests
-   - Improve test coverage
-3. Configure deployment settings
-   - Set up Vercel for frontend deployment
-   - Configure cloud service for backend deployment
-   - Set up MongoDB Atlas for database
-
-## API Endpoints
-
-The backend provides the following API endpoints:
-
-### Authentication
-
-- `POST /token` - Get access token
-- `POST /users/` - Create new user
-- `GET /users/me/` - Get current user info
-
-### Resources
-
-- `GET /api/resources/` - Get all resources
-- `GET /api/resources/{resource_type}` - Get resources by type
-- `POST /api/resources/{resource_type}` - Create a new resource
-- `PUT /api/resources/{resource_type}/{resource_id}` - Update a resource
-- `POST /api/resources/{resource_type}/{resource_id}/complete` - Mark resource as completed
-- `DELETE /api/resources/{resource_type}/{resource_id}` - Delete a resource
-- `GET /api/resources/next` - Get next resources to study
-- `GET /api/resources/statistics` - Get resource statistics
-
-### Progress
-
-- `POST /api/progress/metrics` - Add daily study metrics
-- `GET /api/progress/metrics` - Get study metrics
-- `GET /api/progress/metrics/recent` - Get recent metrics summary
-- `GET /api/progress/report/weekly` - Generate weekly report
-- `DELETE /api/progress/metrics/{metric_id}` - Delete a metric
-
-### Reviews
-
-- `POST /api/reviews/concepts` - Create a new concept
-- `GET /api/reviews/concepts` - Get all concepts
-- `GET /api/reviews/concepts/{concept_id}` - Get a specific concept
-- `PUT /api/reviews/concepts/{concept_id}` - Update a concept
-- `DELETE /api/reviews/concepts/{concept_id}` - Delete a concept
-- `POST /api/reviews/concepts/{concept_id}/review` - Mark concept as reviewed
-- `GET /api/reviews/due` - Get concepts due for review
-- `GET /api/reviews/new` - Get new concepts
-- `GET /api/reviews/session` - Generate a review session
-- `GET /api/reviews/statistics` - Get review statistics
-
-### Learning Path
-
-- `POST /api/learning-path/goals` - Create a new goal
-- `GET /api/learning-path/goals` - Get all goals
-- `GET /api/learning-path/goals/{goal_id}` - Get a specific goal
-- `PUT /api/learning-path/goals/{goal_id}` - Update a goal
-- `DELETE /api/learning-path/goals/{goal_id}` - Delete a goal
-- `POST /api/learning-path/milestones` - Create a new milestone
-- `GET /api/learning-path/milestones` - Get all milestones
-- `GET /api/learning-path/milestones/{milestone_id}` - Get a specific milestone
-- `PUT /api/learning-path/milestones/{milestone_id}` - Update a milestone
-- `DELETE /api/learning-path/milestones/{milestone_id}` - Delete a milestone
-- `POST /api/learning-path/roadmap` - Create or replace roadmap
-- `GET /api/learning-path/roadmap` - Get the roadmap
-- `PUT /api/learning-path/roadmap` - Update the roadmap
-- `GET /api/learning-path/progress` - Get learning path progress
-
-## Deployment
-
-### Backend Deployment
-
-The backend can be deployed to any cloud service that supports Python applications, such as:
-
-- Railway
-- Render
-- Heroku
-- AWS Elastic Beanstalk
-
-### Frontend Deployment
-
-The frontend will be deployable to Vercel with a simple connection to the GitHub repository.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
