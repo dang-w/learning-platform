@@ -8,6 +8,9 @@ import { BasePage } from './BasePage';
 export class ProfilePage extends BasePage {
   // Define selectors as private constants
   private selectors = {
+    // Loading states
+    loadingSpinner: '[data-testid="profile-loading"]',
+
     // Main container elements
     profileContainer: '[data-testid="profile-container"]',
     profileHeader: '[data-testid="profile-header"]',
@@ -51,10 +54,24 @@ export class ProfilePage extends BasePage {
   };
 
   /**
-   * Navigate to the profile page
+   * Navigate to the profile page and wait for loading to complete
    */
-  visitProfile(): Cypress.Chainable<void> {
-    return this.visitProtected('/profile');
+  visitProfile(): void {
+    this.visitProtected('/profile');
+    this.waitForLoadingComplete();
+  }
+
+  /**
+   * Wait for loading to complete
+   */
+  waitForLoadingComplete(): void {
+    // Wait for loading spinner to appear and disappear, but don't fail if it doesn't appear
+    cy.get(this.selectors.loadingSpinner).should((el) => {
+      // If the element exists, wait for it to disappear
+      if (el.length > 0) {
+        cy.get(this.selectors.loadingSpinner).should('not.exist');
+      }
+    });
   }
 
   /**

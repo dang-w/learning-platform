@@ -1,0 +1,227 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 7,
+    "passes": 7,
+    "pending": 0,
+    "failures": 0,
+    "start": "2025-03-20T12:58:59.513Z",
+    "end": "2025-03-20T12:59:21.492Z",
+    "duration": 21979,
+    "testsRegistered": 7,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "b7313b5c-307f-43f7-ad7a-fe47c7374a65",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/learning-path-roadmap.cy.ts",
+      "file": "e2e-testing/cypress/e2e/learning-path-roadmap.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+          "title": "Learning Path - Roadmap Visualization",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display the learning path roadmap",
+              "fullTitle": "Learning Path - Roadmap Visualization should display the learning path roadmap",
+              "timedOut": null,
+              "duration": 2904,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization-should display the learning path roadmap-learning-path-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check that the roadmap visualization is displayed\n    page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Roadmap visualization is visible');\n        }\n        else {\n            cy.log('Roadmap visualization is not visible');\n            return;\n        }\n    });\n    // Check that the goals are displayed on the roadmap\n    page_objects_1.learningPathPage.getRoadmapGoalsCount().then(function (count) {\n        cy.wrap(count).should('be.at.least', 1);\n    });\n});",
+              "err": {},
+              "uuid": "d6c7f647-d927-49cd-bae9-3d5cce6a6909",
+              "parentUUID": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow viewing goal details from the roadmap",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow viewing goal details from the roadmap",
+              "timedOut": null,
+              "duration": 2722,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization-should allow viewing goal details from the roadmap-learning-path-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if roadmap visualization is visible\n    page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Roadmap visualization is not visible, skipping test');\n            page_objects_1.learningPathPage.takeScreenshot('roadmap-visualization-not-visible');\n            return;\n        }\n        // Check if there are any goals in the roadmap\n        page_objects_1.learningPathPage.getRoadmapGoalsCount().then(function (count) {\n            if (count === 0) {\n                cy.log('No goals found in the roadmap, skipping test');\n                page_objects_1.learningPathPage.takeScreenshot('no-roadmap-goals');\n                return;\n            }\n            // Click on a goal in the roadmap\n            page_objects_1.learningPathPage.clickFirstRoadmapGoal();\n            // Check that the goal details modal is displayed\n            page_objects_1.learningPathPage.isGoalDetailsModalVisible().then(function (isModalVisible) {\n                cy.wrap(isModalVisible).should('be.true');\n                // Check that all goal details are displayed\n                page_objects_1.learningPathPage.areGoalDetailsDisplayed().then(function (areDetailsDisplayed) {\n                    cy.wrap(areDetailsDisplayed).should('be.true');\n                });\n                // Close the modal\n                page_objects_1.learningPathPage.closeGoalDetailsModal();\n                // Verify the modal is closed\n                page_objects_1.learningPathPage.isGoalDetailsModalVisible().then(function (isStillVisible) {\n                    cy.wrap(isStillVisible).should('be.false');\n                });\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "18d5c466-c5ab-4450-936a-4a9dbd41fbf6",
+              "parentUUID": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow updating goal status from the roadmap",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow updating goal status from the roadmap",
+              "timedOut": null,
+              "duration": 2760,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization-should allow updating goal status from the roadmap-learning-path-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if roadmap visualization is visible\n    page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Roadmap visualization is not visible, skipping test');\n            page_objects_1.learningPathPage.takeScreenshot('roadmap-visualization-not-visible');\n            return;\n        }\n        // Check if there are any goals in the roadmap\n        page_objects_1.learningPathPage.getRoadmapGoalsCount().then(function (count) {\n            if (count === 0) {\n                cy.log('No goals found in the roadmap, skipping test');\n                page_objects_1.learningPathPage.takeScreenshot('no-roadmap-goals');\n                return;\n            }\n            // Click on a goal in the roadmap\n            page_objects_1.learningPathPage.clickFirstRoadmapGoal();\n            // Check that the goal details modal is displayed\n            page_objects_1.learningPathPage.isGoalDetailsModalVisible().then(function (isModalVisible) {\n                if (!isModalVisible) {\n                    cy.log('Goal details modal is not visible, skipping test');\n                    page_objects_1.learningPathPage.takeScreenshot('goal-details-modal-not-visible');\n                    return;\n                }\n                // Update the goal status to in-progress\n                page_objects_1.learningPathPage.updateGoalStatusToInProgress();\n                // Verify the modal is closed after updating\n                page_objects_1.learningPathPage.isGoalDetailsModalVisible().then(function (isStillVisible) {\n                    cy.wrap(isStillVisible).should('be.false');\n                });\n                // Check that the goal status is updated in the roadmap\n                page_objects_1.learningPathPage.firstRoadmapGoalHasStatus('in_progress').then(function (hasCorrectStatus) {\n                    cy.wrap(hasCorrectStatus).should('be.true');\n                });\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "cf53710b-9182-48fb-90af-f636bc2ea05e",
+              "parentUUID": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow adding milestones to a goal",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow adding milestones to a goal",
+              "timedOut": null,
+              "duration": 2753,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization-should allow adding milestones to a goal-learning-path-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if roadmap visualization is visible\n    page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Roadmap visualization is not visible, skipping test');\n            page_objects_1.learningPathPage.takeScreenshot('roadmap-visualization-not-visible');\n            return;\n        }\n        // Check if there are any goals in the roadmap\n        page_objects_1.learningPathPage.getRoadmapGoalsCount().then(function (count) {\n            if (count === 0) {\n                cy.log('No goals found in the roadmap, skipping test');\n                page_objects_1.learningPathPage.takeScreenshot('no-roadmap-goals');\n                return;\n            }\n            // Click on a goal in the roadmap\n            page_objects_1.learningPathPage.clickFirstRoadmapGoal();\n            // Check that the goal details modal is displayed\n            page_objects_1.learningPathPage.isGoalDetailsModalVisible().then(function (isModalVisible) {\n                if (!isModalVisible) {\n                    cy.log('Goal details modal is not visible, skipping test');\n                    page_objects_1.learningPathPage.takeScreenshot('goal-details-modal-not-visible');\n                    return;\n                }\n                // Create a unique milestone title\n                var milestoneTitle = \"Test Milestone \".concat(Date.now());\n                // Add a milestone to the goal\n                page_objects_1.learningPathPage.addMilestoneToGoal({\n                    title: milestoneTitle,\n                    description: 'Test milestone description',\n                    deadline: '2023-12-31'\n                });\n                // Check that the milestone is added to the goal\n                page_objects_1.learningPathPage.milestoneExists(milestoneTitle).then(function (exists) {\n                    cy.wrap(exists).should('be.true');\n                });\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "a62bed47-0ad4-4fc2-bfeb-1c9b58123c3e",
+              "parentUUID": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow filtering the roadmap by status",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow filtering the roadmap by status",
+              "timedOut": null,
+              "duration": 3804,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization-should allow filtering the roadmap by status-learning-path-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if roadmap visualization is visible\n    page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Roadmap visualization is not visible, skipping test');\n            page_objects_1.learningPathPage.takeScreenshot('roadmap-visualization-not-visible');\n            return;\n        }\n        // Check if roadmap filters are available\n        cy.get('body').then(function ($body) {\n            var hasFilters = $body.find('[data-testid=\"roadmap-filters\"]').length > 0;\n            if (!hasFilters) {\n                cy.log('Roadmap filters are not available, skipping test');\n                page_objects_1.learningPathPage.takeScreenshot('roadmap-filters-not-available');\n                return;\n            }\n            // Filter by status\n            page_objects_1.learningPathPage.filterRoadmapByInProgressStatus();\n            // Check that the URL includes the filter parameter\n            cy.url().should('include', 'status=in_progress');\n            // Check that the roadmap visualization is still visible after filtering\n            page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isStillVisible) {\n                cy.wrap(isStillVisible).should('be.true');\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "a0feec46-e987-4d05-b945-8e939022e3ad",
+              "parentUUID": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow filtering the roadmap by priority",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow filtering the roadmap by priority",
+              "timedOut": null,
+              "duration": 3030,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization-should allow filtering the roadmap by priority-learning-path-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if roadmap visualization is visible\n    page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Roadmap visualization is not visible, skipping test');\n            page_objects_1.learningPathPage.takeScreenshot('roadmap-visualization-not-visible');\n            return;\n        }\n        // Check if roadmap filters are available\n        cy.get('body').then(function ($body) {\n            var hasFilters = $body.find('[data-testid=\"roadmap-filters\"]').length > 0;\n            if (!hasFilters) {\n                cy.log('Roadmap filters are not available, skipping test');\n                page_objects_1.learningPathPage.takeScreenshot('roadmap-filters-not-available');\n                return;\n            }\n            // Filter by priority\n            page_objects_1.learningPathPage.filterRoadmapByHighPriority();\n            // Check that the URL includes the filter parameter\n            cy.url().should('include', 'priority=high');\n            // Check that the roadmap visualization is still visible after filtering\n            page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isStillVisible) {\n                cy.wrap(isStillVisible).should('be.true');\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "a7b2631d-2552-4823-ac76-7a0c945292ab",
+              "parentUUID": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow viewing the roadmap in timeline view",
+              "fullTitle": "Learning Path - Roadmap Visualization should allow viewing the roadmap in timeline view",
+              "timedOut": null,
+              "duration": 3349,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path-roadmap.cy.ts/Learning Path - Roadmap Visualization-should allow viewing the roadmap in timeline view-learning-path-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if roadmap visualization is visible\n    page_objects_1.learningPathPage.isRoadmapVisualizationVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Roadmap visualization is not visible, skipping test');\n            page_objects_1.learningPathPage.takeScreenshot('roadmap-visualization-not-visible');\n            return;\n        }\n        // Check if view controls are available\n        cy.get('body').then(function ($body) {\n            var hasViewControls = $body.find('[data-testid=\"roadmap-view-controls\"]').length > 0;\n            if (!hasViewControls) {\n                cy.log('Roadmap view controls are not available, skipping test');\n                page_objects_1.learningPathPage.takeScreenshot('roadmap-view-controls-not-available');\n                return;\n            }\n            // Switch to timeline view\n            page_objects_1.learningPathPage.switchToTimelineView();\n            // Check that the URL includes the view parameter\n            cy.url().should('include', 'view=timeline');\n            // Check that the timeline visualization is visible\n            page_objects_1.learningPathPage.isTimelineVisualizationVisible().then(function (isTimelineVisible) {\n                cy.wrap(isTimelineVisible).should('be.true');\n                // Check that the goals are displayed on the timeline\n                page_objects_1.learningPathPage.getTimelineGoalsCount().then(function (count) {\n                    cy.wrap(count).should('be.at.least', 1);\n                });\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "7af2cc1b-e01f-4463-a85b-c9150e76afb4",
+              "parentUUID": "38da2b67-af2b-4df2-8b2a-17b9972fc4be",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "d6c7f647-d927-49cd-bae9-3d5cce6a6909",
+            "18d5c466-c5ab-4450-936a-4a9dbd41fbf6",
+            "cf53710b-9182-48fb-90af-f636bc2ea05e",
+            "a62bed47-0ad4-4fc2-bfeb-1c9b58123c3e",
+            "a0feec46-e987-4d05-b945-8e939022e3ad",
+            "a7b2631d-2552-4823-ac76-7a0c945292ab",
+            "7af2cc1b-e01f-4463-a85b-c9150e76afb4"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 21322,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "reporterEnabled": "cypress-mochawesome-reporter",
+        "cypressMochawesomeReporterReporterOptions": {
+          "reportDir": "e2e-testing/reports",
+          "charts": true,
+          "reportPageTitle": "Learning Platform E2E Tests",
+          "embeddedScreenshots": true,
+          "inlineAssets": true
+        },
+        "reportDir": "./e2e-testing/cypress/reports/resilient",
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

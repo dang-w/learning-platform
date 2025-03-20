@@ -1,5 +1,7 @@
 import apiClient, { withBackoff } from './client';
 import { AxiosError } from 'axios';
+import axios from 'axios';
+import { API_URL } from '@/config';
 
 export interface LoginCredentials {
   username: string;
@@ -14,16 +16,35 @@ export interface RegisterData {
 }
 
 export interface User {
+  id: string;
   username: string;
   email: string;
-  full_name: string;
-  disabled: boolean;
+  fullName: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthResponse {
   access_token: string;
   token_type: string;
   refresh_token: string;
+}
+
+export interface UserStatistics {
+  totalCoursesEnrolled: number;
+  completedCourses: number;
+  averageScore: number;
+  totalTimeSpent: number;
+  lastActive: string;
+  achievementsCount: number;
+}
+
+export interface NotificationPreferences {
+  emailNotifications: boolean;
+  courseUpdates: boolean;
+  newMessages: boolean;
+  marketingEmails: boolean;
+  weeklyDigest: boolean;
 }
 
 // Extended API error interface
@@ -241,6 +262,45 @@ const authApi = {
       // Just log a warning but don't make this a critical operation
       console.warn('Failed to update session activity:', error);
     }
+  },
+
+  getUserStatistics: async (): Promise<UserStatistics> => {
+    const response = await axios.get(`${API_URL}/auth/statistics`, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
+  getNotificationPreferences: async (): Promise<NotificationPreferences> => {
+    const response = await axios.get(`${API_URL}/auth/notification-preferences`, {
+      withCredentials: true,
+    });
+    return response.data;
+  },
+
+  updateNotificationPreferences: async (preferences: NotificationPreferences): Promise<NotificationPreferences> => {
+    const response = await axios.put(
+      `${API_URL}/auth/notification-preferences`,
+      preferences,
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  },
+
+  exportUserData: async (): Promise<Blob> => {
+    const response = await axios.get(`${API_URL}/auth/export-data`, {
+      withCredentials: true,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  deleteAccount: async (): Promise<void> => {
+    await axios.delete(`${API_URL}/auth/account`, {
+      withCredentials: true,
+    });
   },
 };
 

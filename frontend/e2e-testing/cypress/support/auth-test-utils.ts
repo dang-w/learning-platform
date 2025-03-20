@@ -16,16 +16,18 @@ export const DEFAULT_TEST_USER = {
 /**
  * Creates a JWT token without requiring backend API
  * This is used as a fallback when the API is not responding
+ * @param username The username to include in the token
+ * @param expiryDays Number of days until token expires (default: 1)
  */
-export const createMockJwt = (username: string): string => {
-  // Create a simple mock JWT with a 24 hour expiry
+export const createMockJwt = (username: string, expiryDays = 1): string => {
+  // Create a simple mock JWT with configurable expiry
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const now = Math.floor(Date.now() / 1000);
   const payload = btoa(JSON.stringify({
     sub: username,
     name: username,
     iat: now,
-    exp: now + 86400, // 24 hours
+    exp: now + (expiryDays * 86400), // expiryDays * 24 hours
     role: 'user'
   }));
 
@@ -52,12 +54,13 @@ export const setupCompleteAuthBypass = (username = DEFAULT_TEST_USER.username) =
 
   // Generate JWT token
   const token = createMockJwt(username);
+  const refreshToken = createMockJwt(username, 30); // 30 day expiry for refresh token
 
   // Create window function to intercept auth checks
   cy.window().then(win => {
     // Set required local storage items
     win.localStorage.setItem('token', token);
-    win.localStorage.setItem('refreshToken', 'mock-refresh-token');
+    win.localStorage.setItem('refreshToken', refreshToken);
     win.localStorage.setItem('user', JSON.stringify({
       id: 'mock-user-id',
       username,
@@ -91,13 +94,72 @@ export const setupCompleteAuthBypass = (username = DEFAULT_TEST_USER.username) =
     }
   }).as('getUserProfile');
 
+  // Handle token refresh requests properly
   cy.intercept('POST', '**/api/auth/refresh', {
     statusCode: 200,
     body: {
-      token,
-      refreshToken: 'mock-refresh-token'
+      access_token: createMockJwt(username), // New access token
+      refresh_token: refreshToken // Keep same refresh token
     }
   }).as('refreshToken');
+
+  // Handle token refresh requests at the /token/refresh endpoint too
+  cy.intercept('POST', '**/token/refresh', {
+    statusCode: 200,
+    body: {
+      access_token: createMockJwt(username), // New access token
+      refresh_token: refreshToken // Keep same refresh token
+    }
+  }).as('tokenRefresh');
+
+  // Mock statistics endpoint
+  cy.intercept('GET', '**/api/users/statistics', {
+    statusCode: 200,
+    body: {
+      totalCoursesEnrolled: 5,
+      completedCourses: 3,
+      averageScore: 85,
+      totalTimeSpent: 24
+    }
+  }).as('getUserStatistics');
+
+  // Mock notification preferences endpoint
+  cy.intercept('GET', '**/api/users/notification-preferences', {
+    statusCode: 200,
+    body: {
+      emailNotifications: true,
+      courseUpdates: true,
+      marketingEmails: false
+    }
+  }).as('getNotificationPreferences');
+
+  // Mock notification preferences update endpoint
+  cy.intercept('PUT', '**/api/users/notification-preferences', {
+    statusCode: 200,
+    body: {
+      emailNotifications: true,
+      courseUpdates: true,
+      marketingEmails: false
+    }
+  }).as('updateNotificationPreferences');
+
+  // Mock data export endpoint
+  cy.intercept('GET', '**/api/users/export', {
+    statusCode: 200,
+    body: {
+      user: {
+        id: 'mock-user-id',
+        username,
+        email: `${username}@example.com`,
+        fullName: username
+      },
+      data: {
+        courses: [],
+        progress: {},
+        preferences: {}
+      }
+    }
+  }).as('exportUserData');
 
   // Force reload to apply all bypasses
   cy.reload();

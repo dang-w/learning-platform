@@ -196,6 +196,7 @@ export default function ReviewSessionPage() {
         <Button
           onClick={handleBackToDashboard}
           variant="outline"
+          data-testid="return-to-dashboard-button"
         >
           Back to Dashboard
         </Button>
@@ -251,85 +252,80 @@ export default function ReviewSessionPage() {
           </div>
         </div>
       ) : currentConcept ? (
-        <div className="bg-white rounded-lg shadow-md" data-testid="review-session">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white rounded-lg shadow-md p-6" data-testid="review-session">
+          <div className="mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">{currentConcept.title}</h2>
-              <Badge>{`${currentIndex + 1} of ${dueConcepts.length}`}</Badge>
+              <h2 className="text-xl font-semibold" data-testid="concept-title">
+                {currentConcept?.title || 'Untitled Concept'}
+              </h2>
+              <Badge>{`${currentIndex + 1}/${dueConcepts.length}`}</Badge>
             </div>
-            <div className="flex space-x-2 mb-4">
-              {currentConcept.topics.map(topic => (
-                <Badge key={topic} variant="secondary">{topic}</Badge>
-              ))}
-            </div>
-          </div>
 
-          <div className="p-6" data-testid="concept-content">
-            {!showAnswer ? (
-              <div>
-                <p className="text-lg font-medium mb-4">Try to recall this concept:</p>
+            <div className="prose max-w-none" data-testid="concept-content">
+              {!showAnswer ? (
                 <Button
                   onClick={() => setShowAnswer(true)}
                   className="w-full"
+                  data-testid="show-answer-button"
                 >
                   Show Answer
                 </Button>
-              </div>
-            ) : (
-              <div>
-                <div className="prose max-w-none mb-8">
-                  <ReactMarkdown>{currentConcept.content}</ReactMarkdown>
-                </div>
-
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-medium mb-4">How well did you recall this concept?</h3>
-                  <div className="grid grid-cols-5 gap-2 mb-6">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() => handleConfidenceSelect(level)}
-                        className={`py-3 px-4 rounded-md text-center transition-colors ${
-                          confidenceLevel === level
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                        }`}
-                        data-testid={`recall-rating-${level}`}
-                      >
-                        {level === 1 && 'Very Hard'}
-                        {level === 2 && 'Hard'}
-                        {level === 3 && 'Medium'}
-                        {level === 4 && 'Easy'}
-                        {level === 5 && 'Very Easy'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Notes (optional):
-                    </label>
-                    <textarea
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      className="w-full p-2 border rounded-md"
-                      rows={3}
-                      placeholder="Add any notes about this review..."
-                    />
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={handleReviewSubmit}
-                      disabled={confidenceLevel === 0 || isSubmitting}
-                      data-testid="submit-review-button"
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Submit Review'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+              ) : (
+                <ReactMarkdown>{currentConcept?.content || ''}</ReactMarkdown>
+              )}
+            </div>
           </div>
+
+          {showAnswer && (
+            <div className="mt-6">
+              <h3 className="text-lg font-medium mb-4">How well did you recall this concept?</h3>
+              <div className="grid grid-cols-5 gap-4" data-testid="recall-ratings">
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <Button
+                    key={level}
+                    onClick={() => handleConfidenceSelect(level)}
+                    variant={confidenceLevel === level ? 'default' : 'outline'}
+                    className="w-full"
+                    data-testid={`recall-rating-${level}`}
+                  >
+                    {level === 1 && 'Very Hard'}
+                    {level === 2 && 'Hard'}
+                    {level === 3 && 'Medium'}
+                    {level === 4 && 'Easy'}
+                    {level === 5 && 'Very Easy'}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="mt-6">
+                <textarea
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="Add any notes about this review (optional)"
+                  className="w-full p-3 border rounded-md"
+                  rows={3}
+                  data-testid="review-notes"
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <Button
+                  onClick={handleReviewSubmit}
+                  disabled={confidenceLevel === 0 || isSubmitting}
+                  data-testid="submit-review-button"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Spinner size="sm" className="mr-2" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Review'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
