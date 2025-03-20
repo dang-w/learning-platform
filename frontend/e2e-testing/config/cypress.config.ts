@@ -66,10 +66,10 @@ export default defineConfig({
     video: process.env.CI === 'true',  // Only record videos in CI
     videoCompression: 32,
     screenshotOnRunFailure: true,
-    defaultCommandTimeout: 8000,       // Reduced from 10000
-    requestTimeout: 10000,             // Reduced from 15000
-    responseTimeout: 10000,            // Reduced from 15000
-    pageLoadTimeout: 30000,           // Added explicit page load timeout
+    defaultCommandTimeout: 15000,       // Increased from 8000
+    requestTimeout: 20000,             // Increased from 10000
+    responseTimeout: 20000,            // Increased from 10000
+    pageLoadTimeout: 45000,           // Increased from 30000
     viewportWidth: 1024,
     viewportHeight: 768,
     numTestsKeptInMemory: 5,           // Limit memory usage

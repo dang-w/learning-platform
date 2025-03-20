@@ -116,10 +116,17 @@ export default function KnowledgePage() {
             View All Concepts
           </Button>
           <Button
-            onClick={handleCreateConcept}
-            variant="outline"
+            onClick={() => router.push('/knowledge/concepts/create')}
+            data-testid="create-concept-button"
           >
             Create Concept
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/knowledge/settings')}
+            data-testid="spaced-repetition-settings-button"
+          >
+            Spaced Repetition Settings
           </Button>
           <Button
             onClick={() => router.push('/knowledge/reviews')}

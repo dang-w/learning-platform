@@ -3,7 +3,10 @@
 # Configuration
 MAX_ATTEMPTS=3
 RETRY_DELAY=5
-CONFIG_FILE="../config/cypress.config.ts"
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Use an absolute path for CONFIG_FILE
+CONFIG_FILE="$SCRIPT_DIR/../../e2e-testing/config/cypress.config.ts"
 REPORT_DIR="reports/resilient"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 

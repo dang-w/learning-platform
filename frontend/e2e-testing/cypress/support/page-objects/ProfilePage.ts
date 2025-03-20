@@ -12,7 +12,7 @@ export class ProfilePage extends BasePage {
     loadingSpinner: '[data-testid="profile-loading"]',
 
     // Main container elements
-    profileContainer: '[data-testid="profile-container"]',
+    profileContainer: '[data-testid="profile-info"]',
     profileHeader: '[data-testid="profile-header"]',
 
     // Profile sections
@@ -59,6 +59,9 @@ export class ProfilePage extends BasePage {
   visitProfile(): void {
     this.visitProtected('/profile');
     this.waitForLoadingComplete();
+
+    // Wait for the profile container to be visible
+    cy.get(this.selectors.profileContainer, { timeout: 15000 }).should('be.visible');
   }
 
   /**
@@ -66,9 +69,9 @@ export class ProfilePage extends BasePage {
    */
   waitForLoadingComplete(): void {
     // Wait for loading spinner to appear and disappear, but don't fail if it doesn't appear
-    cy.get(this.selectors.loadingSpinner).should((el) => {
-      // If the element exists, wait for it to disappear
-      if (el.length > 0) {
+    cy.get('body').then(($body) => {
+      if ($body.find(this.selectors.loadingSpinner).length > 0) {
+        cy.get(this.selectors.loadingSpinner).should('exist');
         cy.get(this.selectors.loadingSpinner).should('not.exist');
       }
     });
