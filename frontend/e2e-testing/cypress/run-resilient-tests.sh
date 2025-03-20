@@ -5,7 +5,7 @@
 # and detailed reporting to handle flaky tests and API issues.
 
 # Configuration variables
-CONFIG_FILE="./e2e-testing/cypress/config/cypress.config.cjs"
+CONFIG_FILE="./e2e-testing/config/cypress.config.cjs"
 REPORTS_DIR="./e2e-testing/cypress/reports"
 LOGS_DIR="./e2e-testing/cypress/logs"
 BACKEND_LOG="./e2e-testing/cypress/backend-errors.log"
