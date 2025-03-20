@@ -1,21 +1,22 @@
 // Use ES modules syntax since the project uses ES modules
 import { defineConfig } from 'cypress';
 
-// @ts-ignore
-const mochawesomeReporter = require('cypress-mochawesome-reporter/plugin');
+// Create a module-level variable for the reporter
+let mochawesomeReporter: ((on: Cypress.PluginEvents) => void) | undefined;
 
-// Define types for our tasks
-interface CustomTasks {
-  log(message: string): null;
-  table(message: any): null;
-}
+// Import mochawesome reporter using dynamic import
+// @ts-expect-error - Dynamic import may not be properly typed
+import('cypress-mochawesome-reporter/plugin').then((module) => {
+  // Store for later use in setupNodeEvents
+  mochawesomeReporter = module.default;
+});
 
 export default defineConfig({
   reporter: 'cypress-multi-reporters',
   reporterOptions: {
     reporterEnabled: 'cypress-mochawesome-reporter',
     cypressMochawesomeReporterReporterOptions: {
-      reportDir: 'e2e-testing/reports',
+      reportDir: 'frontend/e2e-testing/reports',
       charts: true,
       reportPageTitle: 'Learning Platform E2E Tests',
       embeddedScreenshots: true,
@@ -24,19 +25,22 @@ export default defineConfig({
   },
   e2e: {
     baseUrl: 'http://localhost:3000',
-    specPattern: 'e2e-testing/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
-    supportFile: 'e2e-testing/cypress/support/e2e.js',
+    specPattern: 'frontend/e2e-testing/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
+    supportFile: 'frontend/e2e-testing/cypress/support/e2e.js',
     setupNodeEvents(on, config) {
       // Initialize mochawesome reporter
-      mochawesomeReporter(on);
+      if (mochawesomeReporter) {
+        mochawesomeReporter(on);
+      }
 
-      // @ts-ignore - Basic error logging tasks
+      // Basic error logging tasks
+      // @ts-expect-error - Cypress task type checking bypass
       on('task', {
-        log(message) {
+        log(message: string) {
           console.log(message);
           return null;
         },
-        table(message) {
+        table(message: Record<string, unknown>) {
           console.table(message);
           return null;
         },
@@ -54,8 +58,8 @@ export default defineConfig({
     video: process.env.CI === 'true',  // Only record videos in CI
     videoCompression: 32,
     screenshotOnRunFailure: true,
-    screenshotsFolder: 'e2e-testing/cypress/screenshots',
-    videosFolder: 'e2e-testing/cypress/videos',
+    screenshotsFolder: 'frontend/e2e-testing/cypress/screenshots',
+    videosFolder: 'frontend/e2e-testing/cypress/videos',
     defaultCommandTimeout: 8000,       // Reduced from 10000
     requestTimeout: 10000,             // Reduced from 15000
     responseTimeout: 10000,            // Reduced from 15000
@@ -70,8 +74,8 @@ export default defineConfig({
       framework: 'next',
       bundler: 'webpack',
     },
-    supportFile: 'e2e-testing/cypress/support/component.ts',
-    indexHtmlFile: 'e2e-testing/cypress/support/component-index.html',
+    supportFile: 'frontend/e2e-testing/cypress/support/component.ts',
+    indexHtmlFile: 'frontend/e2e-testing/cypress/support/component-index.html',
     specPattern: 'src/**/*.cy.{js,jsx,ts,tsx}'
   },
 });

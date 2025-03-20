@@ -1,4 +1,3 @@
-
 // ***********************************************************
 // This example support/e2e.js is processed and
 // loaded automatically before your test files.
@@ -17,7 +16,14 @@
 // Import commands.js using ES2015 syntax:
 import './commands';
 
-// Import resilient seed data utilities
+// Import authentication test utilities
+import './auth-test-utils';
+
+// Import other utility files
+import './error-handling';
+import './dashboard-helper';
+import './seedTestData';
+// Import seed utilities and functions from resilient data
 import {
   seedResourcesReliably,
   seedConceptsReliably,
@@ -28,6 +34,83 @@ import {
   safeClick,
   safeType
 } from './resilientSeedData';
+
+// Load page objects for easier test maintenance
+import './page-objects';
+
+// Import Cypress Resilient Plugin to improve test reliability
+import 'cypress-set-resilient-tests';
+
+// Use Mochawesome reporter for better reports
+import 'cypress-mochawesome-reporter/register';
+
+// Add Testing Library support
+import '@testing-library/cypress/add-commands';
+
+// Import Cypress Axe for accessibility testing
+import 'cypress-axe';
+
+// Setup visibility tracking for hidden elements
+import 'cypress-real-events/support';
+
+// Expose getRandomInt utility for test data generation
+Cypress.getRandomInt = (min, max) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+// Global error handling
+Cypress.on('uncaught:exception', (err) => {
+  // Use error handler from error-handling.ts
+  console.error(`Uncaught exception: ${err.message}`);
+
+  // Log to Cypress task
+  if (Cypress.task && typeof Cypress.task.logError === 'function') {
+    Cypress.task.logError({
+      message: err.message,
+      stack: err.stack,
+      test: Cypress.currentTest ? Cypress.currentTest.title : 'Unknown'
+    });
+  }
+
+  // Return false to prevent test failure on uncaught exceptions
+  return false;
+});
+
+// Handle backend API errors
+Cypress.on('fail', (err) => {
+  // Check if the error is related to the backend API
+  if (err.message.includes('api/') || err.message.includes('Network Error')) {
+    console.error(`Backend API error detected: ${err.message}`);
+
+    // Retry the test if enabled
+    if (Cypress.env('RETRY_ON_API_FAILURE') === 'true') {
+      Cypress.emit('test:retry');
+    }
+  }
+
+  // Re-throw the error to fail the test
+  throw err;
+});
+
+// Add global logging for better debugging
+Cypress.on('command:start', (command) => {
+  if (Cypress.env('DEBUG_COMMANDS') === 'true') {
+    console.log(`Starting command: ${command.name}`);
+  }
+});
+
+// Setup authentication interceptors for all tests
+before(() => {
+  // Setup authentication interceptors for consistent behavior
+  cy.intercept('POST', '**/api/auth/login', (req) => {
+    // Allow real login requests to proceed but monitor them
+    req.continue((res) => {
+      if (res.statusCode >= 400) {
+        console.warn(`Login API failed with status ${res.statusCode}`);
+      }
+    });
+  }).as('loginRequest');
+});
 
 // Export seed utilities for use in test files
 window.seedResourcesReliably = seedResourcesReliably;
@@ -46,29 +129,6 @@ function logBackendError(data) {
   // Disabled for now to fix chaining issues
   // cy.task('logBackendError', data);
 }
-
-// Configure error handling for backend issues
-Cypress.on('uncaught:exception', (err) => {
-  console.error('Application error:', err.message);
-  // Disabled for now to fix chaining issues
-  return false;
-});
-
-// Log XHR failures but don't fail tests
-Cypress.on('fail', (error) => {
-  if (error.message && error.message.indexOf('xhr') >= 0 && error.message.indexOf('failed') >= 0) {
-    console.error('XHR Error:', error.message);
-    return false; // Don't fail the test
-  }
-
-  // Report route not found errors but don't fail tests
-  if (error.message && error.message.indexOf('failed to load') >= 0) {
-    console.error('Route Error:', error.message);
-    return false;
-  }
-
-  throw error; // Let other errors fail the test
-});
 
 // Automatically log out and clear cache before each test
 beforeEach(() => {

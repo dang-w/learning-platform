@@ -33,11 +33,11 @@ if [ -z "$CYPRESS_RECORD_KEY" ]; then
 fi
 
 # Get spec pattern from command line args or use all tests
-SPEC_PATTERN=${1:-"e2e-testing/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}"}
+SPEC_PATTERN=${1:-"frontend/e2e-testing/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}"}
 
 # Create reports directory structure if it doesn't exist
-mkdir -p e2e-testing/reports/mochawesome
-mkdir -p e2e-testing/reports/junit
+mkdir -p frontend/e2e-testing/reports/mochawesome
+mkdir -p frontend/e2e-testing/reports/junit
 
 # Print test run info
 echo -e "${BLUE}Cypress Project ID:${NC} $CYPRESS_PROJECT_ID"
@@ -46,8 +46,8 @@ echo -e "${BLUE}Environment:${NC} $([ "$CI" == "true" ] && echo "CI" || echo "Lo
 echo ""
 
 # Set additional environment variables for testing
-export CYPRESS_screenshotsFolder=e2e-testing/cypress/screenshots
-export CYPRESS_videosFolder=e2e-testing/cypress/videos
+export CYPRESS_screenshotsFolder=frontend/e2e-testing/cypress/screenshots
+export CYPRESS_videosFolder=frontend/e2e-testing/cypress/videos
 export CYPRESS_RESILIENT_TESTS=true
 
 # Run Cypress with dashboard recording
@@ -55,7 +55,7 @@ echo -e "${GREEN}Starting Cypress run with Dashboard recording...${NC}"
 echo "=========================================================="
 
 npx cypress run \
-  --config-file e2e-testing/config/cypress.dashboard.config.ts \
+  --config-file frontend/e2e-testing/config/cypress.dashboard.config.ts \
   --spec "$SPEC_PATTERN" \
   --record \
   --parallel \
