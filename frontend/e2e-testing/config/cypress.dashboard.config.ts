@@ -17,21 +17,21 @@ export default defineConfig({
   reporterOptions: {
     reporterEnabled: 'cypress-mochawesome-reporter, mocha-junit-reporter',
     cypressMochawesomeReporterReporterOptions: {
-      reportDir: 'e2e-testing/reports/mochawesome',
+      reportDir: 'frontend/e2e-testing/reports/mochawesome',
       charts: true,
       reportPageTitle: 'Learning Platform E2E Tests',
       embeddedScreenshots: true,
       inlineAssets: true,
     },
     mochaJunitReporterReporterOptions: {
-      mochaFile: 'e2e-testing/reports/junit/results-[hash].xml',
+      mochaFile: 'frontend/e2e-testing/reports/junit/results-[hash].xml',
       toConsole: false
     }
   },
 
   e2e: {
     baseUrl: 'http://localhost:3000',
-    specPattern: 'e2e-testing/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
+    specPattern: 'frontend/e2e-testing/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
     setupNodeEvents(on, config) {
       // Import the reporter dynamically
       // @ts-expect-error - Dynamic import may not be properly typed
@@ -57,7 +57,7 @@ export default defineConfig({
       });
 
       // Load our custom plugins using dynamic import instead of require
-      return import('../plugins/index').then((pluginModule) => {
+      return import('../cypress/plugins/index').then((pluginModule) => {
         return pluginModule.default(on, config);
       });
     },
@@ -72,8 +72,8 @@ export default defineConfig({
     video: true,       // Always record videos for Dashboard
     videoCompression: 32,
     screenshotOnRunFailure: true,
-    screenshotsFolder: 'e2e-testing/cypress/screenshots',
-    videosFolder: 'e2e-testing/cypress/videos',
+    screenshotsFolder: 'frontend/e2e-testing/cypress/screenshots',
+    videosFolder: 'frontend/e2e-testing/cypress/videos',
 
     // Optimized timeouts for CI environment
     defaultCommandTimeout: 10000,
