@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import authApi, { User } from '../api/auth';
+import authApi, { User, UserStatistics, NotificationPreferences } from '../api/auth';
 
 interface AuthState {
   user: User | null;
@@ -8,6 +8,8 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  statistics: UserStatistics | null;
+  notificationPreferences: NotificationPreferences | null;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -17,6 +19,11 @@ interface AuthState {
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   clearError: () => void;
   setDirectAuthState: (token: string, isAuth: boolean) => void;
+  fetchStatistics: () => Promise<void>;
+  getNotificationPreferences: () => Promise<void>;
+  updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>;
+  exportUserData: () => Promise<Blob>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -27,6 +34,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      statistics: null,
+      notificationPreferences: null,
 
       setDirectAuthState: (token: string, isAuth: boolean) => {
         if (typeof window !== 'undefined') {
@@ -229,6 +238,93 @@ export const useAuthStore = create<AuthState>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      fetchStatistics: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          const statistics = await authApi.getUserStatistics();
+          set({
+            statistics,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: 'Failed to fetch user statistics',
+          });
+          throw error;
+        }
+      },
+
+      getNotificationPreferences: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          const preferences = await authApi.getNotificationPreferences();
+          set({
+            notificationPreferences: preferences,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: 'Failed to fetch notification preferences',
+          });
+          throw error;
+        }
+      },
+
+      updateNotificationPreferences: async (preferences: NotificationPreferences) => {
+        try {
+          set({ isLoading: true, error: null });
+          const updatedPreferences = await authApi.updateNotificationPreferences(preferences);
+          set({
+            notificationPreferences: updatedPreferences,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: 'Failed to update notification preferences',
+          });
+          throw error;
+        }
+      },
+
+      exportUserData: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          const data = await authApi.exportUserData();
+          set({ isLoading: false });
+          return data;
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: 'Failed to export user data',
+          });
+          throw error;
+        }
+      },
+
+      deleteAccount: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          await authApi.deleteAccount();
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+            statistics: null,
+            notificationPreferences: null,
+          });
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: 'Failed to delete account',
+          });
+          throw error;
+        }
       },
     }),
     {

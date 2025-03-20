@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useForm } from 'react-hook-form';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 const profileSchema = z.object({
   email: z.string().email('Invalid email address'),
-  full_name: z.string().min(1, 'Full name is required'),
+  fullName: z.string().min(1, 'Full name is required'),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -30,13 +30,30 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 type TabType = 'profile' | 'password' | 'account' | 'statistics' | 'notifications' | 'export';
 
 export default function ProfilePage() {
-  const { user, updateProfile, changePassword, error, clearError } = useAuthStore();
+  const {
+    user,
+    updateProfile,
+    changePassword,
+    error,
+    clearError,
+    statistics,
+    notificationPreferences,
+    fetchStatistics,
+    getNotificationPreferences,
+    updateNotificationPreferences,
+    exportUserData,
+    deleteAccount,
+    isLoading: storeLoading
+  } = useAuthStore();
+
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const router = useRouter();
 
   const {
@@ -47,7 +64,7 @@ export default function ProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       email: user?.email || '',
-      full_name: user?.full_name || '',
+      fullName: user?.fullName || '',
     },
   });
 
@@ -66,7 +83,7 @@ export default function ProfilePage() {
     try {
       await updateProfile({
         email: data.email,
-        full_name: data.full_name,
+        fullName: data.fullName,
       });
       setProfileSuccess(true);
     } catch (error) {
@@ -92,20 +109,203 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDeleteAccount = () => {
-    // Simulated account deletion
-    setShowDeleteDialog(false);
-    router.push('/auth/login');
+  const handleExportData = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await exportUserData();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `user-data-${new Date().toISOString()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Export error:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+      setShowDeleteDialog(false);
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Delete account error:', error);
+    }
+  };
+
+  // Add useEffect to handle initial loading
+  useEffect(() => {
+    const initializeProfile = async () => {
+      try {
+        setIsInitializing(true);
+        // Fetch initial data
+        await Promise.all([
+          fetchStatistics(),
+          getNotificationPreferences()
+        ]);
+      } catch (error) {
+        console.error('Error initializing profile:', error);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    if (user) {
+      initializeProfile();
+    }
+  }, [user, fetchStatistics, getNotificationPreferences]);
+
   if (!user) {
-    // Redirect to login if not authenticated
     router.push('/auth/login');
     return null;
   }
 
+  if (isInitializing || storeLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" data-testid="profile-loading">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  const renderStatisticsTab = () => (
+    <div data-testid="account-statistics">
+      <div className="px-4 py-5 sm:px-6">
+        <h2 className="text-lg font-medium text-gray-900">Account Statistics</h2>
+        <p className="mt-1 text-sm text-gray-500">View your account activity and learning progress.</p>
+      </div>
+      <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
+        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <dt className="text-sm font-medium text-gray-500 truncate">Total Courses Enrolled</dt>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">{statistics?.totalCoursesEnrolled || 0}</dd>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <dt className="text-sm font-medium text-gray-500 truncate">Completed Courses</dt>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">{statistics?.completedCourses || 0}</dd>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <dt className="text-sm font-medium text-gray-500 truncate">Average Score</dt>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">{statistics?.averageScore || 0}%</dd>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <dt className="text-sm font-medium text-gray-500 truncate">Total Time Spent</dt>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">{Math.round(statistics?.totalTimeSpent || 0)} hrs</dd>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderExportTab = () => (
+    <div className="px-4 py-5 sm:p-6" data-testid="data-export">
+      <h2 className="text-lg font-medium text-gray-900">Data Export</h2>
+      <div className="mt-6">
+        <button
+          type="button"
+          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          onClick={handleExportData}
+          disabled={isExporting}
+          data-testid="export-data-button"
+        >
+          {isExporting ? 'Exporting...' : 'Export My Data'}
+        </button>
+        <p className="mt-2 text-sm text-gray-500">
+          Download a copy of your personal data including your profile information, learning progress, and activity history.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderNotificationsTab = () => (
+    <div data-testid="notifications-settings">
+      <div className="px-4 py-5 sm:px-6">
+        <h2 className="text-lg font-medium text-gray-900">Notification Preferences</h2>
+        <p className="mt-1 text-sm text-gray-500">Manage your notification settings.</p>
+      </div>
+      <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
+        <div className="space-y-4">
+          {notificationPreferences && (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700">Email Notifications</h3>
+                  <p className="text-sm text-gray-500">Receive notifications via email.</p>
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    "relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                    notificationPreferences.emailNotifications ? "bg-indigo-600" : "bg-gray-200"
+                  )}
+                  role="switch"
+                  aria-checked={notificationPreferences.emailNotifications}
+                  onClick={() => updateNotificationPreferences({
+                    ...notificationPreferences,
+                    emailNotifications: !notificationPreferences.emailNotifications,
+                  })}
+                  data-testid="email-notifications-toggle"
+                >
+                  <span className="sr-only">Enable email notifications</span>
+                  <span
+                    className={cn(
+                      "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
+                      notificationPreferences.emailNotifications ? "translate-x-5" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700">Course Updates</h3>
+                  <p className="text-sm text-gray-500">Get notified about course updates and new content.</p>
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    "relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                    notificationPreferences.courseUpdates ? "bg-indigo-600" : "bg-gray-200"
+                  )}
+                  role="switch"
+                  aria-checked={notificationPreferences.courseUpdates}
+                  onClick={() => updateNotificationPreferences({
+                    ...notificationPreferences,
+                    courseUpdates: !notificationPreferences.courseUpdates,
+                  })}
+                  data-testid="course-updates-toggle"
+                >
+                  <span className="sr-only">Enable course updates</span>
+                  <span
+                    className={cn(
+                      "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
+                      notificationPreferences.courseUpdates ? "translate-x-5" : "translate-x-0"
+                    )}
+                  />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="profile-info">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Profile Settings</h1>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
@@ -226,7 +426,7 @@ export default function ProfilePage() {
                       value={user.username}
                       disabled
                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-500 cursor-not-allowed"
-                      data-testid="username-field"
+                      data-testid="profile-username"
                     />
                     <p className="mt-1 text-sm text-gray-500">Username cannot be changed.</p>
                   </div>
@@ -239,25 +439,25 @@ export default function ProfilePage() {
                       id="email"
                       {...registerProfile('email')}
                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      data-testid="email-field"
+                      data-testid="profile-email"
                     />
                     {profileErrors.email && (
                       <p className="mt-1 text-sm text-red-600" data-testid="email-error">{profileErrors.email.message}</p>
                     )}
                   </div>
                   <div className="sm:col-span-2">
-                    <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
                       Full Name
                     </label>
                     <input
                       type="text"
-                      id="full_name"
-                      {...registerProfile('full_name')}
+                      id="fullName"
+                      {...registerProfile('fullName')}
                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      data-testid="fullname-field"
+                      data-testid="profile-full-name"
                     />
-                    {profileErrors.full_name && (
-                      <p className="mt-1 text-sm text-red-600" data-testid="fullname-error">{profileErrors.full_name.message}</p>
+                    {profileErrors.fullName && (
+                      <p className="mt-1 text-sm text-red-600" data-testid="full-name-error">{profileErrors.fullName.message}</p>
                     )}
                   </div>
                 </div>
@@ -288,11 +488,11 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <div className="mt-6">
+                <div className="mt-6 flex justify-end">
                   <button
                     type="submit"
                     disabled={isProfileLoading}
-                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     data-testid="save-profile-button"
                   >
                     {isProfileLoading ? 'Saving...' : 'Save Changes'}
@@ -311,8 +511,8 @@ export default function ProfilePage() {
             </div>
             <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
               <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} data-testid="password-form">
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
+                <div className="space-y-6">
+                  <div>
                     <label htmlFor="current_password" className="block text-sm font-medium text-gray-700">
                       Current Password
                     </label>
@@ -321,7 +521,7 @@ export default function ProfilePage() {
                       id="current_password"
                       name="current_password"
                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      data-testid="current-password-field"
+                      data-testid="current-password-input"
                     />
                   </div>
                   <div>
@@ -333,7 +533,7 @@ export default function ProfilePage() {
                       id="new_password"
                       name="new_password"
                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      data-testid="new-password-field"
+                      data-testid="new-password-input"
                     />
                   </div>
                   <div>
@@ -345,7 +545,7 @@ export default function ProfilePage() {
                       id="confirm_password"
                       name="confirm_password"
                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      data-testid="confirm-password-field"
+                      data-testid="confirm-password-input"
                     />
                   </div>
                 </div>
@@ -363,13 +563,14 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <div className="mt-6">
+                <div className="mt-6 flex justify-end">
                   <button
                     type="submit"
-                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    data-testid="change-password-button"
+                    disabled={isPasswordLoading}
+                    className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    data-testid="save-password-button"
                   >
-                    {isPasswordLoading ? 'Updating...' : 'Change Password'}
+                    {isPasswordLoading ? 'Saving...' : 'Change Password'}
                   </button>
                 </div>
               </form>
@@ -377,73 +578,14 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {activeTab === 'statistics' && (
-          <div className="px-4 py-5 sm:p-6" data-testid="account-statistics">
-            <h2 className="text-lg font-medium text-gray-900">Account Statistics</h2>
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="px-4 py-5 sm:p-6">
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Resources</dt>
-                  <dd className="mt-1 text-3xl font-semibold text-gray-900">0</dd>
-                </div>
-              </div>
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="px-4 py-5 sm:p-6">
-                  <dt className="text-sm font-medium text-gray-500 truncate">Completed Resources</dt>
-                  <dd className="mt-1 text-3xl font-semibold text-gray-900">0</dd>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {activeTab === 'statistics' && renderStatisticsTab()}
 
-        {activeTab === 'notifications' && (
-          <div className="px-4 py-5 sm:p-6" data-testid="notification-preferences">
-            <h2 className="text-lg font-medium text-gray-900">Notification Preferences</h2>
-            <div className="mt-6">
-              <div className="space-y-4">
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
-                    <input
-                      id="email_notifications"
-                      name="email_notifications"
-                      type="checkbox"
-                      className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                    />
-                  </div>
-                  <div className="ml-3 text-sm">
-                    <label htmlFor="email_notifications" className="font-medium text-gray-700">
-                      Email Notifications
-                    </label>
-                    <p className="text-gray-500">Receive email notifications about your learning progress.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {activeTab === 'notifications' && renderNotificationsTab()}
 
-        {activeTab === 'export' && (
-          <div className="px-4 py-5 sm:p-6">
-            <h2 className="text-lg font-medium text-gray-900">Data Export</h2>
-            <div className="mt-6">
-              <button
-                type="button"
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                onClick={() => {/* TODO: Implement data export */}}
-                data-testid="export-data-button"
-              >
-                Export My Data
-              </button>
-              <p className="mt-2 text-sm text-gray-500">
-                Download a copy of your personal data including your profile information, learning progress, and activity history.
-              </p>
-            </div>
-          </div>
-        )}
+        {activeTab === 'export' && renderExportTab()}
 
         {activeTab === 'account' && (
-          <div className="px-4 py-5 sm:p-6">
+          <div className="px-4 py-5 sm:p-6" data-testid="account-settings">
             <div className="space-y-6">
               <div data-testid="delete-account-section">
                 <h3 className="text-lg font-medium leading-6 text-gray-900">Delete Account</h3>
@@ -509,23 +651,18 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Add success notification */}
       {(profileSuccess || passwordSuccess) && (
-        <div className="fixed bottom-0 inset-x-0 pb-2 sm:pb-5" data-testid="success-notification">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            <div className="p-2 rounded-lg bg-green-600 shadow-lg sm:p-3">
-              <div className="flex items-center justify-between flex-wrap">
-                <div className="w-0 flex-1 flex items-center">
-                  <p className="ml-3 font-medium text-white truncate">
-                    <span className="md:hidden">
-                      {profileSuccess ? 'Profile updated!' : 'Password changed!'}
-                    </span>
-                    <span className="hidden md:inline">
-                      {profileSuccess ? 'Your profile has been updated successfully!' : 'Your password has been changed successfully!'}
-                    </span>
-                  </p>
-                </div>
-              </div>
+        <div className="rounded-md bg-green-50 p-4 mt-6" data-testid="success-notification">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">
+                {profileSuccess ? 'Profile updated successfully!' : 'Password changed successfully!'}
+              </p>
             </div>
           </div>
         </div>

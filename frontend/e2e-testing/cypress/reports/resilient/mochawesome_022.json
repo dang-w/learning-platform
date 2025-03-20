@@ -1,0 +1,113 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 1,
+    "pending": 0,
+    "failures": 0,
+    "start": "2025-03-20T13:03:13.379Z",
+    "end": "2025-03-20T13:03:16.243Z",
+    "duration": 2864,
+    "testsRegistered": 1,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "47c24da5-2ed1-4dc8-b166-6298935878ae",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/test-page.cy.ts",
+      "file": "e2e-testing/cypress/e2e/test-page.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "8c1e361c-9e63-4058-8bca-02ba971c4687",
+          "title": "E2E Test Page",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should show the test page content",
+              "fullTitle": "E2E Test Page should show the test page content",
+              "timedOut": null,
+              "duration": 2767,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/test-page.cy.ts/test-page-initial.png\",\n      \"/test-page.cy.ts/test-page-content.png\"\n    ]\n  ]\n}",
+              "code": "// Check the current URL\ncy.url().then(function (url) {\n    cy.log(\"Current URL: \".concat(url));\n    // Take another screenshot showing the page content\n    cy.screenshot('test-page-content');\n    // Check for basic elements on the page\n    cy.get('body').then(function ($body) {\n        // Log the HTML content for debugging\n        cy.log(\"Body HTML: \".concat($body.html().substring(0, 300), \"...\"));\n    });\n});",
+              "err": {},
+              "uuid": "79575574-bd05-474c-984e-a3cc07d0480c",
+              "parentUUID": "8c1e361c-9e63-4058-8bca-02ba971c4687",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "79575574-bd05-474c-984e-a3cc07d0480c"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 2767,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "reporterEnabled": "cypress-mochawesome-reporter",
+        "cypressMochawesomeReporterReporterOptions": {
+          "reportDir": "e2e-testing/reports",
+          "charts": true,
+          "reportPageTitle": "Learning Platform E2E Tests",
+          "embeddedScreenshots": true,
+          "inlineAssets": true
+        },
+        "reportDir": "./e2e-testing/cypress/reports/resilient",
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}
