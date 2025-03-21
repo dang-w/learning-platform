@@ -6,9 +6,16 @@ import { knowledgeApi } from '@/lib/api';
 import { Button } from '@/components/ui/buttons';
 import { Alert, Spinner } from '@/components/ui/feedback';
 import { SpacedRepetitionAlgorithm } from '@/types/knowledge';
+import Link from 'next/link';
+import { FaChevronLeft } from 'react-icons/fa';
+import ReviewHistoryChart from '@/components/knowledge/ReviewHistoryChart';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function SpacedRepetitionSettingsPage() {
   const router = useRouter();
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('week');
+  const { user } = useCurrentUser();
+  const userId = user?.id || '';
 
   const [algorithm, setAlgorithm] = useState<SpacedRepetitionAlgorithm>(SpacedRepetitionAlgorithm.SM2);
   const [dailyReviewLimit, setDailyReviewLimit] = useState<number>(20);
@@ -94,25 +101,27 @@ export default function SpacedRepetitionSettingsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900" data-testid="settings-heading">
-          Spaced Repetition Settings
-        </h1>
-        <Button
-          onClick={handleBackToKnowledge}
-          variant="outline"
-          data-testid="back-to-knowledge-button"
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="mb-8">
+        <Link
+          href="/knowledge"
+          className="text-blue-600 hover:text-blue-800 flex items-center"
         >
-          Back to Knowledge
-        </Button>
+          <FaChevronLeft className="mr-2" />
+          Back to Knowledge Dashboard
+        </Link>
       </div>
+
+      <h1 className="text-3xl font-bold mb-8">Spaced Repetition Settings</h1>
 
       {errorMessage && (
         <Alert variant="error" className="mb-6" data-testid="error-message">
-          <div className="flex justify-between items-center">
-            <div>{errorMessage}</div>
-            <Button onClick={handleRetry} size="sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">Error</p>
+              <p>{errorMessage}</p>
+            </div>
+            <Button onClick={handleRetry} variant="secondary" size="sm">
               Retry
             </Button>
           </div>
@@ -121,108 +130,180 @@ export default function SpacedRepetitionSettingsPage() {
 
       {successMessage && (
         <Alert variant="success" className="mb-6" data-testid="success-message">
-          {successMessage}
+          <p className="font-semibold">{successMessage}</p>
         </Alert>
       )}
 
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8" data-testid="settings-form">
+      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-6">Algorithm Settings</h2>
+
         <div className="space-y-6">
           <div>
-            <label htmlFor="algorithm" className="block font-medium mb-2">
+            <label className="block text-sm font-medium mb-2">
               Spaced Repetition Algorithm
             </label>
-            <select
-              id="algorithm"
-              className="w-full p-3 border border-gray-300 rounded-md"
-              value={algorithm}
-              onChange={(e) => setAlgorithm(e.target.value as SpacedRepetitionAlgorithm)}
-              data-testid="algorithm-select"
-            >
-              <option value={SpacedRepetitionAlgorithm.SM2}>SuperMemo 2</option>
-              <option value={SpacedRepetitionAlgorithm.LEITNER}>Leitner System</option>
-              <option value={SpacedRepetitionAlgorithm.CUSTOM}>Custom</option>
-            </select>
-            <p className="text-sm text-gray-500 mt-1">
-              {algorithm === SpacedRepetitionAlgorithm.SM2 &&
-                'SuperMemo 2: Adjusts intervals based on your confidence rating.'}
-              {algorithm === SpacedRepetitionAlgorithm.LEITNER &&
-                'Leitner System: Concepts are moved between difficulty boxes.'}
-              {algorithm === SpacedRepetitionAlgorithm.CUSTOM &&
-                'Custom: Uses your personalized spacing settings.'}
-            </p>
+            <div className="grid grid-cols-3 gap-4 mb-2">
+              <button
+                type="button"
+                onClick={() => setAlgorithm(SpacedRepetitionAlgorithm.SM2)}
+                className={`p-4 border rounded-lg text-center ${
+                  algorithm === SpacedRepetitionAlgorithm.SM2
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+                data-testid="algorithm-sm2"
+              >
+                <div className="font-medium">SM2</div>
+                <div className="text-sm text-gray-500 mt-1">SuperMemo 2</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAlgorithm(SpacedRepetitionAlgorithm.LEITNER)}
+                className={`p-4 border rounded-lg text-center ${
+                  algorithm === SpacedRepetitionAlgorithm.LEITNER
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+                data-testid="algorithm-leitner"
+              >
+                <div className="font-medium">Leitner</div>
+                <div className="text-sm text-gray-500 mt-1">Box System</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAlgorithm(SpacedRepetitionAlgorithm.CUSTOM)}
+                className={`p-4 border rounded-lg text-center ${
+                  algorithm === SpacedRepetitionAlgorithm.CUSTOM
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+                data-testid="algorithm-custom"
+              >
+                <div className="font-medium">Custom</div>
+                <div className="text-sm text-gray-500 mt-1">Our algorithm</div>
+              </button>
+            </div>
           </div>
 
           <div>
-            <label htmlFor="daily-review-limit" className="block font-medium mb-2">
+            <label htmlFor="dailyReviewLimit" className="block text-sm font-medium mb-2">
               Daily Review Limit
             </label>
             <input
-              id="daily-review-limit"
               type="number"
-              min="1"
-              max="100"
-              className="w-full p-3 border border-gray-300 rounded-md"
+              id="dailyReviewLimit"
+              min="5"
+              max="200"
+              step="5"
               value={dailyReviewLimit}
               onChange={(e) => setDailyReviewLimit(Number(e.target.value))}
-              data-testid="daily-review-limit-input"
+              className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              data-testid="daily-review-limit"
             />
             <p className="text-sm text-gray-500 mt-1">
-              Maximum number of reviews to show per day.
+              Maximum number of reviews to show per day
             </p>
           </div>
 
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
+          <div>
+            <div className="flex items-center">
               <input
-                id="include-new-concepts"
                 type="checkbox"
-                className="h-4 w-4 border-gray-300 rounded"
+                id="includeNewConcepts"
                 checked={includeNewConcepts}
                 onChange={(e) => setIncludeNewConcepts(e.target.checked)}
-                data-testid="include-new-concepts-checkbox"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                data-testid="include-new-concepts"
               />
-            </div>
-            <div className="ml-3">
-              <label htmlFor="include-new-concepts" className="font-medium">
-                Include New Concepts
+              <label htmlFor="includeNewConcepts" className="ml-2 block text-sm font-medium">
+                Include new concepts in daily reviews
               </label>
-              <p className="text-sm text-gray-500">
-                Include new, never-reviewed concepts in your daily review sessions.
-              </p>
             </div>
           </div>
 
           {includeNewConcepts && (
             <div>
-              <label htmlFor="new-concepts-per-day" className="block font-medium mb-2">
+              <label htmlFor="newConceptsPerDay" className="block text-sm font-medium mb-2">
                 New Concepts Per Day
               </label>
               <input
-                id="new-concepts-per-day"
                 type="number"
+                id="newConceptsPerDay"
                 min="1"
                 max="50"
-                className="w-full p-3 border border-gray-300 rounded-md"
                 value={newConceptsPerDay}
                 onChange={(e) => setNewConceptsPerDay(Number(e.target.value))}
-                data-testid="new-concepts-per-day-input"
+                className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                data-testid="new-concepts-per-day"
               />
               <p className="text-sm text-gray-500 mt-1">
-                Number of new concepts to introduce each day.
+                Maximum number of new concepts to introduce per day
               </p>
             </div>
           )}
         </div>
 
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8">
           <Button
             onClick={handleSaveSettings}
             disabled={isSaving}
+            className="mr-3"
             data-testid="save-settings-button"
           >
             {isSaving ? 'Saving...' : 'Save Settings'}
           </Button>
+          <Button
+            onClick={handleBackToKnowledge}
+            variant="outline"
+            data-testid="back-button"
+          >
+            Cancel
+          </Button>
         </div>
+      </div>
+
+      {/* Review History Chart */}
+      <div className="mb-12">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold">Your Review Progress</h2>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setTimeRange('week')}
+              className={`px-4 py-2 rounded-md text-sm ${
+                timeRange === 'week'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setTimeRange('month')}
+              className={`px-4 py-2 rounded-md text-sm ${
+                timeRange === 'month'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Month
+            </button>
+            <button
+              onClick={() => setTimeRange('year')}
+              className={`px-4 py-2 rounded-md text-sm ${
+                timeRange === 'year'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Year
+            </button>
+          </div>
+        </div>
+        <ReviewHistoryChart
+          userId={userId}
+          timeRange={timeRange}
+          className="mb-8"
+        />
       </div>
 
       <div className="bg-white rounded-lg shadow-md p-6" data-testid="about-spaced-repetition">
@@ -231,6 +312,7 @@ export default function SpacedRepetitionSettingsPage() {
           <p>
             Spaced repetition is an evidence-based learning technique that incorporates increasing intervals of time between subsequent review of previously learned material. This approach leverages the psychological spacing effect, which demonstrates that information is more effectively memorized when learned in multiple spaced-out sessions.
           </p>
+
           <h3 className="text-lg font-medium mt-4 mb-2">How it works</h3>
           <p>
             When you review a concept, you rate how well you remembered it. Based on your rating:
@@ -243,6 +325,53 @@ export default function SpacedRepetitionSettingsPage() {
           <p>
             This approach helps you focus your study time on the information that you&apos;re most likely to forget, making your learning more efficient and effective.
           </p>
+
+          <h3 className="text-lg font-medium mt-6 mb-2">Algorithm Explanations</h3>
+
+          <h4 className="font-medium text-md mt-4 mb-1">SM2 Algorithm</h4>
+          <p className="mb-2">
+            The SuperMemo 2 (SM2) algorithm is one of the most widely used spaced repetition algorithms. It was developed by Piotr Wozniak in the 1980s and forms the foundation of many modern spaced repetition systems.
+          </p>
+          <p className="mb-4">
+            SM2 uses your confidence ratings to calculate optimal intervals between reviews. The algorithm adjusts the intervals based on how difficult you find each concept, resulting in a personalized review schedule optimized for your learning pattern.
+          </p>
+
+          <h4 className="font-medium text-md mt-4 mb-1">Leitner System</h4>
+          <p className="mb-2">
+            The Leitner System, developed by Sebastian Leitner in the 1970s, uses a series of boxes to implement spaced repetition. In our digital implementation:
+          </p>
+          <ul className="list-disc pl-5 mt-2 mb-4">
+            <li>Concepts move between different &quot;boxes&quot; based on your confidence ratings</li>
+            <li>Concepts in earlier boxes are reviewed more frequently</li>
+            <li>Concepts in later boxes are reviewed less frequently</li>
+            <li>If you rate a concept as difficult, it moves to an earlier box</li>
+            <li>If you rate a concept as easy, it moves to a later box</li>
+          </ul>
+          <p className="mb-4">
+            This system is particularly effective for beginners to spaced repetition as it&apos;s intuitive and easy to understand.
+          </p>
+
+          <h4 className="font-medium text-md mt-4 mb-1">Custom Algorithm</h4>
+          <p className="mb-4">
+            Our custom algorithm combines elements of SM2 and the Leitner System with additional optimizations for AI/ML concept learning. It incorporates factors such as concept complexity, interrelationships between concepts, and your learning history to create a highly personalized review schedule.
+          </p>
+
+          <h3 className="text-lg font-medium mt-6 mb-2">Scientific Background</h3>
+          <p className="mb-2">
+            Spaced repetition is based on the spacing effect, first documented by Hermann Ebbinghaus in the 1880s. His research showed that memory retention declines over time according to a predictable &quot;forgetting curve,&quot; but that each review strengthens the memory and slows the rate of forgetting.
+          </p>
+          <p className="mb-4">
+            Modern research in cognitive psychology has consistently validated the effectiveness of spaced repetition for long-term information retention. Studies show that it can increase retention by 200-400% compared to mass learning (cramming).
+          </p>
+
+          <h3 className="text-lg font-medium mt-6 mb-2">Tips for Effective Use</h3>
+          <ul className="list-disc pl-5 mt-2 mb-4">
+            <li><strong>Be consistent</strong> - Regular, short review sessions are more effective than occasional long ones</li>
+            <li><strong>Be honest</strong> - Rate your confidence accurately; the algorithm works best with truthful input</li>
+            <li><strong>Keep concepts atomic</strong> - Break complex ideas into smaller, focused concepts</li>
+            <li><strong>Create connections</strong> - Link related concepts to build a knowledge network</li>
+            <li><strong>Review actively</strong> - Don&apos;t just read; try to recall the concept before revealing the answer</li>
+          </ul>
         </div>
       </div>
     </div>

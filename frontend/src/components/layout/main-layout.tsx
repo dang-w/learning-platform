@@ -40,9 +40,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
         authStore.setDirectAuthState(token, true);
       }
 
-      fetchUser().catch((err) => {
-        console.error('Error fetching user:', err);
-      });
+      if (fetchUser) {
+        fetchUser().catch((err) => {
+          console.error('Error fetching user:', err);
+        });
+      } else {
+        console.error('fetchUser function is undefined');
+      }
     }
 
     setAuthChecked(true);

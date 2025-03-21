@@ -69,7 +69,7 @@ describe('ActivityFeed', () => {
 
     renderWithQueryClient(<ActivityFeed />);
 
-    expect(screen.getByText('Recent Activity')).toBeInTheDocument();
+    expect(screen.getByText('Activity Feed')).toBeInTheDocument();
   });
 
   it('displays "No recent activity" when there is no activity data', () => {
@@ -77,7 +77,7 @@ describe('ActivityFeed', () => {
 
     renderWithQueryClient(<ActivityFeed />);
 
-    expect(screen.getByText('No recent activity')).toBeInTheDocument();
+    expect(screen.getByText('No recent activity found')).toBeInTheDocument();
   });
 
   it('renders activity items when data is available', async () => {

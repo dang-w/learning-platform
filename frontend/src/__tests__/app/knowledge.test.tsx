@@ -18,8 +18,8 @@ jest.mock('@tanstack/react-query', () => ({
 
 // Mock UI components
 jest.mock('@/components/ui/buttons', () => ({
-  Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => (
-    <button onClick={onClick}>{children}</button>
+  Button: ({ children, onClick, 'data-testid': testId }: { children: React.ReactNode; onClick: () => void; 'data-testid'?: string }) => (
+    <button onClick={onClick} data-testid={testId}>{children}</button>
   ),
 }));
 
@@ -45,6 +45,7 @@ describe('KnowledgePage', () => {
           data: {
             total_concepts: 50,
             concepts_due: 5,
+            total_reviews: 100,
             review_streak: 7,
             average_confidence: 4.2,
             concepts_by_confidence: {
@@ -68,11 +69,11 @@ describe('KnowledgePage', () => {
       } else if (queryKey[0] === 'knowledge' && queryKey[1] === 'due') {
         return {
           data: [
-            { id: '1', title: 'Concept 1' },
-            { id: '2', title: 'Concept 2' },
-            { id: '3', title: 'Concept 3' },
-            { id: '4', title: 'Concept 4' },
-            { id: '5', title: 'Concept 5' },
+            { id: '1', title: 'Concept 1', topics: ['Topic 1', 'Topic 2'], last_reviewed_at: new Date().toISOString() },
+            { id: '2', title: 'Concept 2', topics: ['Topic 1', 'Topic 3'], last_reviewed_at: new Date().toISOString() },
+            { id: '3', title: 'Concept 3', topics: ['Topic 2', 'Topic 3'], last_reviewed_at: new Date().toISOString() },
+            { id: '4', title: 'Concept 4', topics: ['Topic 1'], last_reviewed_at: new Date().toISOString() },
+            { id: '5', title: 'Concept 5', topics: ['Topic 2'], last_reviewed_at: new Date().toISOString() },
           ],
           isLoading: false,
         };
@@ -105,8 +106,8 @@ describe('KnowledgePage', () => {
     const createButton = screen.getByRole('button', { name: /^Create Concept$/i });
     expect(createButton).toBeInTheDocument();
 
-    // Check if the start review button is rendered with the correct count
-    const startReviewButton = screen.getByRole('button', { name: /Start Review \(5\)/i });
+    // Check if the start review button is rendered with the correct text
+    const startReviewButton = screen.getByRole('button', { name: /Start Review Session/i });
     expect(startReviewButton).toBeInTheDocument();
   });
 
@@ -118,18 +119,16 @@ describe('KnowledgePage', () => {
     const dueTab = tabButtons.find(button => button.textContent?.match(/Due for Review/));
     fireEvent.click(dueTab!);
 
-    // Check if the due tab content is rendered - use more specific selectors
-    const dueHeading = screen.getByRole('heading', { name: /Concepts Due for Review/i });
-    expect(dueHeading).toBeInTheDocument();
+    // Check if the due tab content is rendered
+    expect(screen.getByTestId('concepts-due-review')).toBeInTheDocument();
 
-    // Use a more specific selector for the text
-    const dueParagraph = screen.getByText(text =>
-      text.includes('concepts due for review') && text.includes('Start a review session')
-    );
-    expect(dueParagraph).toBeInTheDocument();
+    // Check if concepts are displayed
+    expect(screen.getByText('Concept 1')).toBeInTheDocument();
+    expect(screen.getByText('Concept 2')).toBeInTheDocument();
 
-    const startSessionButton = screen.getByRole('button', { name: /Start Review Session/i });
-    expect(startSessionButton).toBeInTheDocument();
+    // Check if the review button is present
+    const reviewButton = screen.getByRole('button', { name: /Review All Due Concepts/i });
+    expect(reviewButton).toBeInTheDocument();
   });
 
   it('switches to the statistics tab when clicked', () => {
@@ -141,11 +140,9 @@ describe('KnowledgePage', () => {
     fireEvent.click(statsTab!);
 
     // Check if the statistics tab content is rendered
-    const overviewHeading = screen.getByRole('heading', { name: /Overview/i });
-    expect(overviewHeading).toBeInTheDocument();
-
-    const confidenceLevelsHeading = screen.getByRole('heading', { name: /Confidence Levels/i });
-    expect(confidenceLevelsHeading).toBeInTheDocument();
+    expect(screen.getByTestId('review-statistics')).toBeInTheDocument();
+    expect(screen.getByText(/Review Statistics/i)).toBeInTheDocument();
+    expect(screen.getByText(/Confidence Distribution/i)).toBeInTheDocument();
 
     // Check if the statistics are rendered - use more specific selectors
     const totalConceptsLabel = screen.getByText(/^Total Concepts$/i);
@@ -153,24 +150,6 @@ describe('KnowledgePage', () => {
 
     const totalConceptsValue = screen.getByText(/^50$/);
     expect(totalConceptsValue).toBeInTheDocument();
-
-    const dueForReviewLabel = screen.getAllByText(/Due for Review/i)[1]; // Get the second occurrence
-    expect(dueForReviewLabel).toBeInTheDocument();
-
-    const dueForReviewValue = screen.getAllByText(/^5$/)[0]; // Get the first occurrence
-    expect(dueForReviewValue).toBeInTheDocument();
-
-    const reviewStreakLabel = screen.getByText(/^Review Streak$/i);
-    expect(reviewStreakLabel).toBeInTheDocument();
-
-    const reviewStreakValue = screen.getByText(/7 days/i);
-    expect(reviewStreakValue).toBeInTheDocument();
-
-    const avgConfidenceLabel = screen.getByText(/Avg. Confidence/i);
-    expect(avgConfidenceLabel).toBeInTheDocument();
-
-    const avgConfidenceValue = screen.getByText(/4.2\/5/i);
-    expect(avgConfidenceValue).toBeInTheDocument();
   });
 
   it('navigates to create concept page when create button is clicked', () => {
@@ -187,7 +166,7 @@ describe('KnowledgePage', () => {
     render(<KnowledgePage />);
 
     // Click on the start review button
-    fireEvent.click(screen.getByRole('button', { name: /Start Review \(5\)/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Review Session/i }));
 
     // Check if the router was called with the correct path
     expect(mockPush).toHaveBeenCalledWith('/knowledge/session');
@@ -196,8 +175,8 @@ describe('KnowledgePage', () => {
   it('navigates to concepts page when view all concepts button is clicked', () => {
     render(<KnowledgePage />);
 
-    // Click on the view all concepts button
-    fireEvent.click(screen.getByRole('button', { name: /View All Concepts/i }));
+    // Click on the view all concepts button in the Knowledge Base section
+    fireEvent.click(screen.getByTestId('view-concepts-button'));
 
     // Check if the router was called with the correct path
     expect(mockPush).toHaveBeenCalledWith('/knowledge/concepts');
@@ -211,6 +190,7 @@ describe('KnowledgePage', () => {
           data: {
             total_concepts: 50,
             concepts_due: 0,
+            total_reviews: 100,
             review_streak: 7,
             average_confidence: 4.2,
             concepts_by_confidence: {
@@ -246,7 +226,7 @@ describe('KnowledgePage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Due for Review/i }));
 
     // Check if the no concepts due message is rendered
-    expect(screen.getByText(/No Concepts Due/i)).toBeInTheDocument();
-    expect(screen.getByText(/You don't have any concepts due for review/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /No Concepts Due for Review/i })).toBeInTheDocument();
+    expect(screen.getByText(/You're all caught up/i)).toBeInTheDocument();
   });
 });

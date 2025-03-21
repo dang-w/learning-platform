@@ -8,9 +8,34 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { expect } from '@jest/globals';
 
 // Mock the auth store
-jest.mock('@/lib/store/auth-store', () => ({
-  useAuthStore: jest.fn(),
-}));
+jest.mock('@/lib/store/auth-store', () => {
+  // Create a mock store object with the necessary methods and state
+  const mockStore = {
+    login: jest.fn(),
+    error: null,
+    clearError: jest.fn(),
+    setState: jest.fn(),
+    getState: jest.fn(),
+  };
+
+  // Create a function that returns the mockStore and also has setState and getState methods
+  const useAuthStoreFn = jest.fn(() => mockStore) as jest.Mock & {
+    setState: jest.Mock;
+    getState: jest.Mock;
+  };
+
+  // Add static methods to the function
+  useAuthStoreFn.setState = jest.fn((newState) => {
+    // Update the mockStore state with new values
+    Object.assign(mockStore, newState);
+  });
+
+  useAuthStoreFn.getState = jest.fn(() => mockStore);
+
+  return {
+    useAuthStore: useAuthStoreFn,
+  };
+});
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({
@@ -36,6 +61,39 @@ describe('LoginPage', () => {
     jest.clearAllMocks();
 
     // Mock auth store
+    ((useAuthStore as unknown) as jest.Mock).mockReturnValue({
+      login: mockLogin,
+      error: null,
+      clearError: mockClearError,
+    });
+
+    // Mock router
+    (useRouter as jest.Mock).mockReturnValue({
+      push: mockPush,
+    });
+
+    // Mock search params
+    (useSearchParams as jest.Mock).mockReturnValue({
+      get: jest.fn().mockReturnValue('/dashboard'),
+    });
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Mock localStorage for token check
+    const localStorageMock = {
+      getItem: jest.fn().mockReturnValue('mock-token'),
+      setItem: jest.fn(),
+      removeItem: jest.fn(),
+      clear: jest.fn(),
+      length: 1,
+      key: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
+    // Mock auth store with successful login by default
+    mockLogin.mockResolvedValue({ access_token: 'mock-token' });
     ((useAuthStore as unknown) as jest.Mock).mockReturnValue({
       login: mockLogin,
       error: null,
@@ -99,8 +157,11 @@ describe('LoginPage', () => {
       expect(mockLogin).toHaveBeenCalledWith('testuser', 'password123');
     });
 
-    // Verify navigation to dashboard
-    expect(mockPush).toHaveBeenCalledWith('/dashboard');
+    // Verify navigation to dashboard with longer timeout
+    // This needs to wait for the setTimeout in the onSubmit function
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
+    }, { timeout: 1500 });
   });
 
   it('shows error message when login fails', async () => {

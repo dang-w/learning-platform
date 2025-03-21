@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { middleware } from '@/middleware';
+import { expect } from '@jest/globals';
 
 // Mock NextResponse
 jest.mock('next/server', () => {
@@ -14,6 +15,7 @@ jest.mock('next/server', () => {
     NextResponse: {
       next: jest.fn(() => 'next_response'),
       redirect: jest.fn((url) => ({ redirectUrl: url })),
+      json: jest.fn((data, options) => ({ data, options })),
     },
   };
 });
@@ -71,7 +73,9 @@ describe('Middleware', () => {
 
       expect(NextResponse.redirect).toHaveBeenCalledWith(
         expect.objectContaining({
-          searchParams: expect.any(Object),
+          hostname: 'localhost',
+          pathname: '/auth/login',
+          searchParams: expect.any(URLSearchParams),
         })
       );
 
@@ -85,11 +89,20 @@ describe('Middleware', () => {
     mockRequest.cookies.get = jest.fn().mockReturnValue(undefined);
     mockRequest.nextUrl.pathname = '/dashboard';
 
-    // Skip the actual test for searchParams.set since it's implementation-specific
+    // Set up a spy for the searchParams.set method
+    const setSearchParamsSpy = jest.fn();
+    mockRequest.nextUrl.searchParams.set = setSearchParamsSpy;
+
     middleware(mockRequest);
 
-    // Just check that redirect was called
+    // Verify that NextResponse.redirect was called
     expect(NextResponse.redirect).toHaveBeenCalled();
+
+    // Get the URL argument passed to redirect
+    const redirectUrl = (NextResponse.redirect as jest.Mock).mock.calls[0][0];
+
+    // Verify the pathname is correct
+    expect(redirectUrl.pathname).toBe('/auth/login');
   });
 
   it('should redirect to dashboard when accessing auth routes while authenticated', () => {
@@ -108,7 +121,10 @@ describe('Middleware', () => {
       middleware(mockRequest);
 
       expect(NextResponse.redirect).toHaveBeenCalledWith(
-        expect.objectContaining({})
+        expect.objectContaining({
+          hostname: 'localhost',
+          pathname: '/dashboard',
+        })
       );
 
       // Reset mocks between tests
@@ -173,5 +189,18 @@ describe('Middleware', () => {
     mockRequest.cookies.get = jest.fn().mockReturnValue({ value: 'valid-token' });
     middleware(mockRequest);
     expect(NextResponse.next).toHaveBeenCalled();
+  });
+
+  it('should return 401 JSON for unauthenticated API requests', () => {
+    // Mock unauthenticated state
+    mockRequest.cookies.get = jest.fn().mockReturnValue(undefined);
+    mockRequest.nextUrl.pathname = '/api/resources';
+
+    middleware(mockRequest);
+
+    expect(NextResponse.json).toHaveBeenCalledWith(
+      { error: 'Authentication required' },
+      { status: 401 }
+    );
   });
 });

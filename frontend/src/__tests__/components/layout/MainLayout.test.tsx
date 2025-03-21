@@ -50,7 +50,7 @@ const localStorageMock = (() => {
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 describe('MainLayout', () => {
-  const mockFetchUser = jest.fn();
+  const mockFetchUser = jest.fn().mockResolvedValue(undefined);
   const mockRouter = { push: jest.fn() };
 
   beforeEach(() => {
@@ -107,11 +107,13 @@ describe('MainLayout', () => {
     expect(screen.getByText('Root Content')).toBeInTheDocument();
   });
 
-  it('redirects to login if not authenticated and not on auth pages', () => {
+  it('redirects to login if not authenticated and not on auth pages', async () => {
     (useAuthStore as unknown as jest.Mock).mockReturnValue({
       isAuthenticated: false,
       fetchUser: mockFetchUser,
     });
+
+    jest.useFakeTimers();
 
     render(
       <MainLayout>
@@ -119,11 +121,18 @@ describe('MainLayout', () => {
       </MainLayout>
     );
 
+    // Run the timeout that was set up in the useEffect
+    jest.advanceTimersByTime(300);
+
     expect(mockRouter.push).toHaveBeenCalledWith('/auth/login');
+
+    jest.useRealTimers();
   });
 
   it('redirects to dashboard if authenticated and on auth pages', () => {
     (usePathname as jest.Mock).mockReturnValue('/auth/login');
+
+    jest.useFakeTimers();
 
     render(
       <MainLayout>
@@ -131,7 +140,12 @@ describe('MainLayout', () => {
       </MainLayout>
     );
 
+    // Run the timeout that was set up in the useEffect
+    jest.advanceTimersByTime(300);
+
     expect(mockRouter.push).toHaveBeenCalledWith('/dashboard');
+
+    jest.useRealTimers();
   });
 
   it('fetches user if token exists but not authenticated', () => {

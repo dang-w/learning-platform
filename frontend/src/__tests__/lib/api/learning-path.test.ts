@@ -56,7 +56,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.createMilestone(milestoneData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/api/learning-path/milestones', milestoneData);
+      expect(apiClient.post).toHaveBeenCalledWith('/learning-path/milestones', milestoneData);
       expect(result).toEqual(mockMilestone);
     });
   });
@@ -83,7 +83,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getMilestones();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/milestones');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/milestones');
       expect(result).toEqual(mockMilestones);
     });
 
@@ -108,7 +108,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getMilestones(true);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/milestones?completed=true');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/milestones?completed=true');
       expect(result).toEqual(mockMilestones);
     });
   });
@@ -133,7 +133,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getMilestone('1');
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/milestones/1');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/milestones/1');
       expect(result).toEqual(mockMilestone);
     });
   });
@@ -168,7 +168,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.updateMilestone(milestoneId, milestoneData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/api/learning-path/milestones/1', milestoneData);
+      expect(apiClient.put).toHaveBeenCalledWith('/learning-path/milestones/1', milestoneData);
       expect(result).toEqual(mockMilestone);
     });
   });
@@ -182,7 +182,7 @@ describe('Learning Path API', () => {
       await learningPathApi.deleteMilestone('1');
 
       // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/api/learning-path/milestones/1');
+      expect(apiClient.delete).toHaveBeenCalledWith('/learning-path/milestones/1');
     });
   });
 
@@ -216,7 +216,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.createGoal(goalData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/api/learning-path/goals', goalData);
+      expect(apiClient.post).toHaveBeenCalledWith('/learning-path/goals', goalData);
       expect(result).toEqual(mockGoal);
     });
   });
@@ -243,7 +243,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getGoals();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/goals');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/goals');
       expect(result).toEqual(mockGoals);
     });
 
@@ -268,7 +268,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getGoals(true, 'career');
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/goals?completed=true&category=career');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/goals?completed=true&category=career');
       expect(result).toEqual(mockGoals);
     });
   });
@@ -293,7 +293,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getGoal('1');
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/goals/1');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/goals/1');
       expect(result).toEqual(mockGoal);
     });
   });
@@ -328,7 +328,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.updateGoal(goalId, goalData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/api/learning-path/goals/1', goalData);
+      expect(apiClient.put).toHaveBeenCalledWith('/learning-path/goals/1', goalData);
       expect(result).toEqual(mockGoal);
     });
   });
@@ -342,7 +342,7 @@ describe('Learning Path API', () => {
       await learningPathApi.deleteGoal('1');
 
       // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/api/learning-path/goals/1');
+      expect(apiClient.delete).toHaveBeenCalledWith('/learning-path/goals/1');
     });
   });
 
@@ -389,7 +389,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.createRoadmap(roadmapData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/api/learning-path/roadmap', roadmapData);
+      expect(apiClient.post).toHaveBeenCalledWith('/learning-path/roadmap', roadmapData);
       expect(result).toEqual(mockRoadmap);
     });
   });
@@ -420,7 +420,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getRoadmap();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/roadmap');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/roadmap');
       expect(result).toEqual(mockRoadmap);
     });
   });
@@ -469,7 +469,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.updateRoadmap(roadmapData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/api/learning-path/roadmap', roadmapData);
+      expect(apiClient.put).toHaveBeenCalledWith('/learning-path/roadmap', roadmapData);
       expect(result).toEqual(mockRoadmap);
     });
   });
@@ -526,7 +526,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getLearningPathProgress();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path/progress');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/progress');
       expect(result).toEqual(mockProgress);
     });
   });
@@ -544,7 +544,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.getLearningPath();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/learning-path');
+      expect(apiClient.get).toHaveBeenCalledWith('/learning-path');
       expect(result).toEqual(mockLearningPath);
     });
   });

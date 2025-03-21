@@ -1,12 +1,24 @@
 import authApi, { LoginCredentials, RegisterData, User, AuthResponse } from '@/lib/api/auth';
 import apiClient from '@/lib/api/client';
+import axios from 'axios';
 import { expect } from '@jest/globals';
+
+// Mock axios
+jest.mock('axios', () => ({
+  post: jest.fn()
+}));
 
 // Mock the apiClient
 jest.mock('@/lib/api/client', () => ({
   post: jest.fn(),
   get: jest.fn(),
   put: jest.fn(),
+}));
+
+// Mock constants
+jest.mock('@/config', () => ({
+  API_URL: 'http://test-api.com',
+  BACKEND_API_URL: 'http://test-backend-api.com'
 }));
 
 // Mock localStorage
@@ -46,7 +58,7 @@ describe('Auth API', () => {
           token_type: 'bearer',
         },
       };
-      (apiClient.post as jest.Mock).mockResolvedValue(mockResponse);
+      (axios.post as jest.Mock).mockResolvedValue(mockResponse);
 
       // Test credentials
       const credentials: LoginCredentials = {
@@ -58,8 +70,8 @@ describe('Auth API', () => {
       const result = await authApi.login(credentials);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/token',
+      expect(axios.post).toHaveBeenCalledWith(
+        'http://test-backend-api.com/auth/token',
         expect.any(URLSearchParams),
         {
           headers: {
@@ -75,7 +87,7 @@ describe('Auth API', () => {
     it('should handle login errors', async () => {
       // Mock error response
       const mockError = new Error('Invalid credentials');
-      (apiClient.post as jest.Mock).mockRejectedValue(mockError);
+      (axios.post as jest.Mock).mockRejectedValue(mockError);
 
       // Test credentials
       const credentials: LoginCredentials = {
@@ -87,8 +99,8 @@ describe('Auth API', () => {
       await expect(authApi.login(credentials)).rejects.toThrow();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/token',
+      expect(axios.post).toHaveBeenCalledWith(
+        'http://test-backend-api.com/auth/token',
         expect.any(URLSearchParams),
         expect.any(Object)
       );
@@ -101,12 +113,14 @@ describe('Auth API', () => {
     it('should call the register endpoint', async () => {
       // Mock response
       const mockUser: User = {
+        id: '123',
         username: 'testuser',
         email: 'test@example.com',
-        full_name: 'Test User',
-        disabled: false,
+        fullName: 'Test User',
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z'
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockUser });
+      (axios.post as jest.Mock).mockResolvedValue({ data: mockUser });
 
       // Test data
       const registerData: RegisterData = {
@@ -120,14 +134,14 @@ describe('Auth API', () => {
       const result = await authApi.register(registerData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/users/', registerData);
+      expect(axios.post).toHaveBeenCalledWith('http://test-backend-api.com/users/', registerData);
       expect(result).toEqual(mockUser);
     });
 
     it('should handle registration errors', async () => {
       // Mock error response
       const mockError = new Error('Username already exists');
-      (apiClient.post as jest.Mock).mockRejectedValue(mockError);
+      (axios.post as jest.Mock).mockRejectedValue(mockError);
 
       // Test data
       const registerData: RegisterData = {
@@ -141,39 +155,62 @@ describe('Auth API', () => {
       await expect(authApi.register(registerData)).rejects.toThrow();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/users/', registerData);
+      expect(axios.post).toHaveBeenCalledWith('http://test-backend-api.com/users/', registerData);
     });
   });
 
   describe('getCurrentUser', () => {
+    let fetchMock: jest.Mock;
+
+    beforeEach(() => {
+      fetchMock = jest.fn();
+      global.fetch = fetchMock;
+      localStorage.setItem('token', 'test-token');
+    });
+
     it('should call the getCurrentUser endpoint', async () => {
       // Mock response
       const mockUser: User = {
+        id: '123',
         username: 'testuser',
         email: 'test@example.com',
-        full_name: 'Test User',
-        disabled: false,
+        fullName: 'Test User',
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z'
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockUser });
+
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => mockUser
+      });
 
       // Call the function
       const result = await authApi.getCurrentUser();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/users/me/');
+      expect(fetchMock).toHaveBeenCalledWith('http://test-backend-api.com/users/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer test-token',
+          'Content-Type': 'application/json',
+        },
+      });
       expect(result).toEqual(mockUser);
     });
 
     it('should handle getCurrentUser errors', async () => {
       // Mock error response
-      const mockError = new Error('Unauthorized');
-      (apiClient.get as jest.Mock).mockRejectedValue(mockError);
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Unauthorized' })
+      });
 
       // Call the function and expect it to throw
       await expect(authApi.getCurrentUser()).rejects.toThrow();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/users/me/');
+      expect(fetchMock).toHaveBeenCalledWith('http://test-backend-api.com/users/me', expect.any(Object));
     });
   });
 
@@ -196,7 +233,7 @@ describe('Auth API', () => {
       const result = await authApi.refreshToken();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/token/refresh', {
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/token/refresh', {
         refresh_token: 'old-refresh-token'
       });
       expect(result).toEqual(mockResponse.data);
@@ -216,7 +253,7 @@ describe('Auth API', () => {
       const result = await authApi.refreshToken();
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/token/refresh', {
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/token/refresh', {
         refresh_token: 'old-refresh-token'
       });
       expect(result).toBeNull();
@@ -270,17 +307,19 @@ describe('Auth API', () => {
     it('should call the updateProfile endpoint', async () => {
       // Mock response
       const mockUser: User = {
+        id: '123',
         username: 'testuser',
         email: 'updated@example.com',
-        full_name: 'Updated User',
-        disabled: false,
+        fullName: 'Updated User',
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z'
       };
       (apiClient.put as jest.Mock).mockResolvedValue({ data: mockUser });
 
       // Test data
       const updateData: Partial<User> = {
         email: 'updated@example.com',
-        full_name: 'Updated User',
+        fullName: 'Updated User',
       };
 
       // Call the function

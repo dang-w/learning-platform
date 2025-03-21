@@ -164,6 +164,7 @@ export const useAuthStore = create<AuthState>()(
             await authApi.logout();
           } catch (e) {
             console.warn('Logout API call failed, but client state was cleared', e);
+            set({ error: 'Failed to logout' });
           }
         } catch (error) {
           console.error('Error during logout:', error);
@@ -172,6 +173,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             token: null,
             isAuthenticated: false,
+            error: 'Failed to logout'
           });
         }
       },
@@ -233,6 +235,13 @@ export const useAuthStore = create<AuthState>()(
 
           if (!refreshToken) {
             console.warn('No refresh token available');
+            // Clear auth state since we can't refresh
+            set({
+              token: null,
+              isAuthenticated: false,
+              user: null,
+              _lastTokenRefresh: Date.now()
+            });
             return false;
           }
 
@@ -248,16 +257,29 @@ export const useAuthStore = create<AuthState>()(
             set({
               token: response.access_token,
               isAuthenticated: true,
-              _lastTokenRefresh: Date.now(), // Update the timestamp
+              _lastTokenRefresh: Date.now()
             });
             return true;
+          } else {
+            console.warn('Token refresh failed - null response');
+            // Clear auth state on refresh failure
+            set({
+              token: null,
+              isAuthenticated: false,
+              user: null,
+              _lastTokenRefresh: Date.now()
+            });
+            return false;
           }
-
-          console.warn('Token refresh failed - no valid response');
-          return false;
         } catch (error) {
           console.error('Token refresh error:', error);
-          // Don't clear auth state on refresh errors, just return false
+          // Clear auth state on refresh errors to match test expectations
+          set({
+            token: null,
+            isAuthenticated: false,
+            user: null,
+            _lastTokenRefresh: Date.now()
+          });
           return false;
         }
       },

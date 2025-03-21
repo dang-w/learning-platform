@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import ConceptForm from '@/components/knowledge/ConceptForm';
 import { create } from 'zustand';
 import { Concept } from '@/types/knowledge';
+import { expect } from '@jest/globals';
 
 // Mock the knowledge store
 jest.mock('@/lib/store/knowledge-store', () => ({
