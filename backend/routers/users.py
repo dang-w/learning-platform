@@ -211,18 +211,10 @@ async def read_users_me(current_user: dict = Depends(get_current_active_user)):
         user_data = normalize_user_data(current_user)
     return User(**user_data)
 
-@router.get("/me", response_model=User)
-async def read_users_me_no_slash(current_user: dict = Depends(get_current_active_user)):
-    """Get current user profile (endpoint without trailing slash)."""
-    # Check if current_user is already a User object or MockUser (for tests)
-    if hasattr(current_user, 'model_dump') and callable(current_user.model_dump):
-        user_data = current_user.model_dump()
-    elif hasattr(current_user, 'dict') and callable(current_user.dict):
-        user_data = current_user.dict()
-    else:
-        # Normalize user data to ensure it conforms to the User model
-        user_data = normalize_user_data(current_user)
-    return User(**user_data)
+@router.get("/me/", response_model=User)
+async def read_users_me_with_slash(current_user: dict = Depends(get_current_active_user)):
+    """Get current user profile (endpoint with trailing slash)."""
+    return await read_users_me(current_user)
 
 @router.get("/{username}", response_model=User)
 async def read_user(username: str):
