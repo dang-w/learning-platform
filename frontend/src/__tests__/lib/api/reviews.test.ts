@@ -45,7 +45,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.createConcept(conceptData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/api/reviews/concepts', conceptData);
+      expect(apiClient.post).toHaveBeenCalledWith('/reviews/concepts', conceptData);
       expect(result).toEqual(mockConcept);
     });
   });
@@ -69,7 +69,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.getConcepts();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/concepts');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/concepts');
       expect(result).toEqual(mockConcepts);
     });
 
@@ -92,7 +92,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.getConcepts(topic);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/concepts?topic=react');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/concepts?topic=react');
       expect(result).toEqual(mockConcepts);
     });
   });
@@ -114,7 +114,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.getConcept('1');
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/concepts/1');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/concepts/1');
       expect(result).toEqual(mockConcept);
     });
   });
@@ -144,7 +144,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.updateConcept(conceptId, conceptData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/api/reviews/concepts/1', conceptData);
+      expect(apiClient.put).toHaveBeenCalledWith('/reviews/concepts/1', conceptData);
       expect(result).toEqual(mockConcept);
     });
   });
@@ -158,7 +158,7 @@ describe('Reviews API', () => {
       await reviewsApi.deleteConcept('1');
 
       // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/api/reviews/concepts/1');
+      expect(apiClient.delete).toHaveBeenCalledWith('/reviews/concepts/1');
     });
   });
 
@@ -190,7 +190,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.markConceptReviewed(conceptId, reviewData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/api/reviews/concepts/1/review', reviewData);
+      expect(apiClient.post).toHaveBeenCalledWith('/reviews/concepts/1/review', reviewData);
       expect(result).toEqual(mockConcept);
     });
   });
@@ -219,7 +219,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.getDueConcepts();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/due');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/due');
       expect(result).toEqual(mockConcepts);
     });
   });
@@ -259,7 +259,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.getNewConcepts();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/new?count=3');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/new?count=3');
       expect(result).toEqual(mockConcepts);
     });
 
@@ -290,7 +290,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.getNewConcepts(count);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/new?count=2');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/new?count=2');
       expect(result).toEqual(mockConcepts);
     });
   });
@@ -332,48 +332,35 @@ describe('Reviews API', () => {
       const result = await reviewsApi.generateReviewSession();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/session?max_reviews=5');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/session?max_reviews=5');
       expect(result).toEqual(mockSession);
     });
 
     it('should call the generateReviewSession endpoint with custom maxReviews', async () => {
       // Mock response
       const mockSession: ReviewSession = {
-        date: '2023-01-01',
-        concepts: [
+        session_id: 'test-session',
+        reviews: [
           {
-            id: '1',
-            title: 'React Hooks',
-            content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-            topics: ['react', 'hooks'],
-            reviews: [
-              {
-                date: '2022-12-25',
-                confidence: 3,
-              },
-            ],
-            next_review: '2023-01-01',
-          },
-        ],
-        new_concepts: [
-          {
-            id: '2',
-            title: 'React Context',
-            content: 'Context provides a way to pass data through the component tree without having to pass props down manually at every level.',
-            topics: ['react', 'context'],
-            reviews: [],
-            next_review: null,
+            id: 'review1',
+            concept_id: 'concept1',
+            next_review_date: '2023-01-01',
+            concept: {
+              id: 'concept1',
+              title: 'Test Concept',
+              content: 'Test content',
+              created_at: '2022-01-01',
+            },
           },
         ],
       };
       (apiClient.get as jest.Mock).mockResolvedValue({ data: mockSession });
 
-      // Call the function with custom maxReviews
-      const maxReviews = 3;
-      const result = await reviewsApi.generateReviewSession(maxReviews);
+      // Call the function
+      const result = await reviewsApi.generateReviewSession(3);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/session?max_reviews=3');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/session?max_reviews=3');
       expect(result).toEqual(mockSession);
     });
   });
@@ -382,27 +369,13 @@ describe('Reviews API', () => {
     it('should call the getReviewStatistics endpoint', async () => {
       // Mock response
       const mockStats: ReviewStatistics = {
-        total_concepts: 10,
-        reviewed_concepts: 5,
-        due_reviews: 2,
-        new_concepts: 5,
-        review_counts: {
-          1: 2,
-          2: 1,
-          3: 1,
-          4: 1,
-        },
-        average_confidence: 3.2,
-        review_history: {
-          last_7_days: 5,
-          last_30_days: 15,
-          all_time: 25,
-        },
-        confidence_distribution: {
-          1: 2,
-          2: 3,
-          3: 10,
-          4: 10,
+        total_reviews: 10,
+        completed_reviews: 5,
+        pending_reviews: 5,
+        mastery_level: 0.5,
+        reviews_by_day: {
+          '2023-01-01': 5,
+          '2023-01-02': 5,
         },
       };
       (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStats });
@@ -411,7 +384,7 @@ describe('Reviews API', () => {
       const result = await reviewsApi.getReviewStatistics();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/statistics');
+      expect(apiClient.get).toHaveBeenCalledWith('/reviews/statistics');
       expect(result).toEqual(mockStats);
     });
   });

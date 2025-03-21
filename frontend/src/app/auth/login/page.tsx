@@ -19,6 +19,7 @@ export default function LoginPage() {
   const { login, error, clearError } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
@@ -34,6 +35,7 @@ export default function LoginPage() {
   // Clear error when component mounts or when search params change
   useEffect(() => {
     clearError();
+    setLoginError(null);
 
     // Check if redirected from successful registration
     if (searchParams?.get('registered') === 'true') {
@@ -44,6 +46,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     clearError();
+    setLoginError(null);
 
     try {
       console.log('Attempting login for user:', data.username);
@@ -63,14 +66,15 @@ export default function LoginPage() {
       router.push(callbackUrl);
     } catch (error) {
       console.error('Login error:', error);
-      // Display specific error message if available
-      if (error instanceof Error) {
-        clearError(); // Clear any existing errors first
-        useAuthStore.setState({ error: error.message });
-      } else {
-        clearError(); // Clear any existing errors first
-        useAuthStore.setState({ error: 'Failed to login. Please check your credentials and try again.' });
-      }
+
+      // Create an error message based on the error type
+      const errorMessage = error instanceof Error
+        ? error.message
+        : 'Failed to login. Please check your credentials and try again.';
+
+      // Use the proper error handling method
+      clearError(); // Clear any existing errors first and set our local error state
+      setLoginError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -129,13 +133,13 @@ export default function LoginPage() {
             </div>
           )}
 
-          {error && (
+          {(error || loginError) && (
             <div className="rounded-md bg-red-50 p-4" data-testid="login-error">
               <div className="flex">
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-red-800">Login failed</h3>
                   <div className="mt-2 text-sm text-red-700">
-                    <p>{error}</p>
+                    <p>{loginError || error}</p>
                   </div>
                 </div>
               </div>

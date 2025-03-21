@@ -5,6 +5,7 @@ import { ResourceForm } from '@/components/resources/ResourceForm';
 import { useResourceStore } from '@/lib/store/resource-store';
 import { useUrlMetadata } from '@/lib/hooks/useUrlMetadata';
 import { DifficultyLevel } from '@/types/resources';
+import { expect } from '@jest/globals';
 
 // Mock the stores and hooks
 jest.mock('@/lib/store/resource-store');
@@ -18,6 +19,41 @@ jest.mock('react-hook-form', () => {
       handleSubmit: jest.fn(cb => (data: Record<string, unknown>) => cb(data)),
       setValue: jest.fn(),
       watch: jest.fn().mockReturnValue('https://example.com/article'),
+      formState: { errors: {}, isSubmitting: false },
+    }),
+  };
+});
+
+jest.mock('react-hook-form', () => {
+  const originalModule = jest.requireActual('react-hook-form');
+
+  // Create mock values for different fields
+  const mockValues: Record<string, string | number | string[]> = {
+    url: 'https://example.com/article',
+    title: 'Test Resource',
+    description: 'A test resource description',
+    resourceType: 'articles',
+    estimated_time: 60,
+    difficulty: 'beginner',
+    topics: ['AI', 'Machine Learning'],
+  };
+
+  const mockSetValue = jest.fn((name, value) => {
+    // Update the mock values when setValue is called
+    mockValues[name] = value;
+  });
+
+  return {
+    ...originalModule,
+    useForm: () => ({
+      register: jest.fn().mockImplementation(name => ({ name })),
+      handleSubmit: jest.fn(cb => (data: Record<string, unknown>) => cb(data)),
+      setValue: mockSetValue,
+      // Return appropriate value based on the field name
+      watch: jest.fn().mockImplementation((name?: string) => {
+        if (!name) return mockValues;
+        return mockValues[name];
+      }),
       formState: { errors: {}, isSubmitting: false },
     }),
   };

@@ -77,6 +77,10 @@ export interface ReviewStatistics {
     count: number;
     average_confidence: number;
   }[];
+  top_topics: { name: string; count: number }[];
+  recently_reviewed_concepts: Concept[];
+  due_concepts: number;
+  streak_days: number;
 }
 
 // SpacedRepetitionAlgorithm defines the algorithm used for scheduling reviews

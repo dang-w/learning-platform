@@ -1,3 +1,5 @@
+import '@testing-library/jest-dom';
+import type { jest } from '@jest/globals';
 import progressApi, { Metric, MetricCreate, MetricsSummary, WeeklyReport } from '@/lib/api/progress';
 import apiClient from '@/lib/api/client';
 import { LearningProgress } from '@/types/progress';
@@ -41,7 +43,7 @@ describe('Progress API', () => {
       const result = await progressApi.addMetric(metricData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/api/progress/metrics', metricData);
+      expect(apiClient.post).toHaveBeenCalledWith('/progress/metrics', metricData);
       expect(result).toEqual(mockMetric);
     });
   });
@@ -65,7 +67,7 @@ describe('Progress API', () => {
       const result = await progressApi.getMetrics();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/progress/metrics');
+      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics');
       expect(result).toEqual(mockMetrics);
     });
 
@@ -97,7 +99,7 @@ describe('Progress API', () => {
       const result = await progressApi.getMetrics(startDate, endDate);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/progress/metrics?start_date=2023-01-01&end_date=2023-01-07');
+      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics?start_date=2023-01-01&end_date=2023-01-07');
       expect(result).toEqual(mockMetrics);
     });
   });
@@ -127,7 +129,7 @@ describe('Progress API', () => {
       const result = await progressApi.getRecentMetricsSummary();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/progress/metrics/recent?days=7');
+      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics/recent?days=7');
       expect(result).toEqual(mockSummary);
     });
 
@@ -156,7 +158,7 @@ describe('Progress API', () => {
       const result = await progressApi.getRecentMetricsSummary(days);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/progress/metrics/recent?days=14');
+      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics/recent?days=14');
       expect(result).toEqual(mockSummary);
     });
   });
@@ -208,7 +210,7 @@ describe('Progress API', () => {
       const result = await progressApi.generateWeeklyReport();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/progress/report/weekly');
+      expect(apiClient.get).toHaveBeenCalledWith('/progress/report/weekly');
       expect(result).toEqual(mockReport);
     });
 
@@ -259,7 +261,7 @@ describe('Progress API', () => {
       const result = await progressApi.generateWeeklyReport(date);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/progress/report/weekly?date=2023-01-01');
+      expect(apiClient.get).toHaveBeenCalledWith('/progress/report/weekly?date=2023-01-01');
       expect(result).toEqual(mockReport);
     });
   });
@@ -273,7 +275,7 @@ describe('Progress API', () => {
       await progressApi.deleteMetric('1');
 
       // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/api/progress/metrics/1');
+      expect(apiClient.delete).toHaveBeenCalledWith('/progress/metrics/1');
     });
   });
 
@@ -309,7 +311,7 @@ describe('Progress API', () => {
       const result = await progressApi.fetchLearningProgress();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/progress');
+      expect(apiClient.get).toHaveBeenCalledWith('/progress');
       expect(result).toEqual(mockProgress);
     });
   });

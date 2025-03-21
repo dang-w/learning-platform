@@ -291,7 +291,8 @@ export default function ConceptReviewPage({ params }: ReviewPageProps) {
                         variant={
                           review.confidence_level <= 2 ? 'danger' :
                           review.confidence_level === 3 ? 'warning' :
-                          'success'
+                          review.confidence_level >= 4 ? 'success' :
+                          'default'
                         }
                         data-testid="confidence-badge"
                       >

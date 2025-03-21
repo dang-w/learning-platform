@@ -2,12 +2,13 @@ import resourcesApi, { ResourceStatistics, fetchResourceStats } from '@/lib/api/
 import apiClient from '@/lib/api/client';
 import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput } from '@/types/resources';
 
-// Mock the apiClient
+// Mock the API client
 jest.mock('@/lib/api/client', () => ({
   get: jest.fn(),
   post: jest.fn(),
   put: jest.fn(),
   delete: jest.fn(),
+  withBackoff: jest.fn((fn) => fn())
 }));
 
 describe('resourcesApi', () => {
@@ -68,11 +69,11 @@ describe('resourcesApi', () => {
 
   describe('getAllResources', () => {
     it('should fetch all resources', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: [mockResource] });
+      (apiClient.get as jest.Mock).mockResolvedValue({ data: [mockResource] });
 
       const result = await resourcesApi.getAllResources();
 
-      expect(apiClient.get).toHaveBeenCalledWith('/api/resources');
+      expect(apiClient.get).toHaveBeenCalledWith('/resources/');
       expect(result).toEqual([mockResource]);
     });
 
@@ -86,12 +87,26 @@ describe('resourcesApi', () => {
 
   describe('getResourcesByType', () => {
     it('should fetch resources by type', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: [mockResource] });
-      const type: ResourceType = 'articles';
+      const mockResource = {
+        id: '1',
+        title: 'Test Resource',
+        url: 'https://example.com',
+        topics: ['javascript'],
+        difficulty: 'intermediate',
+        completed: false,
+        date_added: '2023-01-01',
+        completion_date: null,
+        notes: '',
+        estimated_time: 30,
+      };
+
+      (apiClient.get as jest.Mock).mockResolvedValue({ data: [mockResource] });
+
+      const type = 'articles' as ResourceType;
 
       const result = await resourcesApi.getResourcesByType(type);
 
-      expect(apiClient.get).toHaveBeenCalledWith(`/api/resources/${type}`);
+      expect(apiClient.get).toHaveBeenCalledWith(`/resources/${type}`);
       expect(result).toEqual([mockResource]);
     });
 
@@ -105,12 +120,33 @@ describe('resourcesApi', () => {
 
   describe('createResource', () => {
     it('should create a resource', async () => {
-      (apiClient.post as jest.Mock).mockResolvedValueOnce({ data: mockResource });
-      const type: ResourceType = 'articles';
+      const mockResource = {
+        id: '1',
+        title: 'Test Resource',
+        url: 'https://example.com',
+        topics: ['javascript', 'react'],
+        difficulty: 'intermediate',
+        completed: false,
+        date_added: '2023-01-01',
+        completion_date: null,
+        notes: '',
+        estimated_time: 60,
+      };
+
+      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockResource });
+
+      const type = 'articles' as ResourceType;
+      const mockResourceInput = {
+        title: 'Test Resource',
+        url: 'https://example.com',
+        topics: ['javascript', 'react'],
+        difficulty: 'intermediate',
+        estimated_time: 60,
+      };
 
       const result = await resourcesApi.createResource(type, mockResourceInput);
 
-      expect(apiClient.post).toHaveBeenCalledWith(`/api/resources/${type}`, mockResourceInput);
+      expect(apiClient.post).toHaveBeenCalledWith(`/resources/${type}`, mockResourceInput);
       expect(result).toEqual(mockResource);
     });
 
@@ -124,14 +160,31 @@ describe('resourcesApi', () => {
 
   describe('updateResource', () => {
     it('should update a resource', async () => {
-      const updatedResource = { ...mockResource, ...mockResourceUpdate };
-      (apiClient.put as jest.Mock).mockResolvedValueOnce({ data: updatedResource });
-      const type: ResourceType = 'articles';
+      const updatedResource = {
+        id: '123',
+        title: 'Updated Resource',
+        url: 'https://example.com',
+        topics: ['javascript', 'react', 'typescript'],
+        difficulty: 'intermediate',
+        completed: false,
+        date_added: '2023-01-01',
+        completion_date: null,
+        notes: '',
+        estimated_time: 60,
+      };
+
+      (apiClient.put as jest.Mock).mockResolvedValue({ data: updatedResource });
+
+      const type = 'articles' as ResourceType;
       const id = '123';
+      const mockResourceUpdate = {
+        title: 'Updated Resource',
+        topics: ['javascript', 'react', 'typescript'],
+      };
 
       const result = await resourcesApi.updateResource(type, id, mockResourceUpdate);
 
-      expect(apiClient.put).toHaveBeenCalledWith(`/api/resources/${type}/${id}`, mockResourceUpdate);
+      expect(apiClient.put).toHaveBeenCalledWith(`/resources/${type}/${id}`, mockResourceUpdate);
       expect(result).toEqual(updatedResource);
     });
 
@@ -145,13 +198,14 @@ describe('resourcesApi', () => {
 
   describe('deleteResource', () => {
     it('should delete a resource', async () => {
-      (apiClient.delete as jest.Mock).mockResolvedValueOnce({});
-      const type: ResourceType = 'articles';
+      (apiClient.delete as jest.Mock).mockResolvedValue({});
+
+      const type = 'articles' as ResourceType;
       const id = '123';
 
       await resourcesApi.deleteResource(type, id);
 
-      expect(apiClient.delete).toHaveBeenCalledWith(`/api/resources/${type}/${id}`);
+      expect(apiClient.delete).toHaveBeenCalledWith(`/resources/${type}/${id}`);
     });
 
     it('should handle errors', async () => {
@@ -164,15 +218,28 @@ describe('resourcesApi', () => {
 
   describe('completeResource', () => {
     it('should mark a resource as complete', async () => {
-      const completedResource = { ...mockResource, completed: true, completion_date: '2023-01-15' };
-      (apiClient.post as jest.Mock).mockResolvedValueOnce({ data: completedResource });
-      const type: ResourceType = 'articles';
+      const completedResource = {
+        id: '123',
+        title: 'Test Resource',
+        url: 'https://example.com',
+        topics: ['javascript'],
+        difficulty: 'intermediate',
+        completed: true,
+        date_added: '2023-01-01',
+        completion_date: '2023-01-10',
+        notes: 'Completed with notes',
+        estimated_time: 60,
+      };
+
+      (apiClient.post as jest.Mock).mockResolvedValue({ data: completedResource });
+
+      const type = 'articles' as ResourceType;
       const id = '123';
       const notes = 'Completed with notes';
 
       const result = await resourcesApi.completeResource(type, id, notes);
 
-      expect(apiClient.post).toHaveBeenCalledWith(`/api/resources/${type}/${id}/complete`, { notes });
+      expect(apiClient.post).toHaveBeenCalledWith(`/resources/${type}/${id}/complete`, { notes });
       expect(result).toEqual(completedResource);
     });
 
@@ -186,11 +253,11 @@ describe('resourcesApi', () => {
 
   describe('getResourceStatistics', () => {
     it('should fetch resource statistics', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: mockStatistics });
+      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStatistics });
 
       const result = await resourcesApi.getResourceStatistics();
 
-      expect(apiClient.get).toHaveBeenCalledWith('/api/resources/statistics');
+      expect(apiClient.get).toHaveBeenCalledWith('/resources/statistics');
       expect(result).toEqual(mockStatistics);
     });
 
@@ -205,20 +272,36 @@ describe('resourcesApi', () => {
   describe('fetchResourceStats', () => {
     it('should fetch resource stats', async () => {
       const mockStats = {
-        articles: { completed: 2, in_progress: 2, total: 4 },
-        videos: { completed: 1, in_progress: 2, total: 3 },
-        courses: { completed: 1, in_progress: 1, total: 2 },
-        books: { completed: 1, in_progress: 0, total: 1 },
-        total_completed: 5,
-        total_in_progress: 5,
-        total_resources: 10,
+        total_resources: 50,
+        total_completed: 20,
+        total_in_progress: 30,
+        articles: {
+          total: 20,
+          completed: 10,
+          in_progress: 10,
+        },
+        videos: {
+          total: 15,
+          completed: 5,
+          in_progress: 10,
+        },
+        courses: {
+          total: 10,
+          completed: 3,
+          in_progress: 7,
+        },
+        books: {
+          total: 5,
+          completed: 2,
+          in_progress: 3,
+        },
       };
 
-      (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: mockStats });
+      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStats });
 
       const result = await fetchResourceStats();
 
-      expect(apiClient.get).toHaveBeenCalledWith('/api/resources/stats');
+      expect(apiClient.get).toHaveBeenCalledWith('/resources/statistics');
       expect(result).toEqual(mockStats);
     });
 
