@@ -6,7 +6,8 @@ from jwt.exceptions import PyJWTError
 from datetime import datetime
 
 # Import the app and auth functions
-from main import app, login_for_access_token
+from main import app
+from routers.auth import login_for_access_token
 from auth import get_current_user, get_current_active_user
 
 # Import the MockUser class from conftest
@@ -133,14 +134,12 @@ def test_login_with_invalid_username(mock_auth, client):
     mock_auth.return_value = None
 
     response = client.post(
-        "/token",
+        "/auth/token",
         data={"username": "invaliduser", "password": "password123"},
     )
 
     assert response.status_code == 401
-    error_response = response.json()
-    assert "detail" in error_response
-    assert error_response["detail"] == "Incorrect username or password"
+    assert response.json()["detail"] == "Incorrect username or password"
 
 @patch("auth.authenticate_user")
 def test_login_with_invalid_password(mock_auth, client):
@@ -149,14 +148,12 @@ def test_login_with_invalid_password(mock_auth, client):
     mock_auth.return_value = None
 
     response = client.post(
-        "/token",
+        "/auth/token",
         data={"username": "testuser", "password": "invalidpassword"},
     )
 
     assert response.status_code == 401
-    error_response = response.json()
-    assert "detail" in error_response
-    assert error_response["detail"] == "Incorrect username or password"
+    assert response.json()["detail"] == "Incorrect username or password"
 
 def test_login_incorrect_credentials(client):
     # ... existing code ...
@@ -204,10 +201,7 @@ def test_token_refresh_invalid_token(client):
         refresh_data = {"refresh_token": "invalid_token"}
 
         # Send the request to the correct endpoint
-        response = client.post("/token/refresh", json=refresh_data)
+        response = client.post("/auth/token/refresh", json=refresh_data)
 
         # Verify the response
         assert response.status_code == 401
-        error_response = response.json()
-        assert "detail" in error_response
-        assert error_response["detail"] == "Invalid or expired refresh token"

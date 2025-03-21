@@ -6,6 +6,8 @@ from datetime import timedelta
 from unittest.mock import patch, AsyncMock
 
 class MockUser:
+    """Mock user for testing."""
+
     def __init__(self, username="testuser"):
         self.username = username
         self.email = f"{username}@example.com"
@@ -15,26 +17,31 @@ class MockUser:
         self.user_id = username
         self.roles = ["user"]
         self.permissions = ["read:own", "write:own"]
-        self.resources = {
-            "articles": [],
-            "videos": [],
-            "courses": [],
-            "books": []
-        }
+        self.created_at = "2023-01-01T00:00:00"
+        self.updated_at = "2023-01-01T00:00:00"
+        self.last_login = "2023-01-01T00:00:00"
         self.preferences = {"theme": "light", "notifications": True}
 
     def dict(self):
+        """Convert user to dict for Pydantic v1 compatibility."""
         return {
             "username": self.username,
             "email": self.email,
             "full_name": self.full_name,
+            "disabled": self.disabled,
             "id": self.id,
             "user_id": self.user_id,
             "roles": self.roles,
             "permissions": self.permissions,
-            "resources": self.resources,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "last_login": self.last_login,
             "preferences": self.preferences
         }
+
+    def model_dump(self):
+        """Convert user to dict for Pydantic v2 compatibility."""
+        return self.dict()
 
 @pytest.mark.integration
 def test_api_endpoints():
@@ -47,6 +54,8 @@ def test_api_endpoints():
 
     # Override the authentication dependencies
     mock_user = MockUser(username="testuser")
+    # Make sure the mock user has all required fields
+    mock_user.created_at = "2023-01-01T00:00:00"
 
     # Override the dependencies
     app.dependency_overrides[get_current_user] = lambda: mock_user
