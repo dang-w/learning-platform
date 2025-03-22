@@ -1,118 +1,243 @@
-# Testing Standards and Updates
+# Backend Testing Guide
 
-## Recent Updates to Test Suite
+This document provides comprehensive information about testing approaches, organization, and best practices for the AI/ML Learning Platform backend.
 
-We have updated all tests in the backend directory to use the same shared utilities for:
+## Table of Contents
 
-1. **Database connections** (using the shared database.py module)
-   - All tests now use `get_database()` for database connections
-   - Mock database implementation is consistently patched across all tests
+- [Overview](#overview)
+- [Test Organization](#test-organization)
+- [Testing Approaches](#testing-approaches)
+- [Running Tests](#running-tests)
+- [Writing Tests](#writing-tests)
+- [Test Fixtures](#test-fixtures)
+- [Integration with Frontend Tests](#integration-with-frontend-tests)
+- [CI/CD Integration](#cicd-integration)
+- [Troubleshooting](#troubleshooting)
 
-2. **Validation** (using utils/validators.py)
-   - Tests now validate data using the standardized validation functions
-   - Common validation patterns are reused across tests
+## Overview
 
-3. **Error handling** (using utils/error_handlers.py)
-   - Tests now use standardized error classes
-   - Error responses are consistently checked in tests
+The backend testing suite ensures the stability, correctness, and reliability of the API. We use pytest as our testing framework with a variety of approaches to cover different testing scenarios.
 
-4. **Response models** (using utils/response_models.py)
-   - Tests now verify responses using the standardized response models
-   - Response format is consistently checked across tests
+### Testing Goals
 
-5. **Database operations** (using utils/db_utils.py)
-   - Tests now use shared database operation utilities
-   - CRUD operations are consistently implemented across tests
+1. **Correctness**: Ensure API functions as specified
+2. **Reliability**: Maintain stability across versions
+3. **Performance**: Validate acceptable performance under load
+4. **Security**: Verify authentication and authorization
+5. **Integration**: Confirm system components work together
 
-## Key Files Updated
+## Test Organization
 
-The following key files have been updated:
+Tests are organized by test type and feature area:
 
-- `tests/conftest.py`: Updated fixtures to use standardized utilities
-- `tests/mock_db.py`: Aligned with the standardized database approach
-- `tests/api/*.py`: Updated all API tests to use standardized utilities
-- `tests/integration/*.py`: Updated all integration tests to use standardized utilities
-- `tests/integration/test_utils.py`: Updated test utilities to use standardized approach
-- `tests/README.md`: Added documentation for the standardized approach
+```
+tests/
+├── api/                 # API endpoint tests
+│   ├── test_auth_api.py
+│   ├── test_resources_api.py
+│   ├── test_progress_api.py
+│   ├── test_reviews_api.py
+│   ├── test_learning_path_api.py
+│   └── test_url_extractor_api.py
+├── services/            # Service layer tests
+│   ├── test_url_extractor.py
+│   └── test_knowledge_service.py
+├── utils/               # Shared test utilities
+│   ├── auth_helpers.py
+│   ├── db_helpers.py
+│   └── test_data.py
+├── config/              # Test configurations
+│   ├── test_settings.py
+│   └── test_mongo_config.py
+├── integration/         # Integration tests
+│   ├── test_authentication_consolidated.py  # Consolidated authentication tests
+│   ├── test_api_interactions.py
+│   ├── test_database_interactions.py
+│   └── test_user_workflow.py
+├── performance/         # Performance tests
+│   ├── test_api_performance.py
+│   ├── test_database_performance.py
+│   └── test_load_performance.py
+├── reports/             # Test reports
+│   ├── html/            # HTML test reports
+│   ├── junit/           # JUnit XML reports
+│   └── coverage/        # Coverage reports
+├── conftest.py          # Test fixtures and utilities
+├── mock_db.py           # Mock database for testing
+└── README.md            # Test suite documentation
+```
 
-## Benefits of Standardization
+### Test Types
 
-This standardization provides several benefits:
+- **Unit Tests**: Tests individual components in isolation
+- **Integration Tests**: Tests interactions between components
+- **API Tests**: Tests API endpoints through FastAPI's test client
+- **Performance Tests**: Tests API performance under various conditions
 
-1. **Consistency**: All tests now follow the same patterns and approaches
-2. **Maintainability**: Changes to core utilities only need to be made in one place
-3. **Readability**: Tests are more consistent and easier to understand
-4. **Reliability**: Tests are more robust and less prone to errors
-5. **Extensibility**: New tests can easily follow the established patterns
+### Test Markers
+
+The following pytest markers are available for categorizing tests:
+
+- `unit`: Unit tests that test individual components
+- `integration`: Integration tests that test component interactions
+- `performance`: Performance tests for measuring API and system performance
+- `slow`: Tests that take a long time to run and might be skipped in quick test runs
+
+## Testing Approaches
+
+The backend testing suite supports three main approaches:
+
+### 1. Mock-based Testing
+
+Uses `mongomock` and `mongomock-motor` to mock MongoDB operations. This approach is fast and doesn't require a running MongoDB instance.
+
+```python
+@pytest.fixture
+def mock_mongodb():
+    """Return a mongomock MongoDB client."""
+    return AsyncMockClient()
+
+@pytest.fixture
+def app(mock_mongodb):
+    """Create test app with mocked dependencies."""
+    app = get_application()
+    app.dependency_overrides[get_database] = lambda: mock_mongodb
+    return app
+```
+
+### 2. Dependency Injection Testing
+
+Uses FastAPI's dependency override system to inject mock services or databases.
+
+```python
+@pytest.fixture
+def app_with_mocks():
+    """Create test app with dependency overrides."""
+    app = get_application()
+    app.dependency_overrides[get_database] = get_test_database
+    app.dependency_overrides[get_current_user] = get_test_user
+    return app
+```
+
+### 3. Real MongoDB Testing
+
+Tests against a real MongoDB instance, useful for full integration tests. Requires a running MongoDB instance or Docker container.
+
+```python
+@pytest.fixture(scope="session")
+def mongodb_container():
+    """Start MongoDB container for testing."""
+    with MongoDBContainer("mongo:5.0") as mongo:
+        yield mongo.get_connection_url()
+
+@pytest.fixture
+def real_mongodb(mongodb_container):
+    """Return a real MongoDB client connected to the container."""
+    client = AsyncIOMotorClient(mongodb_container)
+    yield client
+    client.close()
+```
 
 ## Running Tests
 
-To run all tests:
+### Basic Test Commands
 
 ```bash
-python run_tests.py
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=app
+
+# Run specific test file
+pytest tests/api/test_auth_api.py
+
+# Run tests matching a pattern
+pytest -k "auth"
+
+# Run tests in verbose mode
+pytest -v
+
+# Generate HTML coverage report
+pytest --cov=app --cov-report=html:tests/reports/coverage/
 ```
 
-To run a specific test file:
+### Environment Setup
+
+Tests can be configured via environment variables or a `.env.test` file:
+
+```
+MONGODB_TEST_URL=mongodb://localhost:27017/test_db
+TEST_SECRET_KEY=test_secret_key
+TEST_DEBUG=True
+```
+
+### Test Categories
 
 ```bash
-python run_single_test.py tests/api/test_user_api.py
+# Run only unit tests
+pytest -m "unit"
+
+# Run only integration tests
+pytest -m "integration"
+
+# Run only API tests
+pytest -m "api"
+
+# Run only performance tests
+pytest -m "performance"
+
+# Exclude slow tests
+pytest -m "not slow"
 ```
 
-To run integration tests:
+### Test Reporting
+
+The backend testing system generates standardized reports in the `tests/reports/` directory:
 
 ```bash
-./run_integration_tests.sh
+# Generate HTML report
+pytest --html=tests/reports/html/report.html
+
+# Generate JUnit XML report
+pytest --junitxml=tests/reports/junit/report.xml
+
+# Generate coverage report
+pytest --cov=app --cov-report=html:tests/reports/coverage/
 ```
 
-## Test Coverage
+## Writing Tests
 
-We aim for high test coverage. Run the coverage report with:
+### Test Structure
 
-```bash
-python -m pytest --cov=app --cov=routers --cov=utils
+Follow this pattern for writing tests:
+
+```python
+# Arrange - Set up test data and preconditions
+# Act - Perform the action being tested
+# Assert - Verify the expected outcome
 ```
 
-## Next Steps
+Example:
 
-1. Continue updating any remaining tests to follow the standardized approach
-2. Add more comprehensive tests for edge cases
-3. Improve test coverage for all modules
-4. Add performance tests for critical paths
-5. Implement continuous integration to run tests automatically
+```python
+@pytest.mark.api
+async def test_create_resource(client, test_user_token):
+    # Arrange
+    resource_data = {
+        "title": "Test Resource",
+        "url": "https://example.com/test",
+        "resource_type": "article"
+    }
+    headers = {"Authorization": f"Bearer {test_user_token}"}
 
-## Progress Update (March 17, 2025)
+    # Act
+    response = await client.post("/api/resources/", json=resource_data, headers=headers)
 
-We have made significant progress in updating the test files to align with the new testing consistency standards. For detailed information about our progress, please see [TESTING_PROGRESS.md](TESTING_PROGRESS.md).
-
-Key accomplishments:
-- Fixed import issues in multiple test files
-- Updated authentication mocking to use the correct approach
-- Successfully ran several key tests
-- Identified and documented remaining issues
-
-We will continue to update the remaining test files and ensure all tests pass with the new standardized approach.
-
-## Recent API Test Fixes (March 2025)
-
-Several API tests were fixed to address issues with test paths and expected responses:
-
-1. **Authentication Endpoint Paths**:
-   - Updated auth test paths from `/token` to `/auth/token`
-   - Updated token refresh test paths from `/token/refresh` to `/auth/token/refresh`
-   - Fixed error message assertions in token refresh invalid token test
-
-2. **Health Check Endpoint**:
-   - Fixed test to expect "healthy" status from `/api/health` endpoint
-
-3. **URL Extractor Integration**:
-   - Added URL extractor router mounting to main.py
-   - Fixed 404 errors in URL extractor API tests
-
-4. **Resource Batch Endpoint**:
-   - Updated ResourceBatchCreateTest model to properly handle validation
-   - Aligned test expectations with actual API response format
-
-### Remaining Test Issues:
-
-- User creation API tests (2 failures) - Asyncio loop errors
+    # Assert
+    assert response.status_code == 201
+    data = response.json()
+    assert data["title"] == resource_data["title"]
+    assert data["url"] == resource_data["url"]
+    assert "id" in data
+```

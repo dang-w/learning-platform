@@ -1,15 +1,20 @@
-# Learning Path API Tests
+# API Tests
 
-## Current Status
+> **Note:** This document focuses on specific implementation details and issues for API tests. For a comprehensive guide on backend testing, please refer to the [Backend Testing Guide](/backend/TESTING.md).
 
-We've created two test files for the Learning Path API:
+## API Test Files
 
-1. `test_learning_path_api.py` - A comprehensive test suite that tests all functionality of the Learning Path API with lenient assertions.
-2. `test_learning_path_simple.py` - A simplified test suite that verifies the existence of the endpoints with more lenient assertions.
+The API tests are organized into files corresponding to different API endpoints:
 
-Both test files are now passing, but with lenient assertions that accept 404 and 500 status codes for most endpoints.
+- `test_auth_api.py` - Tests for authentication endpoints
+- `test_resources_api.py` - Tests for resource management endpoints
+- `test_learning_path_api.py` - Tests for learning path endpoints
+- `test_knowledge.py` - Tests for knowledge and concepts endpoints
+- `test_reviews_api.py` - Tests for review endpoints
+- `test_progress_api.py` - Tests for progress tracking endpoints
+- `test_url_extractor_api.py` - Tests for URL metadata extraction endpoints
 
-## Issues Identified
+## Learning Path API Issues
 
 The Learning Path API endpoints are accessible, but most of them are returning errors:
 
