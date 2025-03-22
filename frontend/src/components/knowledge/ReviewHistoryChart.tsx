@@ -170,7 +170,7 @@ export const ReviewHistoryChart = ({ userId, timeRange, className = '' }: Review
 
       {isLoading ? (
         <div className="h-80 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" role="status" aria-label="Loading"></div>
         </div>
       ) : (
         <>
@@ -247,7 +247,7 @@ export const ReviewHistoryChart = ({ userId, timeRange, className = '' }: Review
 
           <div className="text-xs text-gray-500 mt-6">
             <p className="italic">
-              Note: This chart shows your spaced repetition review history over the selected time period.
+              This chart shows your spaced repetition review history over the selected time period.
               {activeChart === 'activity'
                 ? ' The height of each bar represents the total number of reviews completed on that day.'
                 : ' The pie chart shows your overall accuracy across all reviews in this period.'}

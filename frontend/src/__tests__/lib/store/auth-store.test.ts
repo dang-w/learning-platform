@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import authApi from '@/lib/api/auth';
 import { User } from '@/lib/api/auth';
+import { expect } from '@jest/globals';
 
 // Mock the auth API
 jest.mock('@/lib/api/auth', () => ({
@@ -16,10 +17,12 @@ jest.mock('@/lib/api/auth', () => ({
 
 describe('Auth Store', () => {
   const mockUser: User = {
+    id: '1',
     username: 'testuser',
     email: 'test@example.com',
-    full_name: 'Test User',
-    disabled: false,
+    fullName: 'Test User',
+    createdAt: '2021-01-01',
+    updatedAt: '2021-01-01',
   };
 
   const mockToken = {
@@ -287,14 +290,44 @@ describe('Auth Store', () => {
   });
 
   describe('refreshToken', () => {
-    it('should refresh token successfully', async () => {
-      // Mock API response
-      (authApi.refreshToken as jest.Mock).mockResolvedValue(mockToken);
+    // Set up localStorage mock for tests
+    let localStorageMock: { [key: string]: string } = {};
 
-      // Render the hook
+    beforeEach(() => {
+      // Reset localStorage mock
+      localStorageMock = {};
+
+      // Mock localStorage
+      jest.spyOn(Storage.prototype, 'getItem').mockImplementation(key => localStorageMock[key] || null);
+      jest.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+        localStorageMock[key] = value.toString();
+      });
+
+      // Reset last refresh time to allow refresh to proceed
+      const { result } = renderHook(() => useAuthStore());
+      act(() => {
+        // Force _lastTokenRefresh to be more than 30 seconds ago
+        result.current._lastTokenRefresh = Date.now() - 60000;
+      });
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should refresh token successfully', async () => {
+      // Add refresh token to localStorage
+      localStorageMock['refreshToken'] = 'test-refresh-token';
+
+      // Mock a successful token refresh
+      (authApi.refreshToken as jest.Mock).mockResolvedValueOnce({
+        access_token: 'test-token',
+        refresh_token: 'new-refresh-token'
+      });
+
       const { result } = renderHook(() => useAuthStore());
 
-      // Perform token refresh
+      // Call refreshToken
       let refreshResult;
       await act(async () => {
         refreshResult = await result.current.refreshToken();
@@ -307,16 +340,27 @@ describe('Auth Store', () => {
 
       // Verify API call
       expect(authApi.refreshToken).toHaveBeenCalled();
+
+      // Verify localStorage was updated
+      expect(localStorageMock['token']).toBe('test-token');
+      expect(localStorageMock['refreshToken']).toBe('new-refresh-token');
     });
 
     it('should handle null token response', async () => {
-      // Mock API response with null
-      (authApi.refreshToken as jest.Mock).mockResolvedValue(null);
+      // Add refresh token to localStorage
+      localStorageMock['refreshToken'] = 'test-refresh-token';
 
-      // Render the hook
+      // Mock null response from refreshToken
+      (authApi.refreshToken as jest.Mock).mockResolvedValueOnce(null);
+
       const { result } = renderHook(() => useAuthStore());
 
-      // Perform token refresh
+      // Set initial authenticated state
+      act(() => {
+        result.current.setDirectAuthState('old-token', true);
+      });
+
+      // Call refreshToken
       let refreshResult;
       await act(async () => {
         refreshResult = await result.current.refreshToken();
@@ -331,21 +375,20 @@ describe('Auth Store', () => {
     });
 
     it('should handle refresh token errors', async () => {
-      // Mock API error
-      const mockError = new Error('Token expired');
-      (authApi.refreshToken as jest.Mock).mockRejectedValue(mockError);
+      // Add refresh token to localStorage
+      localStorageMock['refreshToken'] = 'test-refresh-token';
 
-      // Render the hook
+      // Mock error from refreshToken
+      (authApi.refreshToken as jest.Mock).mockRejectedValueOnce(new Error('Refresh token error'));
+
       const { result } = renderHook(() => useAuthStore());
 
-      // Set initial state with token
+      // Set initial authenticated state
       act(() => {
-        result.current.token = 'old-token';
-        result.current.isAuthenticated = true;
-        result.current.user = mockUser;
+        result.current.setDirectAuthState('old-token', true);
       });
 
-      // Perform token refresh with error
+      // Call refreshToken
       let refreshResult;
       await act(async () => {
         refreshResult = await result.current.refreshToken();
@@ -368,7 +411,7 @@ describe('Auth Store', () => {
       const updatedUser = {
         ...mockUser,
         email: 'updated@example.com',
-        full_name: 'Updated User',
+        fullName: 'Updated User',
       };
 
       // Mock API response
@@ -386,7 +429,7 @@ describe('Auth Store', () => {
       await act(async () => {
         await result.current.updateProfile({
           email: 'updated@example.com',
-          full_name: 'Updated User',
+          fullName: 'Updated User',
         });
       });
 
@@ -398,7 +441,7 @@ describe('Auth Store', () => {
       // Verify API call
       expect(authApi.updateProfile).toHaveBeenCalledWith({
         email: 'updated@example.com',
-        full_name: 'Updated User',
+        fullName: 'Updated User',
       });
     });
 

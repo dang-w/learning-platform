@@ -14,26 +14,12 @@ jest.mock('@/lib/store/auth-store', () => {
     login: jest.fn(),
     error: null,
     clearError: jest.fn(),
-    setState: jest.fn(),
-    getState: jest.fn(),
+    isLoading: false,
   };
 
-  // Create a function that returns the mockStore and also has setState and getState methods
-  const useAuthStoreFn = jest.fn(() => mockStore) as jest.Mock & {
-    setState: jest.Mock;
-    getState: jest.Mock;
-  };
-
-  // Add static methods to the function
-  useAuthStoreFn.setState = jest.fn((newState) => {
-    // Update the mockStore state with new values
-    Object.assign(mockStore, newState);
-  });
-
-  useAuthStoreFn.getState = jest.fn(() => mockStore);
-
+  // Return a function that returns the mock store
   return {
-    useAuthStore: useAuthStoreFn,
+    useAuthStore: jest.fn(() => mockStore),
   };
 });
 

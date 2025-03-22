@@ -289,10 +289,10 @@ export default function ConceptReviewPage({ params }: ReviewPageProps) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge
                         variant={
+                          !review.confidence_level ? 'default' :
                           review.confidence_level <= 2 ? 'danger' :
                           review.confidence_level === 3 ? 'warning' :
-                          review.confidence_level >= 4 ? 'success' :
-                          'default'
+                          'success'
                         }
                         data-testid="confidence-badge"
                       >
@@ -301,6 +301,7 @@ export default function ConceptReviewPage({ params }: ReviewPageProps) {
                         {review.confidence_level === 3 && 'Medium'}
                         {review.confidence_level === 4 && 'Easy'}
                         {review.confidence_level === 5 && 'Very Easy'}
+                        {!review.confidence_level && 'Unknown'}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500" data-testid="review-note">

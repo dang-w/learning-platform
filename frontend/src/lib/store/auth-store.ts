@@ -141,19 +141,21 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try {
-          // Clear client-side auth state
+          // First clear client-side auth state
           set({
             user: null,
             token: null,
             isAuthenticated: false,
             statistics: null,
             notificationPreferences: null,
+            error: null, // Clear any previous errors
           });
 
           // Clear tokens from localStorage
           if (typeof window !== 'undefined') {
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
+            localStorage.removeItem('sessionId');
 
             // Also clear any cookies
             document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
@@ -164,17 +166,19 @@ export const useAuthStore = create<AuthState>()(
             await authApi.logout();
           } catch (e) {
             console.warn('Logout API call failed, but client state was cleared', e);
+            // Set error to match test expectations
             set({ error: 'Failed to logout' });
           }
         } catch (error) {
           console.error('Error during logout:', error);
-          // Still clear the state even if there was an error
+          // Ensure the client state is cleared even if there was an error
           set({
             user: null,
             token: null,
             isAuthenticated: false,
             error: 'Failed to logout'
           });
+          // Don't throw here to keep the logout function resilient
         }
       },
 
@@ -252,8 +256,15 @@ export const useAuthStore = create<AuthState>()(
           // Make the request to refresh the token
           const response = await authApi.refreshToken();
 
-          if (response) {
+          if (response && response.access_token) {
             console.log('Token refresh successful');
+
+            // Store the new tokens in localStorage for immediate availability
+            if (typeof window !== 'undefined' && response.refresh_token) {
+              localStorage.setItem('token', response.access_token);
+              localStorage.setItem('refreshToken', response.refresh_token);
+            }
+
             set({
               token: response.access_token,
               isAuthenticated: true,
@@ -261,7 +272,7 @@ export const useAuthStore = create<AuthState>()(
             });
             return true;
           } else {
-            console.warn('Token refresh failed - null response');
+            console.warn('Token refresh failed - null or invalid response');
             // Clear auth state on refresh failure
             set({
               token: null,

@@ -220,6 +220,7 @@ const authApi = {
         return null;
       }
 
+      // Match the API path expected by tests - use a consistent path
       const response = await apiClient.post<AuthResponse>('/auth/token/refresh', {
         refresh_token: refreshToken
       });
@@ -244,8 +245,15 @@ const authApi = {
     try {
       // Get session ID if available
       const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-      // Call the backend logout endpoint to invalidate the token and session
+      // Exit early if no token is available
+      if (!token) {
+        console.log('No token available for logout, skipping API call');
+        return;
+      }
+
+      // Use API client for consistency with tests
       if (sessionId) {
         await apiClient.post('/auth/logout', {}, {
           headers: {
@@ -260,6 +268,7 @@ const authApi = {
       if (process.env.NODE_ENV !== 'test') {
         console.error('Logout API error:', error);
       }
+      // Don't throw error to allow logout to complete even if API call fails
     }
 
     // Remove tokens and session from localStorage
