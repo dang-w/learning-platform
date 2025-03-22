@@ -1,54 +1,97 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { API_URL } from '@/config';
 
+// Helper function to extract token from request
+async function getTokenFromRequest(request: NextRequest): Promise<string | null> {
+  // Try to get token from Authorization header first
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    console.log('Found token in Authorization header');
+    return authHeader.substring(7);
+  }
+
+  // Try to get token from request cookies
+  const token = request.cookies.get('token')?.value;
+  if (token) {
+    console.log('Found token in request cookies');
+    return token;
+  }
+
+  console.log('No token found in request');
+  return null;
+}
+
+/**
+ * Change user password
+ */
 export async function POST(request: NextRequest) {
-  try {
-    // Get the authorization header from the request
-    const authHeader = request.headers.get('Authorization');
+  console.log('Password change request received');
 
-    if (!authHeader) {
+  try {
+    // Get the token from the request
+    const token = await getTokenFromRequest(request);
+
+    if (!token) {
+      console.log('No token found, returning 401');
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Parse the request body
+    const body = await request.json();
+
+    // Validate request body
+    if (!body.old_password || !body.new_password) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { message: 'Both old and new passwords are required' },
+        { status: 400 }
       );
     }
 
-    // Get the request body
-    const body = await request.json();
+    // Construct the backend API URL
+    const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
+    const changePasswordEndpoint = `${backendUrl}/api/users/me/change-password`;
 
-    // Forward the request to the backend API
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${backendUrl}/users/me/change-password/`, {
+    console.log(`Forwarding password change to backend: ${changePasswordEndpoint}`);
+
+    // Forward the request to the backend
+    const backendResponse = await fetch(changePasswordEndpoint, {
       method: 'POST',
       headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        old_password: body.old_password,
+        new_password: body.new_password
+      }),
+      cache: 'no-store'
     });
 
-    // Check if the response was successful
-    if (!response.ok) {
-      // Try to parse error details from response
-      let errorMessage = 'Failed to change password';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorMessage;
-      } catch {
-        // If we can't parse the JSON, just use the default error message
+    if (!backendResponse.ok) {
+      const errorText = await backendResponse.text();
+      console.error(`Backend error: ${errorText}`);
+
+      // Handle common error cases
+      if (backendResponse.status === 400) {
+        return NextResponse.json(
+          { message: 'Invalid password' },
+          { status: 400 }
+        );
       }
 
       return NextResponse.json(
-        { error: errorMessage },
-        { status: response.status }
+        { message: 'Failed to change password' },
+        { status: backendResponse.status }
       );
     }
 
-    // Return success
-    return NextResponse.json({ success: true });
+    // Return success response
+    return NextResponse.json({ message: 'Password changed successfully' });
+
   } catch (error) {
-    console.error('Change password API route error:', error);
+    console.error('Error changing password:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

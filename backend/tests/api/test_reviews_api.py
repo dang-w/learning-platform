@@ -20,6 +20,26 @@ from utils.error_handlers import AuthenticationError, ResourceNotFoundError
 # Import the MockUser class from conftest
 from tests.conftest import MockUser
 
+# Test data
+test_concept = {
+    "title": "Test Concept",
+    "content": "This is a test concept",
+    "topics": ["python", "testing"]
+}
+
+test_review = {
+    "confidence": 4
+}
+
+test_resource_review = {
+    "resource_type": "article",
+    "resource_id": 1,
+    "rating": 5,
+    "content": "Great article",
+    "difficulty_rating": 3,
+    "topics": ["python", "testing"]
+}
+
 @pytest.fixture(scope="function", autouse=True)
 def clear_dependency_overrides():
     """Clear dependency overrides before and after each test."""
@@ -538,3 +558,119 @@ def test_get_review_statistics(client, auth_headers):
         assert "topics" in stats
         assert "total_concepts" in stats
         assert stats["total_concepts"] == 2
+
+def test_get_review_settings(client, auth_headers):
+    """Test getting the user's review settings."""
+    # Create mock user with review settings
+    mock_user = {
+        "username": "testuser",
+        "review_settings": {
+            "daily_review_target": 7,
+            "notification_frequency": "weekly",
+            "review_reminder_time": "19:30",
+            "enable_spaced_repetition": True,
+            "auto_schedule_reviews": False,
+            "show_hints": True,
+            "difficulty_threshold": 4
+        }
+    }
+
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Patch the database call
+    with patch("routers.reviews.db.users.find_one", new_callable=AsyncMock) as mock_db:
+        mock_db.return_value = mock_user
+
+        # Make request to the settings endpoint
+        response = client.get("/api/reviews/settings", headers=auth_headers)
+
+        # Assert response is successful and contains settings
+        assert response.status_code == 200
+        settings = response.json()
+        assert settings["daily_review_target"] == 7
+        assert settings["notification_frequency"] == "weekly"
+        assert settings["review_reminder_time"] == "19:30"
+        assert settings["enable_spaced_repetition"] is True
+        assert settings["auto_schedule_reviews"] is False
+        assert settings["show_hints"] is True
+        assert settings["difficulty_threshold"] == 4
+
+def test_update_review_settings(client, auth_headers):
+    """Test updating the user's review settings."""
+    # Create mock user
+    mock_user = {
+        "username": "testuser",
+        "review_settings": {
+            "daily_review_target": 5,
+            "notification_frequency": "daily",
+            "review_reminder_time": "18:00",
+            "enable_spaced_repetition": True,
+            "auto_schedule_reviews": True,
+            "show_hints": True,
+            "difficulty_threshold": 3
+        }
+    }
+
+    # New settings to update
+    update_data = {
+        "daily_review_target": 10,
+        "notification_frequency": "weekly",
+        "review_reminder_time": "20:00",
+        "enable_spaced_repetition": False,
+        "auto_schedule_reviews": False,
+        "show_hints": False,
+        "difficulty_threshold": 2
+    }
+
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Patch the database calls
+    with patch("routers.reviews.db.users.find_one", new_callable=AsyncMock) as mock_find:
+        mock_find.return_value = mock_user
+        with patch("routers.reviews.db.users.update_one", new_callable=AsyncMock) as mock_update:
+            mock_update.return_value = MagicMock(modified_count=1)
+
+            # Make request to update settings
+            response = client.put("/api/reviews/settings", headers=auth_headers, json=update_data)
+
+            # Assert update was successful
+            assert response.status_code == 200
+            updated_settings = response.json()
+            assert updated_settings["daily_review_target"] == 10
+            assert updated_settings["notification_frequency"] == "weekly"
+            assert updated_settings["review_reminder_time"] == "20:00"
+            assert updated_settings["enable_spaced_repetition"] is False
+            assert updated_settings["auto_schedule_reviews"] is False
+            assert updated_settings["show_hints"] is False
+            assert updated_settings["difficulty_threshold"] == 2
+
+def test_get_review_settings_defaults(client, auth_headers):
+    """Test getting review settings when none are set (should return defaults)."""
+    # Create mock user without explicit review settings
+    mock_user = {
+        "username": "testuser"
+        # No review_settings key
+    }
+
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Patch the database call
+    with patch("routers.reviews.db.users.find_one", new_callable=AsyncMock) as mock_db:
+        mock_db.return_value = mock_user
+
+        # Make request to the settings endpoint
+        response = client.get("/api/reviews/settings", headers=auth_headers)
+
+        # Assert response is successful and contains default settings
+        assert response.status_code == 200
+        settings = response.json()
+        assert settings["daily_review_target"] == 5  # Default
+        assert settings["notification_frequency"] == "daily"  # Default
+        assert settings["review_reminder_time"] == "18:00"  # Default
+        assert settings["enable_spaced_repetition"] is True  # Default
+        assert settings["auto_schedule_reviews"] is True  # Default
+        assert settings["show_hints"] is True  # Default
+        assert settings["difficulty_threshold"] == 3  # Default

@@ -5,3 +5,4 @@ export * from './form-group';
 export * from './textarea';
 export * from './date-picker';
 export * from './form';
+export * from './switch';

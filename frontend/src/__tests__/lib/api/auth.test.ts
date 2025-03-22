@@ -157,7 +157,8 @@ describe('Auth API', () => {
         username: 'testuser',
         email: 'test@example.com',
         password: 'password123',
-        full_name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
       };
 
       // Call the function
@@ -191,7 +192,8 @@ describe('Auth API', () => {
         username: 'existinguser',
         email: 'test@example.com',
         password: 'password123',
-        full_name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
       };
 
       // Call the function and expect it to throw with specific message
@@ -223,9 +225,10 @@ describe('Auth API', () => {
         id: '123',
         username: 'testuser',
         email: 'test@example.com',
-        fullName: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
         createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:00:00Z'
+        role: 'student',
       };
 
       fetchMock.mockResolvedValue({
@@ -264,48 +267,47 @@ describe('Auth API', () => {
   });
 
   describe('refreshToken', () => {
-    it('should call the refreshToken endpoint and store the token', async () => {
-      // Setup localStorage with refresh token
-      localStorage.setItem('refreshToken', 'old-refresh-token');
+    let fetchMock: jest.Mock;
 
-      // Mock response
-      const mockResponse = {
-        data: {
-          access_token: 'refreshed-token',
-          refresh_token: 'new-refresh-token',
-          token_type: 'bearer',
-        } as AuthResponse,
-      };
-      (apiClient.post as jest.Mock).mockResolvedValue(mockResponse);
-
-      // Call the function
-      const result = await authApi.refreshToken();
-
-      // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/token/refresh', {
-        refresh_token: 'old-refresh-token'
-      });
-      expect(result).toEqual(mockResponse.data);
-      expect(localStorage.getItem('token')).toBe('refreshed-token');
-      expect(localStorage.getItem('refreshToken')).toBe('new-refresh-token');
+    beforeEach(() => {
+      fetchMock = jest.fn();
+      global.fetch = fetchMock;
+      localStorage.clear();
     });
 
-    it('should handle refreshToken errors and return null', async () => {
-      // Setup localStorage with refresh token
-      localStorage.setItem('refreshToken', 'old-refresh-token');
-
-      // Mock error response
-      const mockError = new Error('Token expired');
-      (apiClient.post as jest.Mock).mockRejectedValue(mockError);
-
-      // Call the function
-      const result = await authApi.refreshToken();
-
-      // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/token/refresh', {
-        refresh_token: 'old-refresh-token'
+    it('should refresh token successfully', async () => {
+      // Setup
+      localStorage.setItem('refresh_token', 'old-refresh-token');
+      const mockToken = { token: 'new-token', refresh_token: 'new-refresh-token' };
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockToken)
       });
-      expect(result).toBeNull();
+
+      // Execute
+      const result = await authApi.refreshAuthToken();
+
+      // Verify
+      expect(result).toBe(true);
+      expect(localStorage.getItem('token')).toBe('new-token');
+      expect(localStorage.getItem('refresh_token')).toBe('new-refresh-token');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toContain('/api/auth/token/refresh');
+    });
+
+    it('should handle refresh token failure', async () => {
+      // Setup
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 401
+      });
+
+      // Execute
+      const result = await authApi.refreshAuthToken();
+
+      // Verify
+      expect(result).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -359,16 +361,18 @@ describe('Auth API', () => {
         id: '123',
         username: 'testuser',
         email: 'updated@example.com',
-        fullName: 'Updated User',
+        firstName: 'Updated',
+        lastName: 'User',
         createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:00:00Z'
+        role: 'student',
       };
       (apiClient.put as jest.Mock).mockResolvedValue({ data: mockUser });
 
       // Test data
       const updateData: Partial<User> = {
         email: 'updated@example.com',
-        fullName: 'Updated User',
+        firstName: 'Updated',
+        lastName: 'User',
       };
 
       // Call the function

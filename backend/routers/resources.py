@@ -149,85 +149,107 @@ async def get_all_resources(current_user: dict = Depends(get_current_active_user
 # Statistics endpoint - moved before the resource_type parameter route
 @router.get("/statistics", response_model=Dict[str, Any])
 async def get_resource_statistics(current_user: dict = Depends(get_current_active_user)):
-    """Get statistics about user's resources."""
+    """Get statistics about resources."""
     username = get_username(current_user)
 
-    # Get user data
+    # Get user's resources
     user = await db.users.find_one({"username": username})
     if not user or "resources" not in user:
         return {
-            "total": 0,
-            "completed": 0,
-            "byType": {},
-            "byTopic": {},
-            "byDifficulty": {},
-            "recentActivity": []
+            "total_resources": 0,
+            "completed_resources": 0,
+            "resources_by_type": {
+                "articles": {"total": 0, "completed": 0},
+                "videos": {"total": 0, "completed": 0},
+                "courses": {"total": 0, "completed": 0},
+                "books": {"total": 0, "completed": 0}
+            },
+            "resources_by_topic": {},
+            "resources_by_difficulty": {
+                "beginner": 0,
+                "intermediate": 0,
+                "advanced": 0
+            },
+            "average_completion_time": 0
         }
 
-    # Initialize statistics
-    stats = {
-        "total": 0,
-        "completed": 0,
-        "by_type": {},
-        "by_difficulty": {"beginner": 0, "intermediate": 0, "advanced": 0},
-        "by_topic": {},
-        "estimated_time": {"total": 0, "completed": 0, "remaining": 0}
+    resources = user.get("resources", {})
+
+    # Count resources by type
+    resources_by_type = {}
+    total_resources = 0
+    completed_resources = 0
+
+    # Count resources by topic
+    topics_count = {}
+
+    # Count resources by difficulty
+    difficulty_count = {
+        "beginner": 0,
+        "intermediate": 0,
+        "advanced": 0
     }
 
-    # Calculate statistics
-    for resource_type in ["articles", "videos", "courses", "books"]:
-        if resource_type not in user["resources"]:
+    # Track completion time
+    total_completion_time = 0
+    completed_count = 0
+
+    for resource_type, resource_list in resources.items():
+        # Skip if not a list
+        if not isinstance(resource_list, list):
             continue
 
-        resources = user["resources"][resource_type]
-        type_count = len(resources)
-        type_completed = sum(1 for r in resources if r.get("completed", False))
+        type_total = len(resource_list)
+        type_completed = sum(1 for r in resource_list if r.get("completed", False))
 
-        stats["total"] += type_count
-        stats["completed"] += type_completed
-
-        stats["by_type"][resource_type] = {
-            "total": type_count,
+        resources_by_type[resource_type] = {
+            "total": type_total,
             "completed": type_completed
         }
 
-        # Accumulate time statistics and counts by difficulty/topic
-        for resource in resources:
-            # Add to difficulty stats
-            difficulty = resource.get("difficulty", "beginner")
-            if difficulty in stats["by_difficulty"]:
-                stats["by_difficulty"][difficulty] += 1
-            else:
-                stats["by_difficulty"][difficulty] = 1
+        total_resources += type_total
+        completed_resources += type_completed
 
-            # Add to topic stats
+        # Count topics
+        for resource in resource_list:
+            # Count by difficulty
+            difficulty = resource.get("difficulty", "").lower()
+            if difficulty in difficulty_count:
+                difficulty_count[difficulty] += 1
+
+            # Count by topic
             for topic in resource.get("topics", []):
-                if topic not in stats["by_topic"]:
-                    stats["by_topic"][topic] = 0
-                stats["by_topic"][topic] += 1
+                if topic in topics_count:
+                    topics_count[topic] += 1
+                else:
+                    topics_count[topic] = 1
 
-            # Add to time stats
-            time = resource.get("estimated_time", 0)
-            stats["estimated_time"]["total"] += time
-            if resource.get("completed", False):
-                stats["estimated_time"]["completed"] += time
-            else:
-                stats["estimated_time"]["remaining"] += time
+            # Track completion time for completed resources
+            if resource.get("completed", False) and "estimated_time" in resource:
+                total_completion_time += resource.get("estimated_time", 0)
+                completed_count += 1
 
-    # Calculate completion percentage
-    if stats["total"] > 0:
-        stats["completion_percentage"] = round((stats["completed"] / stats["total"]) * 100, 1)
-    else:
-        stats["completion_percentage"] = 0
+    # Calculate average completion time
+    average_completion_time = 0
+    if completed_count > 0:
+        average_completion_time = total_completion_time / completed_count
 
-    return stats
+    return {
+        "total_resources": total_resources,
+        "completed_resources": completed_resources,
+        "completion_rate": (completed_resources / total_resources) if total_resources > 0 else 0,
+        "resources_by_type": resources_by_type,
+        "resources_by_topic": topics_count,
+        "resources_by_difficulty": difficulty_count,
+        "average_completion_time": average_completion_time
+    }
 
 @router.get("/{resource_type}", response_model=List[Resource])
 async def get_resources_by_type(
     resource_type: str,
     completed: Optional[bool] = None,
     topic: Optional[str] = None,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get resources of a specific type with optional filtering."""
     try:
@@ -237,15 +259,7 @@ async def get_resources_by_type(
                 detail=f"Invalid resource type: {resource_type}"
             )
 
-        # Try to handle both cases where current_user is a User object or a dictionary
-        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
-
-        if not username:
-            logger.error("Username not found in current_user object")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="User information is incomplete"
-            )
+        username = current_user["username"]
 
         user = await db.users.find_one({"username": username})
         if not user or "resources" not in user or resource_type not in user["resources"]:
@@ -276,7 +290,7 @@ async def get_resources_by_type(
 async def create_resource(
     resource_type: str,
     resource: ResourceBase,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Create a new resource."""
     # Validate resource type
@@ -549,7 +563,7 @@ async def get_resource_by_id(
 @router.get("/next", response_model=List[Resource])
 async def get_next_resources(
     count: int = 5,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Get the next N uncompleted resources."""
     username = get_username(current_user)
@@ -576,7 +590,7 @@ async def get_next_resources(
 @router.post("/batch-resources", response_model=List[Dict[str, Any]], status_code=status.HTTP_200_OK)
 async def create_batch_resources(
     batch_data: ResourceBatchRequest,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """Create multiple resources at once using a new endpoint."""
     try:
@@ -663,7 +677,7 @@ async def create_batch_resources(
 @router.post("/batch", response_model=List[Dict[str, Any]], status_code=status.HTTP_201_CREATED)
 async def create_batch_resources_api(
     batch_data: ResourceBatchRequest,
-    current_user: User = Depends(get_current_active_user)
+    current_user: dict = Depends(get_current_active_user)
 ):
     """
     Create multiple resources in a single batch request.
@@ -753,3 +767,78 @@ async def create_batch_resources_api(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create resources: {str(e)}"
         )
+
+@router.get("/videos", response_model=List[Resource])
+async def get_videos(
+    completed: Optional[bool] = None,
+    topic: Optional[str] = None,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Get all video resources for the current user.
+    This endpoint is a dedicated handler for video resources.
+    """
+    # Reuse the generic get_resources_by_type function with resource_type="videos"
+    return await get_resources_by_type("videos", completed, topic, current_user)
+
+@router.post("/videos", response_model=Resource, status_code=status.HTTP_201_CREATED)
+async def create_video(
+    resource: ResourceBase,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Create a new video resource.
+    This endpoint is a dedicated handler for creating video resources.
+    """
+    # Reuse the generic create_resource function with resource_type="videos"
+    return await create_resource("videos", resource, current_user)
+
+@router.get("/courses", response_model=List[Resource])
+async def get_courses(
+    completed: Optional[bool] = None,
+    topic: Optional[str] = None,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Get all course resources for the current user.
+    This endpoint is a dedicated handler for course resources.
+    """
+    # Reuse the generic get_resources_by_type function with resource_type="courses"
+    return await get_resources_by_type("courses", completed, topic, current_user)
+
+@router.post("/courses", response_model=Resource, status_code=status.HTTP_201_CREATED)
+async def create_course(
+    resource: ResourceBase,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Create a new course resource.
+    This endpoint is a dedicated handler for creating course resources.
+    """
+    # Reuse the generic create_resource function with resource_type="courses"
+    return await create_resource("courses", resource, current_user)
+
+@router.get("/books", response_model=List[Resource])
+async def get_books(
+    completed: Optional[bool] = None,
+    topic: Optional[str] = None,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Get all book resources for the current user.
+    This endpoint is a dedicated handler for book resources.
+    """
+    # Reuse the generic get_resources_by_type function with resource_type="books"
+    return await get_resources_by_type("books", completed, topic, current_user)
+
+@router.post("/books", response_model=Resource, status_code=status.HTTP_201_CREATED)
+async def create_book(
+    resource: ResourceBase,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Create a new book resource.
+    This endpoint is a dedicated handler for creating book resources.
+    """
+    # Reuse the generic create_resource function with resource_type="books"
+    return await create_resource("books", resource, current_user)

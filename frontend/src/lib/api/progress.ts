@@ -1,5 +1,5 @@
-import apiClient from './client';
 import { LearningProgress } from '@/types/progress';
+import { fetchJsonWithAuth } from '../utils/api';
 
 export interface Metric {
   id: string;
@@ -47,31 +47,40 @@ export interface WeeklyReport {
 
 const progressApi = {
   addMetric: async (data: MetricCreate): Promise<Metric> => {
-    const response = await apiClient.post<Metric>('/progress/metrics', data);
-    return response.data;
+    try {
+      return await fetchJsonWithAuth<Metric>('/api/progress/metrics', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      console.error('Error adding metric:', error);
+      throw error;
+    }
   },
 
   getMetrics: async (startDate?: string, endDate?: string): Promise<Metric[]> => {
-    let url = '/progress/metrics';
-    const params = new URLSearchParams();
+    try {
+      let url = '/api/progress/metrics';
+      const params = new URLSearchParams();
 
-    if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
 
-    if (params.toString()) {
-      url += `?${params.toString()}`;
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      return await fetchJsonWithAuth<Metric[]>(url);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      throw error;
     }
-
-    const response = await apiClient.get<Metric[]>(url);
-    return response.data;
   },
 
   getRecentMetricsSummary: async (days: number = 7): Promise<MetricsSummary> => {
     try {
-      console.log('Fetching recent metrics...');
-      const response = await apiClient.get(`/progress/metrics/recent?days=${days}`);
-      console.log('Recent metrics response:', response.data);
-      return response.data;
+      console.log(`Fetching recent metrics summary for the last ${days} days`);
+      return await fetchJsonWithAuth<MetricsSummary>(`/api/progress/metrics/recent?days=${days}`);
     } catch (error) {
       console.error('Error fetching recent metrics:', error);
       throw error;
@@ -79,28 +88,42 @@ const progressApi = {
   },
 
   generateWeeklyReport: async (date?: string): Promise<WeeklyReport> => {
-    let url = '/progress/report/weekly';
-    if (date) {
-      url += `?date=${date}`;
-    }
+    try {
+      let url = '/api/progress/report/weekly';
+      if (date) {
+        url += `?date=${date}`;
+      }
 
-    const response = await apiClient.get<WeeklyReport>(url);
-    return response.data;
+      return await fetchJsonWithAuth<WeeklyReport>(url);
+    } catch (error) {
+      console.error('Error generating weekly report:', error);
+      throw error;
+    }
   },
 
   deleteMetric: async (metricId: string): Promise<void> => {
-    await apiClient.delete(`/progress/metrics/${metricId}`);
+    try {
+      await fetchJsonWithAuth(`/api/progress/metrics/${metricId}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Error deleting metric:', error);
+      throw error;
+    }
   },
 
   fetchLearningProgress: async (): Promise<LearningProgress> => {
-    const response = await apiClient.get<LearningProgress>('/progress');
-    return response.data;
+    try {
+      return await fetchJsonWithAuth<LearningProgress>('/api/learning-path/progress');
+    } catch (error) {
+      console.error('Error fetching learning progress:', error);
+      throw error;
+    }
   },
 
   getAllMetrics: async () => {
     try {
-      const response = await apiClient.get('/progress/metrics');
-      return response.data;
+      return await fetchJsonWithAuth('/api/progress/metrics');
     } catch (error) {
       console.error('Error fetching all metrics:', error);
       throw error;
@@ -109,8 +132,7 @@ const progressApi = {
 
   getStudySessions: async () => {
     try {
-      const response = await apiClient.get('/progress/study-session');
-      return response.data;
+      return await fetchJsonWithAuth('/api/progress/study-session');
     } catch (error) {
       console.error('Error fetching study sessions:', error);
       throw error;
