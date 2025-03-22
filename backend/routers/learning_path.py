@@ -26,6 +26,19 @@ router = APIRouter()
 # Import authentication functions from auth
 from auth import get_current_active_user, User
 
+# Helper function to safely extract username from current_user
+def get_username_from_user(current_user) -> str:
+    """Extract username from current_user object, handling different types."""
+    username = current_user.get("username") if isinstance(current_user, dict) else getattr(current_user, "username", None)
+
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username could not be determined from user object"
+        )
+
+    return username
+
 # Models
 class MilestoneBase(BaseModel):
     title: str
@@ -152,7 +165,7 @@ async def create_milestone(
     milestone_dict["notes"] = milestone_dict.get("notes", "")
 
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     # Add to user's milestones
     result = await db.users.update_one(
@@ -182,7 +195,7 @@ async def get_milestones(
 ):
     """Get all milestones with optional filtering."""
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     user = await db.users.find_one({"username": username})
     if not user or "milestones" not in user:
@@ -205,7 +218,7 @@ async def get_milestone(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get a specific milestone by ID."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "milestones" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -230,7 +243,7 @@ async def update_milestone(
 ):
     """Update a milestone."""
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     # Get the current milestone
     user = await db.users.find_one({"username": username})
@@ -288,7 +301,7 @@ async def delete_milestone(
 ):
     """Delete a milestone."""
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     result = await db.users.update_one(
         {"username": username},
@@ -337,7 +350,7 @@ async def create_goal(
     goal_dict["notes"] = ""
 
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
     logger.info(f"Creating goal for user: {username}")
 
     try:
@@ -391,7 +404,7 @@ async def get_goals(
 ):
     """Get all goals with optional filtering."""
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     user = await db.users.find_one({"username": username})
     if not user or "goals" not in user:
@@ -419,7 +432,7 @@ async def get_goal(
 ):
     """Get a specific goal by ID."""
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     user = await db.users.find_one({"username": username})
     if not user or "goals" not in user:
@@ -446,7 +459,7 @@ async def update_goal(
 ):
     """Update a goal."""
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     # Get the current goal
     user = await db.users.find_one({"username": username})
@@ -504,7 +517,7 @@ async def delete_goal(
 ):
     """Delete a goal."""
     # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    username = get_username_from_user(current_user)
 
     result = await db.users.update_one(
         {"username": username},
@@ -570,7 +583,7 @@ async def create_goals_batch(
 
             # Update user document
             update_result = await db.users.update_one(
-                {"username": current_user.username},
+                {"username": get_username_from_user(current_user)},
                 {"$push": {"goals": goal_doc}}
             )
 
@@ -611,7 +624,7 @@ async def create_roadmap(
 
     # Replace user's roadmap
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$set": {"roadmap": roadmap_dict}}
     )
 
@@ -628,7 +641,7 @@ async def get_roadmap(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get the learning roadmap."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "roadmap" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -643,7 +656,7 @@ async def update_roadmap(
     current_user: User = Depends(get_current_active_user)
 ):
     """Update the learning roadmap."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "roadmap" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -663,7 +676,7 @@ async def update_roadmap(
 
     # Save updated roadmap
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$set": {"roadmap": roadmap}}
     )
 
@@ -680,8 +693,8 @@ async def get_learning_path_progress(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get learning path progress statistics."""
-    # Handle both User objects and dictionaries
-    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+    # Extract username with proper type checking
+    username = get_username_from_user(current_user)
 
     user = await db.users.find_one({"username": username})
     if not user:
@@ -760,7 +773,10 @@ async def get_learning_paths(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get all learning paths with optional filtering."""
-    user = await db.users.find_one({"username": current_user.username})
+    # Extract username with proper type checking
+    username = get_username_from_user(current_user)
+
+    user = await db.users.find_one({"username": username})
     if not user or "learning_paths" not in user:
         return []
 
@@ -797,14 +813,14 @@ async def create_learning_path(
 
     # Add to user's learning paths
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$push": {"learning_paths": learning_path_dict}}
     )
 
     if result.modified_count == 0:
         # If the learning_paths array doesn't exist yet, create it
         result = await db.users.update_one(
-            {"username": current_user.username},
+            {"username": get_username_from_user(current_user)},
             {"$set": {"learning_paths": [learning_path_dict]}}
         )
 
@@ -822,7 +838,7 @@ async def get_learning_path(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get a specific learning path by ID."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "learning_paths" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -846,7 +862,7 @@ async def update_learning_path(
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a learning path."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "learning_paths" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -878,7 +894,7 @@ async def update_learning_path(
 
     # Save updated learning paths
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$set": {"learning_paths": learning_paths}}
     )
 
@@ -897,7 +913,7 @@ async def delete_learning_path(
 ):
     """Delete a learning path."""
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$pull": {"learning_paths": {"id": learning_path_id}}}
     )
 
@@ -914,7 +930,7 @@ async def add_resource_to_learning_path(
     current_user: User = Depends(get_current_active_user)
 ):
     """Add a resource to a learning path."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "learning_paths" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -955,7 +971,7 @@ async def add_resource_to_learning_path(
 
     # Save updated learning paths
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$set": {"learning_paths": learning_paths}}
     )
 
@@ -975,7 +991,7 @@ async def update_resource_in_learning_path(
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a resource in a learning path."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "learning_paths" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1025,7 +1041,7 @@ async def update_resource_in_learning_path(
 
     # Save updated learning paths
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$set": {"learning_paths": learning_paths}}
     )
 
@@ -1045,7 +1061,7 @@ async def mark_resource_completed_in_learning_path(
     current_user: User = Depends(get_current_active_user)
 ):
     """Mark a resource as completed in a learning path."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "learning_paths" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1098,7 +1114,7 @@ async def mark_resource_completed_in_learning_path(
 
     # Save updated learning paths
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$set": {"learning_paths": learning_paths}}
     )
 
@@ -1117,7 +1133,7 @@ async def remove_resource_from_learning_path(
     current_user: User = Depends(get_current_active_user)
 ):
     """Remove a resource from a learning path."""
-    user = await db.users.find_one({"username": current_user.username})
+    user = await db.users.find_one({"username": get_username_from_user(current_user)})
     if not user or "learning_paths" not in user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1162,7 +1178,7 @@ async def remove_resource_from_learning_path(
 
     # Save updated learning paths
     result = await db.users.update_one(
-        {"username": current_user.username},
+        {"username": get_username_from_user(current_user)},
         {"$set": {"learning_paths": learning_paths}}
     )
 

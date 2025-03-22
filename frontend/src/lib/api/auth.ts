@@ -1,27 +1,81 @@
-import apiClient, { withBackoff } from './client';
-import { AxiosError } from 'axios';
 import axios from 'axios';
-import { API_URL, BACKEND_API_URL } from '@/config';
+import { API_URL } from '@/config';
+
+// Helper function to get auth headers for client-side requests
+export function getAuthHeaders(): Record<string, string> {
+  // Default headers
+  const defaultHeaders = {
+    'Content-Type': 'application/json'
+  };
+
+  // Only execute localStorage operations on client side
+  if (typeof window === 'undefined') {
+    return defaultHeaders;
+  }
+
+  const token = localStorage.getItem('token');
+
+  // If token exists, include it in headers
+  if (token) {
+    // Check if token looks valid (basic validation)
+    if (token.length > 20) {
+      console.log(`Using token from localStorage (prefix): ${token.substring(0, 10)}...`);
+
+      // Update cookies to ensure consistency across the app
+      document.cookie = `token=${token}; path=/; max-age=3600; SameSite=Lax`;
+
+      return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+    } else {
+      console.warn('Token found in localStorage but appears invalid');
+    }
+  } else {
+    // If token is not in localStorage, check cookies as fallback
+    const cookies = document.cookie.split(';');
+    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('token='));
+
+    if (tokenCookie) {
+      const cookieToken = tokenCookie.split('=')[1];
+      if (cookieToken && cookieToken.length > 20) {
+        console.log(`Using token from cookie (prefix): ${cookieToken.substring(0, 10)}...`);
+
+        // Sync to localStorage for future use
+        localStorage.setItem('token', cookieToken);
+
+        return {
+          'Authorization': `Bearer ${cookieToken}`,
+          'Content-Type': 'application/json'
+        };
+      }
+    }
+
+    console.log('No valid token found in localStorage or cookies');
+  }
+
+  return defaultHeaders;
+}
 
 export interface LoginCredentials {
   username: string;
   password: string;
 }
 
-export interface RegisterData {
-  username: string;
+export interface RegisterData extends LoginCredentials {
   email: string;
-  password: string;
-  full_name: string;
+  firstName: string;
+  lastName: string;
 }
 
 export interface User {
   id: string;
   username: string;
   email: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
+  role: string;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface AuthResponse {
@@ -47,289 +101,229 @@ export interface NotificationPreferences {
   weeklyDigest: boolean;
 }
 
-// Extended API error interface
-interface ApiErrorResponse {
-  detail?: string;
-  username?: string[];
-  email?: string[];
-  password?: string[];
+// Synchronize token between localStorage and cookies
+function syncToken(token: string | null): void {
+  if (token) {
+    localStorage.setItem('token', token);
+    if (typeof document !== 'undefined') {
+      document.cookie = `token=${token}; path=/; max-age=3600; SameSite=Lax`;
+    }
+  } else {
+    localStorage.removeItem('token');
+    if (typeof document !== 'undefined') {
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    }
+  }
 }
 
 const authApi = {
-  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const formData = new URLSearchParams();
-    formData.append('username', credentials.username);
-    formData.append('password', credentials.password);
+  async login(credentials: LoginCredentials): Promise<{token: string, refreshToken?: string}> {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(credentials),
+      cache: 'no-store'
+    });
 
-    try {
-      // Make direct request to the backend auth token endpoint
-      const response = await withBackoff(() =>
-        axios.post<AuthResponse>(`${BACKEND_API_URL}/auth/token`, formData, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        })
-      );
-
-      // Store tokens in localStorage
-      if (response.data.access_token && response.data.refresh_token && typeof window !== 'undefined') {
-        localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('refreshToken', response.data.refresh_token);
-
-        // Create a session for this login
-        try {
-          // Use direct backend URL for session creation too
-          const sessionResponse = await axios.post(`${BACKEND_API_URL}/sessions/`, {}, {
-            headers: {
-              'Authorization': `Bearer ${response.data.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (sessionResponse.data && sessionResponse.data.session_id) {
-            localStorage.setItem('sessionId', sessionResponse.data.session_id);
-          }
-        } catch (sessionError) {
-          console.warn('Failed to create session:', sessionError);
-          // Don't fail the login process if session creation fails
-        }
-      } else if (!response.data.access_token) {
-        console.error('Login response missing access_token', response.data);
-        throw new Error('Authentication failed: Invalid server response');
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error('Login API error:', error);
-
-      const axiosError = error as AxiosError<ApiErrorResponse>;
-
-      if (axiosError.response?.status === 401) {
-        // Check if this is a "user not found" error after registration
-        if (axiosError.response?.data?.detail?.includes('user not found')) {
-          throw new Error('Account created. Please wait a moment and try logging in again.');
-        }
-        throw new Error('Invalid username or password. Please try again.');
-      } else if (axiosError.response?.data?.detail) {
-        // Check if this is a "user not found" error after registration
-        if (axiosError.response.data.detail.includes('user not found')) {
-          throw new Error('Account created. Please wait a moment and try logging in again.');
-        }
-        throw new Error(`Authentication failed: ${axiosError.response.data.detail}`);
-      } else {
-        throw new Error('Authentication failed. Please try again later.');
-      }
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Login failed');
     }
+
+    const data = await response.json();
+    syncToken(data.token);
+    return {
+      token: data.token,
+      refreshToken: data.refreshToken
+    };
   },
 
-  register: async (data: RegisterData): Promise<User> => {
-    try {
-      // Make direct request to the backend users endpoint
-      const response = await axios.post<User>(`${BACKEND_API_URL}/users/`, data, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  async register(data: RegisterData): Promise<void> {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data),
+      cache: 'no-store'
+    });
 
-      return response.data;
-    } catch (error) {
-      console.error('Registration API error:', error);
-
-      const axiosError = error as AxiosError<ApiErrorResponse>;
-
-      // More detailed logging to help debug registration issues
-      if (axiosError.response) {
-        console.log('Registration error response:', {
-          status: axiosError.response.status,
-          data: axiosError.response.data,
-        });
-      }
-
-      if (axiosError.response?.status === 400 && axiosError.response?.data) {
-        // Extract validation error details
-        const details = axiosError.response.data;
-
-        // Check for specific error messages
-        if (details.detail) {
-          if (typeof details.detail === 'string') {
-            if (details.detail.includes("Username already registered")) {
-              throw new Error(`Username is already taken. Please choose another username.`);
-            }
-            if (details.detail.includes("Email already registered")) {
-              throw new Error(`Email is already registered. Please use another email address.`);
-            }
-            if (details.detail.includes("Password too weak")) {
-              throw new Error(`Password is too weak. It must include uppercase, lowercase, number, and special character.`);
-            }
-
-            // If it's another known error, return it directly
-            throw new Error(details.detail);
-          }
-        }
-
-        // Generic error handling for field-specific errors
-        if (details.username && Array.isArray(details.username)) throw new Error(`Username: ${details.username[0]}`);
-        if (details.email && Array.isArray(details.email)) throw new Error(`Email: ${details.email[0]}`);
-        if (details.password && Array.isArray(details.password)) throw new Error(`Password: ${details.password[0]}`);
-      }
-
-      throw new Error('Registration failed. Please try again later.');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Registration failed');
     }
+
+    const responseData = await response.json();
+    syncToken(responseData.token);
   },
 
-  getCurrentUser: async (): Promise<User> => {
+  async logout(): Promise<void> {
+    const headers = getAuthHeaders();
+
     try {
-      // Create a custom request directly to the backend
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-      if (!token) {
-        throw new Error('Authentication token not found');
-      }
-
-      // Make a direct request to the backend - use path without trailing slash to avoid 307 redirects
-      const response = await fetch(`${BACKEND_API_URL}/users/me`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers,
+        cache: 'no-store'
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Your session has expired. Please login again.');
-        }
+        console.error('Logout API call failed:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error during logout API call:', error);
+    } finally {
+      // Always clear token state regardless of API response
+      syncToken(null);
+    }
+  },
 
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to get user information');
+  async getCurrentUser(): Promise<User> {
+    const headers = getAuthHeaders();
+
+    const response = await fetch('/api/users/me', {
+      method: 'GET',
+      headers,
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Failed to get current user: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  async refreshAuthToken(): Promise<boolean> {
+    try {
+      const response = await fetch('/api/auth/token/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          refresh_token: localStorage.getItem('refresh_token'),
+        }),
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        console.error('Token refresh failed:', response.status);
+        return false;
       }
 
       const data = await response.json();
-      return data;
+
+      if (data.access_token || data.token) {
+        const token = data.access_token || data.token;
+
+        // Store tokens in localStorage
+        localStorage.setItem('token', token);
+
+        if (data.refresh_token) {
+          localStorage.setItem('refresh_token', data.refresh_token);
+        }
+
+        // Also set token in cookies for middleware
+        if (typeof document !== 'undefined') {
+          const tokenValue = token.replace(/^Bearer\s+/i, '');
+          document.cookie = `token=${tokenValue}; path=/; max-age=3600; SameSite=Lax`;
+        }
+
+        return true;
+      }
+
+      return false;
     } catch (error) {
-      console.error('Get current user API error:', error);
-      throw error instanceof Error ? error : new Error('Failed to get user information');
+      console.error('Error refreshing token via API:', error);
+      return false;
     }
   },
 
-  refreshToken: async (): Promise<AuthResponse | null> => {
+  async updateSessionActivity(): Promise<boolean> {
     try {
-      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+      const headers = getAuthHeaders();
 
-      if (!refreshToken) {
-        return null;
-      }
+      // Generate a stable session ID if we don't have one already
+      let sessionId = localStorage.getItem('sessionId');
 
-      // Match the API path expected by tests - use a consistent path
-      const response = await apiClient.post<AuthResponse>('/auth/token/refresh', {
-        refresh_token: refreshToken
-      });
+      if (!sessionId) {
+        // We need to create a new session first
+        console.log('No session ID exists, creating a new session');
 
-      // Store tokens in localStorage
-      if (response.data.access_token && response.data.refresh_token && typeof window !== 'undefined') {
-        localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('refreshToken', response.data.refresh_token);
-      }
+        try {
+          const response = await fetch('/api/sessions', {
+            method: 'POST',
+            headers,
+            cache: 'no-store'
+          });
 
-      return response.data;
-    } catch (error) {
-      // Only log in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('Failed to refresh token:', error);
-      }
-      return null;
-    }
-  },
-
-  logout: async (): Promise<void> => {
-    try {
-      // Get session ID if available
-      const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-      // Exit early if no token is available
-      if (!token) {
-        console.log('No token available for logout, skipping API call');
-        return;
-      }
-
-      // Use API client for consistency with tests
-      if (sessionId) {
-        await apiClient.post('/auth/logout', {}, {
-          headers: {
-            'x-session-id': sessionId
+          if (response.ok) {
+            const sessionData = await response.json();
+            sessionId = sessionData.session_id;
+            if (sessionId) {
+              localStorage.setItem('sessionId', sessionId);
+              console.log(`Session created successfully with ID: ${sessionId}`);
+            } else {
+              console.error('Session ID is null in the response');
+              return false;
+            }
+          } else {
+            console.error('Failed to create session:', response.status);
+            return false;
           }
-        });
-      } else {
-        await apiClient.post('/auth/logout');
+        } catch (error) {
+          console.error('Error creating session:', error);
+          return false;
+        }
       }
-    } catch (error) {
-      // Only log in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('Logout API error:', error);
+
+      if (!sessionId) {
+        console.error('Could not create or retrieve a valid session ID');
+        return false;
       }
-      // Don't throw error to allow logout to complete even if API call fails
-    }
 
-    // Remove tokens and session from localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('sessionId');
-    }
-  },
+      console.log(`Updating session activity for session: ${sessionId}`);
+      console.log('Using headers:', headers);
 
-  updateProfile: async (data: Partial<User>): Promise<User> => {
-    try {
-      const response = await apiClient.put<User>('/users/me/', data);
-      return response.data;
-    } catch (error) {
-      console.error('Update profile API error:', error);
-      throw new Error('Failed to update profile. Please try again later.');
-    }
-  },
-
-  changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
-    try {
-      await apiClient.post('/users/me/change-password/', {
-        old_password: oldPassword,
-        new_password: newPassword,
+      const response = await fetch(`/api/sessions/${sessionId}/activity`, {
+        method: 'PUT',
+        headers,
+        cache: 'no-store'
       });
-    } catch (error) {
-      console.error('Change password API error:', error);
 
-      const axiosError = error as AxiosError<ApiErrorResponse>;
+      if (!response.ok) {
+        console.error('Failed to update session activity:', response.status);
 
-      if (axiosError.response?.status === 400 && axiosError.response?.data?.detail) {
-        throw new Error(axiosError.response.data.detail);
+        // If the session is not found (404), try to create a new one
+        if (response.status === 404) {
+          localStorage.removeItem('sessionId');
+          // Retry once with a new session
+          return await this.updateSessionActivity();
+        }
+
+        return false;
       }
 
-      throw new Error('Failed to change password. Please try again later.');
-    }
-  },
-
-  updateSessionActivity: async (): Promise<void> => {
-    try {
-      const sessionId = typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
-
-      if (sessionId) {
-        await apiClient.put(`/sessions/${sessionId}/activity`);
-      }
+      return true;
     } catch (error) {
-      // Just log a warning but don't make this a critical operation
-      console.warn('Failed to update session activity:', error);
+      console.error('Error updating session activity:', error);
+      return false;
     }
   },
 
   getUserStatistics: async (): Promise<UserStatistics> => {
-    const response = await axios.get(`${API_URL}/auth/statistics`, {
+    const response = await axios.get(`${API_URL}/api/auth/statistics`, {
       withCredentials: true,
     });
     return response.data;
   },
 
   getNotificationPreferences: async (): Promise<NotificationPreferences> => {
-    const response = await axios.get(`${API_URL}/auth/notification-preferences`, {
+    const response = await axios.get(`${API_URL}/api/auth/notification-preferences`, {
       withCredentials: true,
     });
     return response.data;
@@ -337,7 +331,7 @@ const authApi = {
 
   updateNotificationPreferences: async (preferences: NotificationPreferences): Promise<NotificationPreferences> => {
     const response = await axios.put(
-      `${API_URL}/auth/notification-preferences`,
+      `${API_URL}/api/auth/notification-preferences`,
       preferences,
       {
         withCredentials: true,
@@ -347,7 +341,7 @@ const authApi = {
   },
 
   exportUserData: async (): Promise<Blob> => {
-    const response = await axios.get(`${API_URL}/auth/export-data`, {
+    const response = await axios.get(`${API_URL}/api/auth/export-data`, {
       withCredentials: true,
       responseType: 'blob',
     });
@@ -355,9 +349,46 @@ const authApi = {
   },
 
   deleteAccount: async (): Promise<void> => {
-    await axios.delete(`${API_URL}/auth/account`, {
+    await axios.delete(`${API_URL}/api/auth/account`, {
       withCredentials: true,
     });
+  },
+
+  async updateProfile(data: Partial<User>): Promise<User> {
+    const headers = getAuthHeaders();
+
+    const response = await fetch('/api/users/me', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to update profile');
+    }
+
+    return response.json();
+  },
+
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    const headers = getAuthHeaders();
+
+    const response = await fetch('/api/users/me/change-password', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        old_password: oldPassword,
+        new_password: newPassword
+      }),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to change password');
+    }
   },
 };
 

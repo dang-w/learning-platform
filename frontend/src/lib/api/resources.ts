@@ -1,6 +1,7 @@
 import { AxiosError } from 'axios'
-import apiClient, { withBackoff } from './client'
+import apiClient from './client'
 import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resources'
+import { fetchJsonWithAuth, withRetry } from '../utils/api'
 
 export interface ResourceStatistics {
   total: number
@@ -28,8 +29,8 @@ const resourcesApi = {
   // Get all resources
   getAll: async (): Promise<Resource[]> => {
     try {
-      const response = await apiClient.get('/resources/')
-      return response.data
+      console.log('ResourcesAPI: Getting all resources');
+      return await fetchJsonWithAuth<Resource[]>('/api/resources');
     } catch (error) {
       console.error('Error fetching resources:', error)
       throw error
@@ -45,11 +46,21 @@ const resourcesApi = {
   // Get resources statistics
   getStatistics: async (): Promise<ResourceStatistics> => {
     try {
-      const response = await apiClient.get('/resources/statistics')
-      return response.data
+      console.log('ResourcesAPI: Fetching resources statistics');
+      return await fetchJsonWithAuth<ResourceStatistics>('/api/resources/statistics');
     } catch (error) {
-      console.error('Error fetching resource statistics:', error)
-      throw error
+      // Try the direct backend API as fallback
+      try {
+        console.log('ResourcesAPI: Falling back to direct API client');
+        // Use apiClient as a fallback
+        const response = await apiClient.get('/resources/statistics');
+        console.log('ResourcesAPI: Direct API response:', response.data);
+        return response.data;
+      } catch (backendError) {
+        console.error('Error fetching resource statistics:', backendError);
+        // Re-throw the original error since it's more likely to be accurate
+        throw error;
+      }
     }
   },
 
@@ -68,54 +79,153 @@ const resourcesApi = {
 
   async getResourcesByType(type: ResourceType): Promise<Resource[]> {
     try {
-      const { data } = await withBackoff(() => apiClient.get<Resource[]>(`/resources/${type}`))
-      return data
+      console.log(`ResourcesAPI: Getting resources of type ${type}`);
+      const response = await apiClient.get<Resource[]>(`/api/resources/${type}`);
+      return response.data;
     } catch (error) {
-      return this.handleError(error)
+      console.error(`Error fetching resources of type ${type}:`, error);
+      throw error;
+    }
+  },
+
+  // New dedicated methods for videos, courses and books
+  async getVideos(): Promise<Resource[]> {
+    try {
+      console.log('ResourcesAPI: Getting video resources');
+      const response = await apiClient.get<Resource[]>('/api/resources/videos');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching video resources:', error);
+      throw error;
+    }
+  },
+
+  async getCourses(): Promise<Resource[]> {
+    try {
+      console.log('ResourcesAPI: Getting course resources');
+      const response = await apiClient.get<Resource[]>('/api/resources/courses');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching course resources:', error);
+      throw error;
+    }
+  },
+
+  async getBooks(): Promise<Resource[]> {
+    try {
+      console.log('ResourcesAPI: Getting book resources');
+      const response = await apiClient.get<Resource[]>('/api/resources/books');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching book resources:', error);
+      throw error;
     }
   },
 
   async createResource(type: ResourceType, resource: ResourceCreateInput): Promise<Resource> {
     try {
-      const { data } = await withBackoff(() => apiClient.post<Resource>(`/resources/${type}`, resource))
-      return data
+      // Use dedicated endpoints for videos, courses, and books if available
+      if (type === 'videos' || type === 'courses' || type === 'books') {
+        return await fetchJsonWithAuth<Resource>(`/api/resources/${type}`, {
+          method: 'POST',
+          body: JSON.stringify(resource)
+        });
+      }
+
+      // Use the generic endpoint for other resource types
+      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}`, {
+        method: 'POST',
+        body: JSON.stringify(resource)
+      });
     } catch (error) {
-      return this.handleError(error)
+      console.error(`Error creating resource of type ${type}:`, error);
+      throw error;
+    }
+  },
+
+  // New dedicated creation methods
+  async createVideo(resource: ResourceCreateInput): Promise<Resource> {
+    try {
+      console.log('ResourcesAPI: Creating video resource');
+      return await fetchJsonWithAuth<Resource>('/api/resources/videos', {
+        method: 'POST',
+        body: JSON.stringify(resource)
+      });
+    } catch (error) {
+      console.error('Error creating video resource:', error);
+      throw error;
+    }
+  },
+
+  async createCourse(resource: ResourceCreateInput): Promise<Resource> {
+    try {
+      console.log('ResourcesAPI: Creating course resource');
+      return await fetchJsonWithAuth<Resource>('/api/resources/courses', {
+        method: 'POST',
+        body: JSON.stringify(resource)
+      });
+    } catch (error) {
+      console.error('Error creating course resource:', error);
+      throw error;
+    }
+  },
+
+  async createBook(resource: ResourceCreateInput): Promise<Resource> {
+    try {
+      console.log('ResourcesAPI: Creating book resource');
+      return await fetchJsonWithAuth<Resource>('/api/resources/books', {
+        method: 'POST',
+        body: JSON.stringify(resource)
+      });
+    } catch (error) {
+      console.error('Error creating book resource:', error);
+      throw error;
     }
   },
 
   async updateResource(type: ResourceType, id: string, resource: ResourceUpdateInput): Promise<Resource> {
     try {
-      const { data } = await withBackoff(() => apiClient.put<Resource>(`/resources/${type}/${id}`, resource))
-      return data
+      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(resource)
+      });
     } catch (error) {
-      return this.handleError(error)
+      console.error(`Error updating resource ${id} of type ${type}:`, error);
+      throw error;
     }
   },
 
   async deleteResource(type: ResourceType, id: string): Promise<void> {
     try {
-      await withBackoff(() => apiClient.delete(`/resources/${type}/${id}`))
+      await fetchJsonWithAuth(`/api/resources/${type}/${id}`, {
+        method: 'DELETE'
+      });
     } catch (error) {
-      this.handleError(error)
+      console.error(`Error deleting resource ${id} of type ${type}:`, error);
+      throw error;
     }
   },
 
   async completeResource(type: ResourceType, id: string, notes: string): Promise<Resource> {
     try {
-      const { data } = await withBackoff(() => apiClient.post<Resource>(`/resources/${type}/${id}/complete`, { notes }))
-      return data
+      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}/${id}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({ notes })
+      });
     } catch (error) {
-      return this.handleError(error)
+      console.error(`Error completing resource ${id} of type ${type}:`, error);
+      throw error;
     }
   },
 
   async toggleResourceCompletion(type: ResourceType, id: string): Promise<Resource> {
     try {
-      const { data } = await withBackoff(() => apiClient.post<Resource>(`/resources/${type}/${id}/toggle-completion`))
-      return data
+      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}/${id}/toggle-completion`, {
+        method: 'POST'
+      });
     } catch (error) {
-      return this.handleError(error)
+      console.error(`Error toggling completion for resource ${id} of type ${type}:`, error);
+      throw error;
     }
   },
 }
@@ -123,6 +233,15 @@ const resourcesApi = {
 export default resourcesApi
 
 export async function fetchResourceStats(): Promise<ResourceStats> {
-  const response = await withBackoff(() => apiClient.get<ResourceStats>('/resources/statistics'))
-  return response.data
+  console.log('fetchResourceStats: Starting');
+
+  return withRetry(async () => {
+    try {
+      console.log('fetchResourceStats: Fetching resource stats');
+      return await fetchJsonWithAuth<ResourceStats>('/api/resources/statistics');
+    } catch (error) {
+      console.error('Error in fetchResourceStats:', error);
+      throw error;
+    }
+  }, 2, 1000); // Retry up to 2 times with 1000ms initial delay
 }

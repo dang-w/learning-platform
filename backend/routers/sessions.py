@@ -11,7 +11,7 @@ from database import db  # Corrected import path
 # Configure logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+router = APIRouter(tags=["sessions"])
 
 # Session expiry duration in minutes (e.g., 24 hours)
 SESSION_EXPIRY_MINUTES = 60 * 24

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -20,7 +20,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
 
@@ -50,20 +49,71 @@ export default function LoginPage() {
 
     try {
       console.log('Attempting login for user:', data.username);
+
+      // First try clearing any existing auth data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('sessionId');
+
+        // Also clear cookies
+        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      }
+
       await login(data.username, data.password);
 
-      // Double-check token was stored and add delay to ensure it's properly saved
+      // Double-check token was stored
       const token = localStorage.getItem('token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      const sessionId = localStorage.getItem('sessionId');
+
+      // Check if token is in cookies
+      const tokenCookie = document.cookie.split(';').find(c => c.trim().startsWith('token='));
+      const refreshTokenCookie = document.cookie.split(';').find(c => c.trim().startsWith('refresh_token='));
+
+      console.log('Auth after login:', {
+        hasToken: !!token,
+        hasRefreshToken: !!refreshToken,
+        hasSessionId: !!sessionId,
+        hasCookie: !!tokenCookie,
+        hasRefreshCookie: !!refreshTokenCookie,
+        token: token ? `${token.substring(0, 6)}...` : null
+      });
+
       if (!token) {
         console.error('Login appeared successful but no token was stored');
         throw new Error('Login failed - authentication token not received');
       }
 
-      // Add a short delay to ensure token is properly set before redirect
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Set token in document.cookie for middleware if it's not there
+      if (!tokenCookie) {
+        console.log('Token not found in cookies, setting it now');
+        document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
+      }
+
+      // Set refresh token in document.cookie for middleware if it's not there
+      if (refreshToken && !refreshTokenCookie) {
+        console.log('Refresh token not found in cookies, setting it now');
+        document.cookie = `refresh_token=${refreshToken}; path=/; max-age=86400; SameSite=Lax`;
+      }
+
+      // Check authentication state in the store
+      const authState = useAuthStore.getState();
+      console.log('Auth state after login:', {
+        isAuthenticated: authState.isAuthenticated,
+        hasToken: !!authState.token,
+        hasRefreshToken: !!authState.refreshToken,
+        hasUser: !!authState.user
+      });
+
+      // Add a longer delay to ensure token and auth state are properly set before redirect
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       console.log('Login successful, redirecting to:', callbackUrl);
-      router.push(callbackUrl);
+
+      // Force a hard redirect instead of using router to ensure fresh state
+      window.location.href = callbackUrl;
     } catch (error) {
       console.error('Login error:', error);
 

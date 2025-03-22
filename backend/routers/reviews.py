@@ -82,6 +82,16 @@ class ResourceReview(ResourceReviewBase):
     user_id: str
     date: str
 
+class ReviewSettings(BaseModel):
+    """Review settings model."""
+    daily_review_target: int = 5
+    notification_frequency: str = "daily"
+    review_reminder_time: str = "18:00"
+    enable_spaced_repetition: bool = True
+    auto_schedule_reviews: bool = True
+    show_hints: bool = True
+    difficulty_threshold: int = 3
+
 # Helper functions
 def calculate_next_review_date(review_count, confidence_level=3):
     """
@@ -440,10 +450,11 @@ async def generate_review_session(
 async def get_review_statistics(
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get statistics about the user's reviews."""
+    """Get statistics about user's review sessions."""
     # Handle both cases where current_user is a User object or a dictionary
     username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
+    # Get user from database
     user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(
@@ -451,168 +462,229 @@ async def get_review_statistics(
             detail="User not found"
         )
 
-    reviews = user.get("reviews", [])
+    # Extract statistics
     concepts = user.get("concepts", [])
-
-    # Count total reviews from concepts
-    total_concept_reviews = sum(len(c.get("reviews", [])) for c in concepts)
+    review_log = user.get("review_log", {})
 
     # Initialize statistics
     stats = {
-        "total_reviews": total_concept_reviews,  # Use the count from concepts
-        "average_rating": 0,
-        "average_difficulty": 0,
-        "rating_distribution": {str(i): 0 for i in range(1, 6)},
-        "difficulty_distribution": {str(i): 0 for i in range(1, 6)},
-        "topics": {},
-        "resource_types": {},
-        "recent_reviews": [],
-        "due_reviews": 0,
-        "new_concepts": 0,
-        "average_confidence": 0,
-        "confidence_distribution": {str(i): 0 for i in range(1, 6)},
-        # Add concept statistics
         "total_concepts": len(concepts),
-        "concepts_with_reviews": sum(1 for c in concepts if c.get("reviews") and len(c.get("reviews", [])) > 0),
-        "concepts_without_reviews": sum(1 for c in concepts if not c.get("reviews") or len(c.get("reviews", [])) == 0),
-        "review_history": []
+        "concept_reviews": {
+            "total": 0,
+            "by_date": {},
+            "by_confidence": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 0
+            }
+        },
+        "resource_reviews": {
+            "total": 0,
+            "by_resource_type": {},
+            "by_rating": {
+                "1": 0,
+                "2": 0,
+                "3": 0,
+                "4": 0,
+                "5": 0
+            }
+        },
+        "due_concepts": {
+            "today": 0,
+            "this_week": 0,
+            "overdue": 0
+        },
+        "average_confidence": 0.0,
+        "streak": {
+            "current": 0,
+            "longest": 0,
+            "last_review_date": None
+        }
     }
 
-    # If there are no reviews in concepts, return early
-    if total_concept_reviews == 0:
-        return stats
-
-    # Calculate statistics for resource reviews
-    total_rating = 0
-    total_difficulty = 0
-
-    for review in reviews:
-        # Rating distribution
-        rating = review.get("rating", 0)
-        if 1 <= rating <= 5:
-            total_rating += rating
-            stats["rating_distribution"][str(rating)] += 1
-
-        # Difficulty distribution
-        difficulty = review.get("difficulty_rating", 0)
-        if 1 <= difficulty <= 5:
-            total_difficulty += difficulty
-            stats["difficulty_distribution"][str(difficulty)] += 1
-
-        # Topics
-        for topic in review.get("topics", []):
-            if topic in stats["topics"]:
-                stats["topics"][topic] += 1
-            else:
-                stats["topics"][topic] = 1
-
-        # Resource types
-        resource_type = review.get("resource_type", "unknown")
-        if resource_type in stats["resource_types"]:
-            stats["resource_types"][resource_type] += 1
-        else:
-            stats["resource_types"][resource_type] = 1
-
-    # Calculate averages for resource reviews
-    if reviews:
-        stats["average_rating"] = total_rating / len(reviews)
-        stats["average_difficulty"] = total_difficulty / len(reviews)
-
-    # Get recent reviews (last 5)
-    sorted_reviews = sorted(
-        reviews,
-        key=lambda x: x.get("date", ""),
-        reverse=True
-    )
-
-    stats["recent_reviews"] = sorted_reviews[:5]
-
-    # Convert topic counts to list for easier frontend processing
-    stats["topics"] = [
-        {"name": topic, "count": count}
-        for topic, count in sorted(stats["topics"].items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    # Convert resource type counts to list
-    stats["resource_types"] = [
-        {"type": resource_type, "count": count}
-        for resource_type, count in sorted(stats["resource_types"].items(), key=lambda x: x[1], reverse=True)
-    ]
-
-    # Calculate concept statistics
-    total_confidence = 0
-    confidence_counts = {i: 0 for i in range(1, 6)}
-    review_dates = []
-
-    # Collect topics from concepts
-    concept_topics = {}
+    # Calculate due concept statistics
+    now = datetime.now()
+    today_end = datetime(now.year, now.month, now.day, 23, 59, 59)
+    week_end = today_end + timedelta(days=7-now.weekday())
 
     for concept in concepts:
-        # Collect topics from concepts
-        for topic in concept.get("topics", []):
-            if topic in concept_topics:
-                concept_topics[topic] += 1
+        next_review = concept.get("next_review")
+        if next_review:
+            try:
+                next_review_date = datetime.fromisoformat(next_review)
+                if next_review_date <= now:
+                    stats["due_concepts"]["overdue"] += 1
+                elif next_review_date <= today_end:
+                    stats["due_concepts"]["today"] += 1
+                elif next_review_date <= week_end:
+                    stats["due_concepts"]["this_week"] += 1
+            except (ValueError, TypeError):
+                # Skip if date format is invalid
+                pass
+
+        # Count reviews by confidence
+        for review in concept.get("reviews", []):
+            confidence = str(review.get("confidence", 3))
+            stats["concept_reviews"]["total"] += 1
+
+            if confidence in stats["concept_reviews"]["by_confidence"]:
+                stats["concept_reviews"]["by_confidence"][confidence] += 1
+
+            # Count by date
+            try:
+                date = review.get("date", "")[:10]  # Get just the date part
+                if date:
+                    if date not in stats["concept_reviews"]["by_date"]:
+                        stats["concept_reviews"]["by_date"][date] = 0
+                    stats["concept_reviews"]["by_date"][date] += 1
+            except Exception:
+                # Skip if date format is invalid
+                pass
+
+    # Calculate average confidence if there are reviews
+    if stats["concept_reviews"]["total"] > 0:
+        total_confidence = sum(
+            int(level) * count
+            for level, count in stats["concept_reviews"]["by_confidence"].items()
+            if level.isdigit()
+        )
+        stats["average_confidence"] = round(total_confidence / stats["concept_reviews"]["total"], 1)
+
+    # Process resource reviews
+    user_reviews = user.get("reviews", [])
+    stats["resource_reviews"]["total"] = len(user_reviews)
+
+    for review in user_reviews:
+        # Count by resource type
+        resource_type = review.get("resource_type", "other")
+        if resource_type not in stats["resource_reviews"]["by_resource_type"]:
+            stats["resource_reviews"]["by_resource_type"][resource_type] = 0
+        stats["resource_reviews"]["by_resource_type"][resource_type] += 1
+
+        # Count by rating
+        rating = str(review.get("rating", 3))
+        if rating in stats["resource_reviews"]["by_rating"]:
+            stats["resource_reviews"]["by_rating"][rating] += 1
+
+    # Calculate streak information
+    dates = sorted(stats["concept_reviews"]["by_date"].keys())
+    if dates:
+        stats["streak"]["last_review_date"] = dates[-1]
+
+        # Calculate current streak
+        current_date = now.date().isoformat()
+        yesterday = (now - timedelta(days=1)).date().isoformat()
+
+        if current_date in dates:
+            stats["streak"]["current"] = 1
+            check_date = yesterday
+            while check_date in dates:
+                stats["streak"]["current"] += 1
+                check_date = (datetime.fromisoformat(check_date) - timedelta(days=1)).date().isoformat()
+        elif yesterday in dates:
+            stats["streak"]["current"] = 1
+            check_date = (datetime.fromisoformat(yesterday) - timedelta(days=1)).date().isoformat()
+            while check_date in dates:
+                stats["streak"]["current"] += 1
+                check_date = (datetime.fromisoformat(check_date) - timedelta(days=1)).date().isoformat()
+
+        # Calculate longest streak
+        max_streak = 0
+        current_streak = 1
+        for i in range(1, len(dates)):
+            prev_date = datetime.fromisoformat(dates[i-1])
+            curr_date = datetime.fromisoformat(dates[i])
+
+            if (curr_date - prev_date).days == 1:
+                current_streak += 1
             else:
-                concept_topics[topic] = 1
+                max_streak = max(max_streak, current_streak)
+                current_streak = 1
 
-        concept_reviews = concept.get("reviews", [])
-        if concept_reviews:
-            for review in concept_reviews:
-                confidence = review.get("confidence", 0)
-                if 1 <= confidence <= 5:
-                    total_confidence += confidence
-                    confidence_counts[confidence] += 1
-
-                # Add review date to history
-                review_date = review.get("date")
-                if review_date:
-                    review_dates.append(review_date)
-
-    # Calculate average confidence
-    if total_concept_reviews > 0:
-        stats["average_confidence"] = total_confidence / total_concept_reviews
-
-    # Update confidence distribution
-    for i in range(1, 6):
-        stats["confidence_distribution"][str(i)] = confidence_counts[i]
-
-    # Add concept topics to topics list
-    for topic, count in concept_topics.items():
-        # Check if topic already exists in the list
-        topic_exists = False
-        for topic_item in stats["topics"]:
-            if topic_item["name"] == topic:
-                topic_item["count"] += count
-                topic_exists = True
-                break
-
-        # If topic doesn't exist, add it
-        if not topic_exists:
-            stats["topics"].append({"name": topic, "count": count})
-
-    # Re-sort topics by count
-    stats["topics"] = sorted(stats["topics"], key=lambda x: x["count"], reverse=True)
-
-    # Create review history (count of reviews per day)
-    review_dates.sort()
-    date_counts = {}
-    for date_str in review_dates:
-        try:
-            date_obj = datetime.fromisoformat(date_str)
-            date_only = date_obj.date().isoformat()
-            if date_only in date_counts:
-                date_counts[date_only] += 1
-            else:
-                date_counts[date_only] = 1
-        except (ValueError, TypeError):
-            continue
-
-    stats["review_history"] = [
-        {"date": date, "count": count}
-        for date, count in sorted(date_counts.items())
-    ]
+        max_streak = max(max_streak, current_streak)
+        stats["streak"]["longest"] = max_streak
 
     return stats
+
+@router.get("/settings", response_model=ReviewSettings)
+async def get_review_settings(current_user: User = Depends(get_current_active_user)):
+    """
+    Get the user's review settings.
+    This endpoint returns configuration parameters for the review system.
+    """
+    try:
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+        # Get user from database
+        user = await db.users.find_one({"username": username})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Get review settings from user document, or use defaults
+        review_settings = user.get("review_settings", {})
+
+        # Create response with defaults for missing values
+        response = ReviewSettings(
+            daily_review_target=review_settings.get("daily_review_target", 5),
+            notification_frequency=review_settings.get("notification_frequency", "daily"),
+            review_reminder_time=review_settings.get("review_reminder_time", "18:00"),
+            enable_spaced_repetition=review_settings.get("enable_spaced_repetition", True),
+            auto_schedule_reviews=review_settings.get("auto_schedule_reviews", True),
+            show_hints=review_settings.get("show_hints", True),
+            difficulty_threshold=review_settings.get("difficulty_threshold", 3)
+        )
+
+        return response
+    except Exception as e:
+        logger.error(f"Error retrieving review settings: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving review settings"
+        )
+
+@router.put("/settings", response_model=ReviewSettings)
+async def update_review_settings(
+    settings: ReviewSettings,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update the user's review settings.
+    This endpoint allows changing review system configuration.
+    """
+    try:
+        # Handle both cases where current_user is a User object or a dictionary
+        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+        # Update user document
+        result = await db.users.update_one(
+            {"username": username},
+            {"$set": {"review_settings": settings.model_dump()}}
+        )
+
+        if result.modified_count == 0:
+            # Check if user exists
+            user = await db.users.find_one({"username": username})
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+
+        return settings
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating review settings: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating review settings"
+        )
 
 # Add these routes for resource reviews
 @router.post("/", response_model=ResourceReview, status_code=status.HTTP_201_CREATED)

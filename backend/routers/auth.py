@@ -17,15 +17,38 @@ from auth import (
 )
 from utils.rate_limiter import rate_limit_dependency
 from utils.error_handlers import AuthenticationError
+from database import get_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+db = get_db()
+
+# Helper function to safely extract username from current_user
+def get_username_from_user(current_user) -> str:
+    """Extract username from current_user object, handling different types."""
+    username = current_user.get("username") if isinstance(current_user, dict) else getattr(current_user, "username", None)
+
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username could not be determined from user object"
+        )
+
+    return username
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+class NotificationPreferences(BaseModel):
+    """User notification preferences model."""
+    email_notifications: bool = True
+    learning_reminders: bool = True
+    review_reminders: bool = True
+    achievement_notifications: bool = True
+    newsletter: bool = True
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
@@ -196,3 +219,155 @@ async def logout(
     except Exception as e:
         logger.error(f"Error during logout: {str(e)}")
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.get("/me", response_model=User)
+async def get_current_user_info(current_user: dict = Depends(get_current_active_user)):
+    """
+    Get the current authenticated user's information.
+    This endpoint is useful for client applications to retrieve user data after authentication.
+    """
+    try:
+        # Import normalize_user_data function
+        from routers.users import normalize_user_data
+
+        # Return the normalized user data
+        return normalize_user_data(current_user)
+    except Exception as e:
+        logger.error(f"Error retrieving current user info: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving user information"
+        )
+
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_auth_statistics(current_user: dict = Depends(get_current_active_user)):
+    """
+    Get authentication-related statistics for the current user.
+    This includes login history, token refresh counts, and session information.
+    """
+    try:
+        username = get_username_from_user(current_user)
+
+        # Get user document
+        user = await db.users.find_one({"username": username})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Import sessions module
+        from routers.sessions import get_user_sessions
+
+        # Get active sessions
+        active_sessions = await get_user_sessions(username)
+
+        # Get metrics from user document
+        user_metrics = user.get("metrics", [])
+
+        # Filter auth-related metrics
+        auth_metrics = [m for m in user_metrics if m.get("type") in ("login", "token_refresh", "logout")]
+
+        # Calculate statistics
+        login_count = sum(1 for m in auth_metrics if m.get("type") == "login")
+        token_refresh_count = sum(1 for m in auth_metrics if m.get("type") == "token_refresh")
+        logout_count = sum(1 for m in auth_metrics if m.get("type") == "logout")
+
+        # Get last login time
+        login_times = [m.get("timestamp") for m in auth_metrics if m.get("type") == "login" and "timestamp" in m]
+        last_login = max(login_times) if login_times else None
+
+        # Compile statistics
+        statistics = {
+            "login_count": login_count,
+            "token_refresh_count": token_refresh_count,
+            "logout_count": logout_count,
+            "active_sessions_count": len(active_sessions),
+            "last_login": last_login,
+            "account_creation_date": user.get("created_at"),
+            "days_since_creation": (datetime.utcnow() - user.get("created_at")).days if user.get("created_at") else None,
+        }
+
+        return statistics
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving auth statistics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving authentication statistics"
+        )
+
+@router.get("/notification-preferences", response_model=NotificationPreferences)
+async def get_notification_preferences(current_user: dict = Depends(get_current_active_user)):
+    """
+    Get the user's notification preferences.
+    This endpoint returns the current settings for various notification types.
+    """
+    try:
+        username = get_username_from_user(current_user)
+
+        # Get user document
+        user = await db.users.find_one({"username": username})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Extract notification preferences or use defaults
+        notification_prefs = user.get("notification_preferences", {})
+
+        # Create response with defaults for missing values
+        response = NotificationPreferences(
+            email_notifications=notification_prefs.get("email_notifications", True),
+            learning_reminders=notification_prefs.get("learning_reminders", True),
+            review_reminders=notification_prefs.get("review_reminders", True),
+            achievement_notifications=notification_prefs.get("achievement_notifications", True),
+            newsletter=notification_prefs.get("newsletter", True)
+        )
+
+        return response
+    except Exception as e:
+        logger.error(f"Error retrieving notification preferences: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving notification preferences"
+        )
+
+@router.put("/notification-preferences", response_model=NotificationPreferences)
+async def update_notification_preferences(
+    preferences: NotificationPreferences,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Update the user's notification preferences.
+    This endpoint allows changing settings for various notification types.
+    """
+    try:
+        username = get_username_from_user(current_user)
+
+        # Update user document
+        result = await db.users.update_one(
+            {"username": username},
+            {"$set": {"notification_preferences": preferences.model_dump()}}
+        )
+
+        if result.modified_count == 0:
+            # Check if user exists
+            user = await db.users.find_one({"username": username})
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+
+        return preferences
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating notification preferences: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating notification preferences"
+        )

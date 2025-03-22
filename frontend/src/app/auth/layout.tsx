@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import Link from 'next/link';
 
@@ -12,16 +12,19 @@ interface AuthLayoutProps {
 export default function AuthLayout({ children }: AuthLayoutProps) {
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
 
   useEffect(() => {
     // Skip if still loading
     if (isLoading) return;
 
-    // If already authenticated, redirect to dashboard
+    // If already authenticated, redirect to callbackUrl or dashboard
     if (isAuthenticated) {
-      router.push('/dashboard');
+      console.log('Auth layout detected authenticated state, redirecting to:', callbackUrl);
+      router.push(callbackUrl);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, callbackUrl]);
 
   // Show loading state while checking authentication
   if (isLoading) {

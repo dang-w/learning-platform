@@ -16,6 +16,41 @@ import {
 import { Spinner } from '@/components/ui/feedback';
 import ErrorDisplay from '@/components/ui/feedback/ErrorDisplay';
 
+const SyncTokens = () => {
+  useEffect(() => {
+    // Check if token exists in localStorage
+    const localStorageToken = localStorage.getItem('token');
+
+    // Check if token exists in cookies
+    const tokenCookie = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
+    const cookieToken = tokenCookie ? tokenCookie.split('=')[1] : null;
+
+    console.log('Token storage check:', {
+      hasLocalStorage: !!localStorageToken,
+      hasCookie: !!cookieToken,
+      match: localStorageToken === cookieToken
+    });
+
+    // If token is in localStorage but not in cookie, add it to cookie
+    if (localStorageToken && !cookieToken) {
+      console.log('Token found in localStorage but not in cookie, fixing...');
+      document.cookie = `token=${localStorageToken}; path=/; max-age=86400; SameSite=Lax`;
+    }
+    // If token is in cookie but not in localStorage, add it to localStorage
+    else if (!localStorageToken && cookieToken) {
+      console.log('Token found in cookie but not in localStorage, fixing...');
+      localStorage.setItem('token', cookieToken);
+    }
+    // If tokens don't match, prefer localStorage version
+    else if (localStorageToken && cookieToken && localStorageToken !== cookieToken) {
+      console.log('Token mismatch between localStorage and cookie, synchronizing...');
+      document.cookie = `token=${localStorageToken}; path=/; max-age=86400; SameSite=Lax`;
+    }
+  }, []);
+
+  return null;
+};
+
 export default function DashboardPage() {
   const { user, isAuthenticated, fetchUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +100,7 @@ export default function DashboardPage() {
     queryKey: ['reviews', 'statistics'],
     queryFn: () => {
       console.log('Fetching review statistics with user:', user?.username);
-      return reviewsApi.getReviewStatistics();
+      return reviewsApi.getStatistics();
     },
     enabled: !!user,
   });
@@ -81,19 +116,29 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    if (
-      resourcesQuery.isSuccess &&
-      metricsQuery.isSuccess &&
-      reviewsQuery.isSuccess &&
-      learningPathQuery.isSuccess
-    ) {
+    const queriesCompleted =
+      (resourcesQuery.isSuccess || resourcesQuery.isError) &&
+      (metricsQuery.isSuccess || metricsQuery.isError) &&
+      (reviewsQuery.isSuccess || reviewsQuery.isError) &&
+      (learningPathQuery.isSuccess || learningPathQuery.isError);
+
+    console.log('Query states:', {
+      resources: resourcesQuery.status,
+      metrics: metricsQuery.status,
+      reviews: reviewsQuery.status,
+      learningPath: learningPathQuery.status,
+      queriesCompleted
+    });
+
+    if (queriesCompleted) {
+      console.log('All queries completed, setting isLoading to false');
       setIsLoading(false);
     }
   }, [
-    resourcesQuery.isSuccess,
-    metricsQuery.isSuccess,
-    reviewsQuery.isSuccess,
-    learningPathQuery.isSuccess,
+    resourcesQuery.isSuccess, resourcesQuery.isError, resourcesQuery.status,
+    metricsQuery.isSuccess, metricsQuery.isError, metricsQuery.status,
+    reviewsQuery.isSuccess, reviewsQuery.isError, reviewsQuery.status,
+    learningPathQuery.isSuccess, learningPathQuery.isError, learningPathQuery.status
   ]);
 
   // Simple debug information at the top of the dashboard
@@ -146,6 +191,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <SyncTokens />
       <h1 className="text-3xl font-bold mb-8">Your Dashboard</h1>
 
       {user && (

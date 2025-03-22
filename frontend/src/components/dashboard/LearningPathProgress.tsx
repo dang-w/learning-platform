@@ -1,5 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/cards'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/cards"
+import { CheckCircleIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import Link from 'next/link'
+import { useQuery } from "@tanstack/react-query"
+import apiClient from "@/lib/api/client"
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,8 +15,6 @@ import {
   ChartOptions,
 } from 'chart.js'
 import { Bar } from 'react-chartjs-2'
-import { CheckCircleIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import Link from 'next/link'
 
 // Register Chart.js components
 ChartJS.register(
@@ -39,18 +40,60 @@ interface PathProgress {
   } | null;
 }
 
+// Properly typed fetch function
+async function fetchLearningPathProgress(): Promise<PathProgress[]> {
+  try {
+    console.log('LearningPathProgress: Fetching data');
+
+    // Check if we have a valid token before making the request
+    const { getToken } = await import('@/lib/utils/api');
+    const token = getToken();
+
+    if (!token) {
+      console.warn('LearningPathProgress: No auth token available for request');
+      // Try to refresh the token before proceeding
+      const authStore = await import('@/lib/store/auth-store');
+      const refreshSuccess = await authStore.useAuthStore.getState().refreshAuthToken();
+
+      if (!refreshSuccess) {
+        console.error('LearningPathProgress: Failed to refresh token');
+        throw new Error('Authentication required');
+      }
+
+      console.log('LearningPathProgress: Token refreshed successfully');
+    }
+
+    // Use apiClient for consistency
+    console.log('LearningPathProgress: Fetching from /api/learning-path/progress endpoint');
+    const response = await apiClient.get<PathProgress[]>('/api/learning-path/progress');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching learning path progress:', error);
+    throw error;
+  }
+}
+
 export function LearningPathProgress() {
   const { data: pathsProgress = [], isLoading } = useQuery<PathProgress[]>({
     queryKey: ['learningPathsProgress'],
-    queryFn: async () => {
-      // This would be replaced with an actual API call
-      const response = await fetch('/api/learning-path/progress')
-      return response.json()
-    },
+    queryFn: fetchLearningPathProgress,
   })
 
+  // Add debugging to check data
+  console.log('LearningPathProgress component rendering:', {
+    isLoading,
+    dataReceived: !!pathsProgress,
+    dataLength: Array.isArray(pathsProgress) ? pathsProgress.length : 'not an array',
+    rawData: pathsProgress
+  });
+
+  // Ensure pathsProgress is always an array even if undefined or null
+  const paths = Array.isArray(pathsProgress)
+    ? pathsProgress
+    : [];
+
   // Sort paths by progress percentage (descending)
-  const sortedPaths = [...pathsProgress].sort((a, b) =>
+  const sortedPaths = [...paths].sort((a, b) =>
     b.progress_percentage - a.progress_percentage
   )
 
@@ -122,7 +165,7 @@ export function LearningPathProgress() {
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
           </div>
-        ) : pathsProgress.length === 0 ? (
+        ) : paths.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">No learning paths found</p>
             <Link

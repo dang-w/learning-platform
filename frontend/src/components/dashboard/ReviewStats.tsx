@@ -15,6 +15,7 @@ import {
 } from 'chart.js'
 import { Doughnut, Line } from 'react-chartjs-2'
 import { useState } from 'react'
+import apiClient from '@/lib/api/client'
 
 // Register Chart.js components
 ChartJS.register(
@@ -50,22 +51,29 @@ interface ReviewStatistics {
 export function ReviewStats() {
   const [showTopics, setShowTopics] = useState(false)
 
-  const { data: reviewStats, isLoading } = useQuery<ReviewStatistics>({
+  const { data: reviewStats, isLoading, isError, error } = useQuery<ReviewStatistics>({
     queryKey: ['reviewStatistics'],
     queryFn: async () => {
-      // This would be replaced with an actual API call
-      const response = await fetch('/api/reviews/statistics')
-      return response.json()
+      try {
+        console.log('Fetching review statistics');
+        const response = await apiClient.get<ReviewStatistics>('/api/reviews/statistics');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching review stats:', error);
+        throw error;
+      }
     },
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10000),
   })
 
   // Prepare data for confidence trend chart
   const confidenceTrendData: ChartData<'line'> = {
-    labels: reviewStats?.confidence_trend.map(item => item.date) || [],
+    labels: reviewStats?.confidence_trend?.map(item => item.date) || [],
     datasets: [
       {
         label: 'Average Confidence',
-        data: reviewStats?.confidence_trend.map(item => item.average_confidence) || [],
+        data: reviewStats?.confidence_trend?.map(item => item.average_confidence) || [],
         borderColor: 'rgb(16, 185, 129)', // green-500
         backgroundColor: 'rgba(16, 185, 129, 0.5)',
         tension: 0.3,
@@ -79,11 +87,11 @@ export function ReviewStats() {
     labels: ['New', 'Learning', 'Reviewing', 'Mastered'],
     datasets: [
       {
-        data: reviewStats ? [
-          reviewStats.concept_distribution.new,
-          reviewStats.concept_distribution.learning,
-          reviewStats.concept_distribution.reviewing,
-          reviewStats.concept_distribution.mastered,
+        data: reviewStats?.concept_distribution ? [
+          reviewStats.concept_distribution.new || 0,
+          reviewStats.concept_distribution.learning || 0,
+          reviewStats.concept_distribution.reviewing || 0,
+          reviewStats.concept_distribution.mastered || 0,
         ] : [0, 0, 0, 0],
         backgroundColor: [
           'rgba(59, 130, 246, 0.7)', // blue
@@ -197,6 +205,10 @@ export function ReviewStats() {
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
           </div>
+        ) : isError ? (
+          <div className="flex justify-center items-center h-64">
+            <p className="text-red-700">{error.message}</p>
+          </div>
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
@@ -215,7 +227,7 @@ export function ReviewStats() {
               <div className="bg-green-50 p-4 rounded-lg text-center">
                 <p className="text-sm text-green-700">Avg. Confidence</p>
                 <p className="text-2xl font-bold text-green-900">
-                  {reviewStats?.average_confidence.toFixed(1) || 0}/5
+                  {reviewStats?.average_confidence ? reviewStats.average_confidence.toFixed(1) : '0'}/5
                 </p>
               </div>
             </div>

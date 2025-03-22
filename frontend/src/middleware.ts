@@ -1,108 +1,146 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Define protected routes that require authentication
-const PROTECTED_ROUTES = [
-  '/dashboard',
-  '/profile',
-  '/resources',
-  '/learning-path',
-  '/knowledge',
-  '/reviews',
-  '/progress',
-  '/analytics',
-];
+/**
+ * Middleware function to handle authentication
+ */
+export async function middleware(request: NextRequest) {
+  const requestPath = request.nextUrl.pathname;
 
-// Define auth routes that should redirect to dashboard if already authenticated
-const AUTH_ROUTES = [
-  '/auth/login',
-  '/auth/register',
-];
+  // Check for rate limiting signals
+  const isRateLimited = checkRateLimiting(request);
+  if (isRateLimited) {
+    console.log(`[Middleware] Request to ${requestPath} is rate limited, bypassing authentication checks`);
+    // Pass the original request through if we're rate limited
+    return NextResponse.next();
+  }
 
-// Skip authentication for these paths
-const AUTH_WHITELIST = [
-  /^\/$/, // Home page
-  /^\/auth\/login/,
-  /^\/auth\/register/,
-  /^\/api\/auth\/login/,
-  /^\/api\/auth\/register/,
-  /^\/api\/auth\/refresh/,
-  // Add e2e test pages to whitelist in development
-  ...(process.env.NODE_ENV === 'development' ? [
-    /^\/e2e-test-fixes\/.*/,
-    /^\/api\/e2e-test-page.*/,
-  ] : []),
-  // Public assets and Next.js files
-  /^\/_next\/.*/,
-  /^\/favicon\.ico$/,
-  /\.(svg|png|jpg|jpeg|gif|webp|ico|json|js|css)$/,
-];
+  // Log middleware execution
+  console.log(`[Middleware] Processing request to ${requestPath}`);
 
-// Check if path should skip authentication
-function shouldSkipAuth(pathname: string): boolean {
-  // Check against the AUTH_WHITELIST
-  return AUTH_WHITELIST.some(pattern =>
-    pattern instanceof RegExp
-      ? pattern.test(pathname)
-      : pathname === pattern
+  // Extract token from Authorization header or cookies
+  const authHeader = request.headers.get('Authorization');
+  const tokenFromHeader = authHeader ?
+    (authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader)
+    : null;
+  const tokenFromCookie = request.cookies.get('token')?.value;
+
+  const token = tokenFromHeader || tokenFromCookie;
+
+  // For debugging only - log token details
+  console.log(`[Middleware] Token sources:`, {
+    path: requestPath,
+    headerPresent: !!authHeader,
+    headerValue: authHeader ? `${authHeader.substring(0, 15)}...` : 'none',
+    cookiePresent: !!tokenFromCookie,
+    cookieValue: tokenFromCookie ? `${tokenFromCookie.substring(0, 10)}...` : 'none',
+    finalToken: token ? `${token.substring(0, 10)}...` : 'none'
+  });
+
+  if (!token) {
+    // For XHR/fetch requests, return 401
+    if (isAPIRequest(requestPath) && isClientSideRequest(request)) {
+      console.log(`[Middleware] No token found for API request to ${requestPath}, returning 401`);
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    // For other requests without a token, redirect to login
+    console.log(`[Middleware] No token found for page request to ${requestPath}, redirecting to login`);
+    const url = new URL('/auth/login', request.url);
+    url.searchParams.set('from', requestPath);
+    return NextResponse.redirect(url);
+  }
+
+  // Clone the request headers to avoid modifying the original
+  const requestHeaders = new Headers(request.headers);
+
+  // Ensure token is in Bearer format for Authorization header
+  const formattedToken = `Bearer ${token.replace(/^Bearer\s+/i, '')}`;
+  requestHeaders.set('Authorization', formattedToken);
+
+  console.log(`[Middleware] Set Authorization header: ${formattedToken.substring(0, 15)}...`);
+
+  // Create response with modified headers
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  // Ensure token is in cookie for future requests (strip Bearer prefix if present)
+  const cookieToken = token.replace(/^Bearer\s+/i, '');
+  console.log(`[Middleware] Setting token cookie: ${cookieToken.substring(0, 10)}...`);
+
+  response.cookies.set({
+    name: 'token',
+    value: cookieToken,
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 // 1 hour
+  });
+
+  return response;
+}
+
+/**
+ * Check if the request is from client-side JavaScript
+ */
+function isClientSideRequest(request: NextRequest): boolean {
+  // Check if the request has standard client-side request headers
+  const accept = request.headers.get('accept') || '';
+  const xRequestedWith = request.headers.get('x-requested-with');
+  const contentType = request.headers.get('content-type') || '';
+
+  return (
+    accept.includes('application/json') ||
+    xRequestedWith === 'XMLHttpRequest' ||
+    contentType.includes('application/json')
   );
 }
 
-// Main middleware function
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Skip authentication for whitelisted routes
-  if (shouldSkipAuth(pathname)) {
-    return NextResponse.next();
-  }
-
-  // Skip auth check during Cypress testing
-  if (request.headers.get('x-cypress-testing') === 'true') {
-    return NextResponse.next();
-  }
-
-  // Check if the route is protected
-  const isProtectedRoute = PROTECTED_ROUTES.some(pattern => {
-    return pathname === pattern || pathname.startsWith(`${pattern}/`);
-  });
-
-  // Check if the route is an auth route
-  const isAuthRoute = AUTH_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`));
-
-  // Check authentication status
-  const token = request.cookies.get('token')?.value || '';
-  const isAuthenticated = !!token;
-
-  // Handle API requests
-  if (pathname.startsWith('/api/')) {
-    if (!isAuthenticated) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-    return NextResponse.next();
-  }
-
-  // Redirect unauthenticated users trying to access protected routes to login
-  if (isProtectedRoute && !isAuthenticated) {
-    const redirectUrl = new URL('/auth/login', request.url);
-    // Add the current path as a callback URL
-    redirectUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Redirect authenticated users trying to access auth routes to dashboard
-  if (isAuthRoute && isAuthenticated) {
-    const redirectUrl = new URL('/dashboard', request.url);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  return NextResponse.next();
+/**
+ * Check if the request is for an API endpoint
+ */
+function isAPIRequest(path: string): boolean {
+  return path.startsWith('/api/');
 }
 
-// Specify paths for which the middleware should run
+/**
+ * Check if we're currently rate limited
+ */
+function checkRateLimiting(request: NextRequest): boolean {
+  const rateLimitUntil = request.cookies.get('_rate_limit_until')?.value;
+
+  if (rateLimitUntil) {
+    const limitTime = parseInt(rateLimitUntil, 10);
+    const now = Date.now();
+
+    if (limitTime > now) {
+      // We're still in a rate-limited state
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Configure paths to run the middleware on
 export const config = {
   matcher: [
-    // Apply to all routes except static files and api routes that don't need auth
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)',
-  ],
+    // Match specific API routes that need authorization
+    '/api/reviews/:path*',
+    '/api/learning-path/:path*',
+    '/api/progress/:path*',
+    '/api/user/:path*',
+    '/api/users/:path*',
+    '/api/resources/:path*',
+    '/api/auth/:path*',
+    '/api/token/:path*',
+    '/api/sessions/:path*',
+
+    // Catch all other API routes
+    '/api/:path*',
+  ]
 };

@@ -1,109 +1,132 @@
+
 import { NextRequest, NextResponse } from 'next/server';
+import { API_URL } from '@/config';
 
+// Helper function to extract token from request
+async function getTokenFromRequest(request: NextRequest): Promise<string | null> {
+  // Try to get token from Authorization header first
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    console.log('Found token in Authorization header');
+    return authHeader.substring(7);
+  }
+
+  // Try to get token from request cookies
+  const token = request.cookies.get('token')?.value;
+  if (token) {
+    console.log('Found token in request cookies');
+    return token;
+  }
+
+  console.log('No token found in request');
+  return null;
+}
+
+/**
+ * Get current user data
+ */
 export async function GET(request: NextRequest) {
-  try {
-    // Get the authorization header from the request
-    const authHeader = request.headers.get('Authorization');
-    console.log('Auth header:', authHeader);
+  console.log('User profile request received');
 
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+  try {
+    // Get the token from the request
+    const token = await getTokenFromRequest(request);
+
+    if (!token) {
+      console.log('No token found, returning 401');
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Forward the request to the backend API
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:8000';
-    const backendEndpoint = `${backendUrl}/users/me/`;
-    console.log('Forwarding to backend:', backendEndpoint);
+    // Construct the backend API URL
+    const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
+    const userEndpoint = `${backendUrl}/api/users/me`;
 
-    const response = await fetch(backendEndpoint, {
+    console.log(`Forwarding user request to backend: ${userEndpoint}`);
+
+    // Forward the request to the backend
+    const backendResponse = await fetch(userEndpoint, {
       method: 'GET',
       headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       },
+      cache: 'no-store'
     });
 
-    console.log('Backend response status:', response.status);
-
-    // If the response is not ok, try to parse the error
-    if (!response.ok) {
-      let errorMessage = 'Failed to get user data';
-      try {
-        const errorData = await response.json();
-        console.error('Backend error data:', errorData);
-        errorMessage = errorData.detail || errorMessage;
-      } catch (error) {
-        console.error('Error parsing error response:', error);
-      }
-
+    if (!backendResponse.ok) {
+      const errorText = await backendResponse.text();
+      console.error(`Backend error: ${errorText}`);
       return NextResponse.json(
-        { error: errorMessage },
-        { status: response.status }
+        { message: 'Failed to get user profile' },
+        { status: backendResponse.status }
       );
     }
 
-    // Get the response data
-    const data = await response.json();
-    console.log('User data received successfully');
-
     // Return the user data
-    return NextResponse.json(data);
+    const userData = await backendResponse.json();
+    return NextResponse.json(userData);
+
   } catch (error) {
-    console.error('User API route error:', error);
+    console.error('Error getting user profile:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
+/**
+ * Update user profile
+ */
 export async function PUT(request: NextRequest) {
-  try {
-    // Get the authorization header from the request
-    const authHeader = request.headers.get('Authorization');
+  console.log('User profile update request received');
 
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+  try {
+    // Get the token from the request
+    const token = await getTokenFromRequest(request);
+
+    if (!token) {
+      console.log('No token found, returning 401');
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the request body
+    // Parse the request body
     const body = await request.json();
 
-    // Forward the request to the backend API
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${backendUrl}/users/me/`, {
+    // Construct the backend API URL
+    const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
+    const userEndpoint = `${backendUrl}/api/users/me`;
+
+    console.log(`Forwarding user update to backend: ${userEndpoint}`);
+
+    // Forward the request to the backend
+    const backendResponse = await fetch(userEndpoint, {
       method: 'PUT',
       headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(body),
+      cache: 'no-store'
     });
 
-    // Get the response data
-    const data = await response.json();
-
-    // Check if the response was successful
-    if (!response.ok) {
-      // Return the error from the backend
+    if (!backendResponse.ok) {
+      const errorText = await backendResponse.text();
+      console.error(`Backend error: ${errorText}`);
       return NextResponse.json(
-        { error: data.detail || 'Failed to update user data' },
-        { status: response.status }
+        { message: 'Failed to update user profile' },
+        { status: backendResponse.status }
       );
     }
 
     // Return the updated user data
-    return NextResponse.json(data);
+    const userData = await backendResponse.json();
+    return NextResponse.json(userData);
+
   } catch (error) {
-    console.error('User API route error:', error);
+    console.error('Error updating user profile:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { message: 'Internal server error' },
       { status: 500 }
     );
   }

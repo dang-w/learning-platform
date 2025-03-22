@@ -31,9 +31,21 @@ export interface ReviewCreate {
 }
 
 export interface ReviewSession {
-  date: string;
-  concepts: Concept[];
-  new_concepts: Concept[];
+  id: string;
+  user_id: string;
+  start_time: string;
+  end_time: string | null;
+  concepts_reviewed: number;
+  correct_answers: number;
+  average_confidence: number;
+  completed: boolean;
+}
+
+export interface CreateReviewSessionParams {
+  duration_minutes?: number;
+  concept_ids?: string[];
+  difficulty_level?: number;
+  topic_filter?: string[];
 }
 
 export interface ReviewStatistics {
@@ -51,14 +63,24 @@ export interface ReviewStatistics {
   confidence_distribution: Record<number, number>;
 }
 
+export interface ReviewSettings {
+  daily_review_target: number;
+  notification_frequency: string;
+  review_reminder_time: string;
+  enable_spaced_repetition: boolean;
+  auto_schedule_reviews: boolean;
+  show_hints: boolean;
+  difficulty_threshold: number;
+}
+
 const reviewsApi = {
   createConcept: async (data: ConceptCreate): Promise<Concept> => {
-    const response = await apiClient.post<Concept>('/reviews/concepts', data);
+    const response = await apiClient.post<Concept>('/api/reviews/concepts', data);
     return response.data;
   },
 
   getConcepts: async (topic?: string): Promise<Concept[]> => {
-    let url = '/reviews/concepts';
+    let url = '/api/reviews/concepts';
     if (topic) {
       url += `?topic=${encodeURIComponent(topic)}`;
     }
@@ -68,49 +90,67 @@ const reviewsApi = {
   },
 
   getConcept: async (conceptId: string): Promise<Concept> => {
-    const response = await apiClient.get<Concept>(`/reviews/concepts/${conceptId}`);
+    const response = await apiClient.get<Concept>(`/api/reviews/concepts/${conceptId}`);
     return response.data;
   },
 
   updateConcept: async (conceptId: string, data: ConceptUpdate): Promise<Concept> => {
-    const response = await apiClient.put<Concept>(`/reviews/concepts/${conceptId}`, data);
+    const response = await apiClient.put<Concept>(`/api/reviews/concepts/${conceptId}`, data);
     return response.data;
   },
 
   deleteConcept: async (conceptId: string): Promise<void> => {
-    await apiClient.delete(`/reviews/concepts/${conceptId}`);
+    await apiClient.delete(`/api/reviews/concepts/${conceptId}`);
   },
 
   markConceptReviewed: async (conceptId: string, data: ReviewCreate): Promise<Concept> => {
-    const response = await apiClient.post<Concept>(`/reviews/concepts/${conceptId}/review`, data);
+    const response = await apiClient.post<Concept>(`/api/reviews/concepts/${conceptId}/review`, data);
     return response.data;
   },
 
   getDueConcepts: async (): Promise<Concept[]> => {
-    const response = await apiClient.get<Concept[]>('/reviews/due');
+    const response = await apiClient.get<Concept[]>('/api/reviews/due');
     return response.data;
   },
 
   getNewConcepts: async (count: number = 3): Promise<Concept[]> => {
-    const response = await apiClient.get<Concept[]>(`/reviews/new?count=${count}`);
+    const response = await apiClient.get<Concept[]>(`/api/reviews/new?count=${count}`);
     return response.data;
   },
 
   generateReviewSession: async (maxReviews: number = 5): Promise<ReviewSession> => {
-    const response = await apiClient.get<ReviewSession>(`/reviews/session?max_reviews=${maxReviews}`);
+    const response = await apiClient.get<ReviewSession>(`/api/reviews/session?max_reviews=${maxReviews}`);
     return response.data;
   },
 
-  getReviewStatistics: async (): Promise<ReviewStatistics> => {
-    try {
-      console.log('Fetching review statistics...');
-      const response = await apiClient.get('/reviews/statistics');
-      console.log('Review statistics response:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching review statistics:', error);
-      throw error;
-    }
+  getStatistics: async (): Promise<ReviewStatistics> => {
+    const response = await apiClient.get<ReviewStatistics>('/api/reviews/statistics');
+    return response.data;
+  },
+
+  getSettings: async (): Promise<ReviewSettings> => {
+    const response = await apiClient.get<ReviewSettings>('/api/reviews/settings');
+    return response.data;
+  },
+
+  updateSettings: async (settings: ReviewSettings): Promise<ReviewSettings> => {
+    const response = await apiClient.put<ReviewSettings>('/api/reviews/settings', settings);
+    return response.data;
+  },
+
+  createReviewSession: async (params: CreateReviewSessionParams): Promise<ReviewSession> => {
+    const response = await apiClient.post<ReviewSession>('/api/reviews/sessions', params);
+    return response.data;
+  },
+
+  completeReviewSession: async (sessionId: string, data: {
+    end_time: string;
+    concepts_reviewed: number;
+    correct_answers: number;
+    average_confidence: number;
+  }): Promise<ReviewSession> => {
+    const response = await apiClient.put<ReviewSession>(`/api/reviews/sessions/${sessionId}/complete`, data);
+    return response.data;
   },
 };
 

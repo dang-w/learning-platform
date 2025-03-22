@@ -126,12 +126,12 @@ export interface LearningPathProgress {
 const learningPathApi = {
   // Milestones
   createMilestone: async (data: MilestoneCreate): Promise<Milestone> => {
-    const response = await apiClient.post<Milestone>('/learning-path/milestones', data);
+    const response = await apiClient.post<Milestone>('/api/learning-path/milestones', data);
     return response.data;
   },
 
   getMilestones: async (completed?: boolean): Promise<Milestone[]> => {
-    let url = '/learning-path/milestones';
+    let url = '/api/learning-path/milestones';
     if (completed !== undefined) {
       url += `?completed=${completed}`;
     }
@@ -141,27 +141,27 @@ const learningPathApi = {
   },
 
   getMilestone: async (milestoneId: string): Promise<Milestone> => {
-    const response = await apiClient.get<Milestone>(`/learning-path/milestones/${milestoneId}`);
+    const response = await apiClient.get<Milestone>(`/api/learning-path/milestones/${milestoneId}`);
     return response.data;
   },
 
   updateMilestone: async (milestoneId: string, data: MilestoneUpdate): Promise<Milestone> => {
-    const response = await apiClient.put<Milestone>(`/learning-path/milestones/${milestoneId}`, data);
+    const response = await apiClient.put<Milestone>(`/api/learning-path/milestones/${milestoneId}`, data);
     return response.data;
   },
 
   deleteMilestone: async (milestoneId: string): Promise<void> => {
-    await apiClient.delete(`/learning-path/milestones/${milestoneId}`);
+    await apiClient.delete(`/api/learning-path/milestones/${milestoneId}`);
   },
 
   // Goals
   createGoal: async (data: GoalCreate): Promise<Goal> => {
-    const response = await apiClient.post<Goal>('/learning-path/goals', data);
+    const response = await apiClient.post<Goal>('/api/learning-path/goals', data);
     return response.data;
   },
 
   getGoals: async (completed?: boolean, category?: string): Promise<Goal[]> => {
-    let url = '/learning-path/goals';
+    let url = '/api/learning-path/goals';
     const params = new URLSearchParams();
 
     if (completed !== undefined) params.append('completed', String(completed));
@@ -176,40 +176,40 @@ const learningPathApi = {
   },
 
   getGoal: async (goalId: string): Promise<Goal> => {
-    const response = await apiClient.get<Goal>(`/learning-path/goals/${goalId}`);
+    const response = await apiClient.get<Goal>(`/api/learning-path/goals/${goalId}`);
     return response.data;
   },
 
   updateGoal: async (goalId: string, data: GoalUpdate): Promise<Goal> => {
-    const response = await apiClient.put<Goal>(`/learning-path/goals/${goalId}`, data);
+    const response = await apiClient.put<Goal>(`/api/learning-path/goals/${goalId}`, data);
     return response.data;
   },
 
   deleteGoal: async (goalId: string): Promise<void> => {
-    await apiClient.delete(`/learning-path/goals/${goalId}`);
+    await apiClient.delete(`/api/learning-path/goals/${goalId}`);
   },
 
   // Roadmap
   createRoadmap: async (data: RoadmapCreate): Promise<Roadmap> => {
-    const response = await apiClient.post<Roadmap>('/learning-path/roadmap', data);
+    const response = await apiClient.post<Roadmap>('/api/learning-path/roadmap', data);
     return response.data;
   },
 
   getRoadmap: async (): Promise<Roadmap> => {
-    const response = await apiClient.get<Roadmap>('/learning-path/roadmap');
+    const response = await apiClient.get<Roadmap>('/api/learning-path/roadmap');
     return response.data;
   },
 
   updateRoadmap: async (data: RoadmapUpdate): Promise<Roadmap> => {
-    const response = await apiClient.put<Roadmap>('/learning-path/roadmap', data);
+    const response = await apiClient.put<Roadmap>('/api/learning-path/roadmap', data);
     return response.data;
   },
 
   // Progress
-  getLearningPathProgress: async () => {
+  getLearningPathProgress: async (): Promise<LearningPathProgress> => {
     try {
-      console.log('Fetching learning path progress...');
-      const response = await apiClient.get('/learning-path/progress');
+      console.log('Fetching learning path progress from endpoint: /api/learning-path/progress');
+      const response = await apiClient.get('/api/learning-path/progress');
       console.log('Learning path progress response:', response.data);
       return response.data;
     } catch (error) {
@@ -219,7 +219,7 @@ const learningPathApi = {
   },
 
   getLearningPath: async (): Promise<LearningPath> => {
-    const response = await apiClient.get<LearningPath>('/learning-path');
+    const response = await apiClient.get<LearningPath>('/api/learning-path');
     return response.data;
   },
 };

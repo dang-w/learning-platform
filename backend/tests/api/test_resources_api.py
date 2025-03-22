@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import HTTPException, status
 from datetime import datetime
+from copy import deepcopy
 
 # Import the app and auth functions
 from main import app
@@ -41,6 +42,47 @@ test_user_data = {
     }
 }
 
+valid_resource = {
+    "title": "Test Resource",
+    "url": "https://example.com/test",
+    "topics": ["python", "testing"],
+    "difficulty": "intermediate",
+    "estimated_time": 30,
+    "resource_type": "article"
+}
+
+valid_article_resource = {
+    "title": "Test Article",
+    "url": "https://example.com/article",
+    "topics": ["python", "testing"],
+    "difficulty": "intermediate",
+    "estimated_time": 30,
+}
+
+valid_video_resource = {
+    "title": "Test Video",
+    "url": "https://example.com/video",
+    "topics": ["python", "testing"],
+    "difficulty": "intermediate",
+    "estimated_time": 45,
+}
+
+valid_course_resource = {
+    "title": "Test Course",
+    "url": "https://example.com/course",
+    "topics": ["python", "testing"],
+    "difficulty": "advanced",
+    "estimated_time": 480,
+}
+
+valid_book_resource = {
+    "title": "Test Book",
+    "url": "https://example.com/book",
+    "topics": ["python", "testing"],
+    "difficulty": "beginner",
+    "estimated_time": 360,
+}
+
 @pytest.fixture(scope="function", autouse=True)
 def clear_dependency_overrides():
     """Clear dependency overrides before and after each test."""
@@ -51,6 +93,73 @@ def clear_dependency_overrides():
 
     # Clear overrides after the test
     app.dependency_overrides.clear()
+
+@pytest.fixture(scope="function")
+def mock_user():
+    """Fixture to create a mock user with resources."""
+    user = {
+        "username": "testuser",
+        "email": "test@example.com",
+        "resources": {
+            "articles": [
+                {
+                    "id": 1,
+                    "title": "Existing Article",
+                    "url": "https://example.com/existing-article",
+                    "topics": ["python"],
+                    "difficulty": "beginner",
+                    "estimated_time": 15,
+                    "completed": False,
+                    "date_added": datetime.now().isoformat(),
+                    "completion_date": None,
+                    "notes": ""
+                }
+            ],
+            "videos": [
+                {
+                    "id": 1,
+                    "title": "Existing Video",
+                    "url": "https://example.com/existing-video",
+                    "topics": ["python"],
+                    "difficulty": "beginner",
+                    "estimated_time": 30,
+                    "completed": False,
+                    "date_added": datetime.now().isoformat(),
+                    "completion_date": None,
+                    "notes": ""
+                }
+            ],
+            "courses": [
+                {
+                    "id": 1,
+                    "title": "Existing Course",
+                    "url": "https://example.com/existing-course",
+                    "topics": ["python"],
+                    "difficulty": "intermediate",
+                    "estimated_time": 240,
+                    "completed": False,
+                    "date_added": datetime.now().isoformat(),
+                    "completion_date": None,
+                    "notes": ""
+                }
+            ],
+            "books": [
+                {
+                    "id": 1,
+                    "title": "Existing Book",
+                    "url": "https://example.com/existing-book",
+                    "topics": ["python"],
+                    "difficulty": "advanced",
+                    "estimated_time": 600,
+                    "completed": False,
+                    "date_added": datetime.now().isoformat(),
+                    "completion_date": None,
+                    "notes": ""
+                }
+            ]
+        }
+    }
+    return user
 
 def test_get_all_resources_empty(client, auth_headers):
     """Test getting all resources when there are none."""
@@ -536,3 +645,126 @@ def test_get_resources_unauthenticated(client):
     error_response = response.json()
     assert "detail" in error_response
     assert error_response["detail"] == "Not authenticated"
+
+def test_get_videos_endpoint(client, auth_headers, mock_user):
+    """Test getting videos using the dedicated videos endpoint."""
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Make request to get videos
+    response = client.get("/api/resources/videos", headers=auth_headers)
+
+    # Assert response is successful and contains videos
+    assert response.status_code == 200
+    videos = response.json()
+    assert isinstance(videos, list)
+    assert len(videos) == 1
+    assert videos[0]["title"] == "Existing Video"
+    assert videos[0]["url"] == "https://example.com/existing-video"
+
+def test_create_video_endpoint(client, auth_headers, mock_user):
+    """Test creating a video using the dedicated videos endpoint."""
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Mock the DB update
+    with patch("routers.resources.db.users.update_one", new_callable=AsyncMock) as mock_db_update:
+        mock_db_update.return_value = MagicMock(modified_count=1)
+
+        # Make request to create a video
+        response = client.post(
+            "/api/resources/videos",
+            headers=auth_headers,
+            json=valid_video_resource
+        )
+
+        # Assert response is successful and contains the created video
+        assert response.status_code == 201
+        video = response.json()
+        assert video["title"] == valid_video_resource["title"]
+        assert video["url"] == valid_video_resource["url"]
+        assert video["id"] == 2  # Should be the next ID (1 is already used)
+        assert "date_added" in video
+        assert video["completed"] is False
+
+def test_get_courses_endpoint(client, auth_headers, mock_user):
+    """Test getting courses using the dedicated courses endpoint."""
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Make request to get courses
+    response = client.get("/api/resources/courses", headers=auth_headers)
+
+    # Assert response is successful and contains courses
+    assert response.status_code == 200
+    courses = response.json()
+    assert isinstance(courses, list)
+    assert len(courses) == 1
+    assert courses[0]["title"] == "Existing Course"
+    assert courses[0]["url"] == "https://example.com/existing-course"
+
+def test_create_course_endpoint(client, auth_headers, mock_user):
+    """Test creating a course using the dedicated courses endpoint."""
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Mock the DB update
+    with patch("routers.resources.db.users.update_one", new_callable=AsyncMock) as mock_db_update:
+        mock_db_update.return_value = MagicMock(modified_count=1)
+
+        # Make request to create a course
+        response = client.post(
+            "/api/resources/courses",
+            headers=auth_headers,
+            json=valid_course_resource
+        )
+
+        # Assert response is successful and contains the created course
+        assert response.status_code == 201
+        course = response.json()
+        assert course["title"] == valid_course_resource["title"]
+        assert course["url"] == valid_course_resource["url"]
+        assert course["id"] == 2  # Should be the next ID (1 is already used)
+        assert "date_added" in course
+        assert course["completed"] is False
+
+def test_get_books_endpoint(client, auth_headers, mock_user):
+    """Test getting books using the dedicated books endpoint."""
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Make request to get books
+    response = client.get("/api/resources/books", headers=auth_headers)
+
+    # Assert response is successful and contains books
+    assert response.status_code == 200
+    books = response.json()
+    assert isinstance(books, list)
+    assert len(books) == 1
+    assert books[0]["title"] == "Existing Book"
+    assert books[0]["url"] == "https://example.com/existing-book"
+
+def test_create_book_endpoint(client, auth_headers, mock_user):
+    """Test creating a book using the dedicated books endpoint."""
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+
+    # Mock the DB update
+    with patch("routers.resources.db.users.update_one", new_callable=AsyncMock) as mock_db_update:
+        mock_db_update.return_value = MagicMock(modified_count=1)
+
+        # Make request to create a book
+        response = client.post(
+            "/api/resources/books",
+            headers=auth_headers,
+            json=valid_book_resource
+        )
+
+        # Assert response is successful and contains the created book
+        assert response.status_code == 201
+        book = response.json()
+        assert book["title"] == valid_book_resource["title"]
+        assert book["url"] == valid_book_resource["url"]
+        assert book["id"] == 2  # Should be the next ID (1 is already used)
+        assert "date_added" in book
+        assert book["completed"] is False
