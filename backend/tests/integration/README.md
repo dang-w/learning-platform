@@ -8,9 +8,11 @@ The integration tests are organized into the following categories:
 
 ### 1. Authentication Tests
 
-- `test_auth.py`: Tests basic authentication with a token
-- `test_auth_direct.py`: Tests authentication directly without using the TestClient
-- `test_client_auth.py`: Tests authentication with the TestClient
+- `test_authentication_consolidated.py`: Comprehensive authentication tests covering all authentication scenarios
+  - Replaces the following files which are now deprecated:
+  - ~~`test_auth.py`~~: Basic authentication with a token
+  - ~~`test_auth_direct.py`~~: Authentication directly without using the TestClient
+  - ~~`test_client_auth.py`~~: Authentication with the TestClient
 
 ### 2. API Tests
 

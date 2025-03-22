@@ -7,8 +7,10 @@ const PROTECTED_ROUTES = [
   '/profile',
   '/resources',
   '/learning-path',
+  '/knowledge',
   '/reviews',
   '/progress',
+  '/analytics',
 ];
 
 // Define auth routes that should redirect to dashboard if already authenticated
@@ -17,25 +19,41 @@ const AUTH_ROUTES = [
   '/auth/register',
 ];
 
-// Paths that don't require authentication
-const PUBLIC_PATHS = [
-  '/auth/login',
-  '/auth/register',
-  '/api/token',
-  '/api/token/refresh',
-  '/_next', // Next.js assets
-  '/favicon.ico',
-  '/public',
-  '/e2e-test-fixes', // Special test pages for Cypress
-  '/', // Allow the landing page
+// Skip authentication for these paths
+const AUTH_WHITELIST = [
+  /^\/$/, // Home page
+  /^\/auth\/login/,
+  /^\/auth\/register/,
+  /^\/api\/auth\/login/,
+  /^\/api\/auth\/register/,
+  /^\/api\/auth\/refresh/,
+  // Add e2e test pages to whitelist in development
+  ...(process.env.NODE_ENV === 'development' ? [
+    /^\/e2e-test-fixes\/.*/,
+    /^\/api\/e2e-test-page.*/,
+  ] : []),
+  // Public assets and Next.js files
+  /^\/_next\/.*/,
+  /^\/favicon\.ico$/,
+  /\.(svg|png|jpg|jpeg|gif|webp|ico|json|js|css)$/,
 ];
 
+// Check if path should skip authentication
+function shouldSkipAuth(pathname: string): boolean {
+  // Check against the AUTH_WHITELIST
+  return AUTH_WHITELIST.some(pattern =>
+    pattern instanceof RegExp
+      ? pattern.test(pathname)
+      : pathname === pattern
+  );
+}
+
 // Main middleware function
-export function middleware(request: NextRequest): NextResponse {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow direct access to the registration page
-  if (pathname === '/auth/register') {
+  // Skip authentication for whitelisted routes
+  if (shouldSkipAuth(pathname)) {
     return NextResponse.next();
   }
 
@@ -52,16 +70,13 @@ export function middleware(request: NextRequest): NextResponse {
   // Check if the route is an auth route
   const isAuthRoute = AUTH_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`));
 
-  // Check if the route is a public path
-  const isPublicPath = PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`));
-
   // Check authentication status
   const token = request.cookies.get('token')?.value || '';
   const isAuthenticated = !!token;
 
   // Handle API requests
   if (pathname.startsWith('/api/')) {
-    if (!isAuthenticated && !isPublicPath) {
+    if (!isAuthenticated) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
     return NextResponse.next();

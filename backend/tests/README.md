@@ -1,8 +1,8 @@
-# Testing Guidelines
+# Backend Test Implementation Details
 
-This document outlines the standards and best practices for writing tests in the Learning Platform backend.
+> **Note:** This document focuses on test-specific implementation details. For a comprehensive guide on backend testing, please refer to the [Backend Testing Guide](/backend/TESTING.md).
 
-## Test Structure
+## Test Directory Structure
 
 Tests are organized into the following directories:
 
@@ -12,7 +12,7 @@ Tests are organized into the following directories:
 - `tests/utils/`: Tests for utility functions
 - `tests/config/`: Tests for configuration functions
 
-## Shared Utilities
+## Shared Test Utilities
 
 Common test utilities are defined in:
 
@@ -20,41 +20,7 @@ Common test utilities are defined in:
 - `tests/mock_db.py`: Mock database implementation for testing
 - `tests/setup_test_env.py`: Setup script for the test environment
 
-## Standards for Writing Tests
-
-### Imports
-
-Always import from the correct modules:
-
-```python
-# Import the app and auth functions
-from main import app
-from auth import get_current_user, get_current_active_user, oauth2_scheme
-
-# Import standardized utilities
-from utils.error_handlers import AuthenticationError, ResourceNotFoundError
-from utils.response_models import StandardResponse, ErrorResponse
-
-# Import mocking utilities
-from unittest.mock import patch, AsyncMock, MagicMock
-```
-
-### Dependency Overrides
-
-Always clear dependency overrides before and after each test:
-
-```python
-@pytest.fixture(scope="function", autouse=True)
-def clear_dependency_overrides():
-    """Clear dependency overrides before and after each test."""
-    # Clear any existing overrides
-    app.dependency_overrides.clear()
-
-    yield
-
-    # Clear overrides after the test
-    app.dependency_overrides.clear()
-```
+## Technical Implementation Details
 
 ### Authentication Mocking
 
@@ -84,50 +50,24 @@ app.dependency_overrides[get_current_user] = override_get_current_user
 app.dependency_overrides[get_current_active_user] = override_get_current_user
 ```
 
-### Testing Authentication Endpoints
+### Dependency Override Management
 
-When testing login endpoints, avoid making real requests that would require async authentication.
-Instead, use monkeypatching to mock the client.post method:
+Always clear dependency overrides before and after each test:
 
 ```python
-@pytest.mark.asyncio
-async def test_login_with_valid_credentials(client, monkeypatch):
-    """Test login with valid credentials."""
-    # Create a synchronous mock for the route
-    def mock_post(*args, **kwargs):
-        class MockResponse:
-            def __init__(self):
-                self.status_code = 200
-                self.text = """{"access_token": "fake_access_token", "refresh_token": "fake_refresh_token", "token_type": "bearer"}"""
-                self._content = self.text.encode("utf-8")
+@pytest.fixture(scope="function", autouse=True)
+def clear_dependency_overrides():
+    """Clear dependency overrides before and after each test."""
+    # Clear any existing overrides
+    app.dependency_overrides.clear()
 
-            def json(self):
-                import json
-                return json.loads(self.text)
+    yield
 
-        return MockResponse()
-
-    # Apply the mock to the client
-    monkeypatch.setattr(client, "post", mock_post)
-
-    # The test should now pass regardless of the actual route logic
-    response = client.post(
-        "/auth/token",
-        data={"username": "testuser", "password": "password123"},
-    )
-
-    assert response.status_code == 200
-    response_data = response.json()
-    assert "access_token" in response_data
-    assert "refresh_token" in response_data
-    assert "token_type" in response_data
-    assert response_data["token_type"] == "bearer"
+    # Clear overrides after the test
+    app.dependency_overrides.clear()
 ```
 
-This approach prevents "Event loop is closed" errors that can occur when testing authentication endpoints
-directly. It's used in both `test_auth_api.py` and `test_user_api.py`.
-
-### Database Mocking
+### Database Mocking Techniques
 
 Use `AsyncMock` for mocking async database operations:
 
@@ -161,7 +101,7 @@ with patch("main.db", mock_db):
     assert response.status_code == 201
 ```
 
-### Event Loop Issues
+### Avoiding Event Loop Issues
 
 To avoid event loop issues, follow these guidelines:
 
@@ -170,23 +110,7 @@ To avoid event loop issues, follow these guidelines:
 3. Use the `client` fixture from `conftest.py` for making requests
 4. Ensure mocked async functions return awaitable objects
 
-Example of proper async mocking:
-
-```python
-# Create an AsyncMock for the database operations
-mock_db = MagicMock()
-mock_db.users = MagicMock()
-mock_db.users.find_one = AsyncMock(return_value=None)
-mock_db.users.insert_one = AsyncMock()
-mock_db.users.insert_one.return_value = MagicMock()
-mock_db.users.insert_one.return_value.inserted_id = "newuser"
-
-# Patch the main module's db object
-with patch("main.db", mock_db):
-    response = client.post("/users/", json=new_user)
-```
-
-### Test Data
+### Test Data Formatting
 
 Ensure test data matches the expected schema:
 
@@ -203,53 +127,40 @@ new_review = {
 }
 ```
 
-### Assertions
+## Test Template Examples
 
-Use flexible assertions when the response format might vary:
-
-```python
-# Check for the presence of key fields rather than exact matches
-assert "study_time" in response_data
-assert "topics" in response_data
-assert "consistency" in response_data
-assert "average_confidence" in response_data
-```
-
-### Test Templates
-
-Use the template files as a reference for writing new tests:
+Reference template files for writing new tests:
 
 - `tests/api/test_template.py`: General template for API tests (skipped when running tests)
 - `tests/api/test_auth_api.py`: Template for authentication tests
 - `tests/api/test_user_api.py`: Template for user API tests
 - `tests/api/test_reviews_api.py`: Template for reviews API tests
-- `tests/api/test_progress_api.py`: Template for progress API tests
-- `tests/api/test_resources_api.py`: Template for resources API tests
 
-## Running Tests
+## Troubleshooting Common Issues
 
-Run all tests:
+### Event Loop Errors
 
-```bash
-python -m pytest
-```
+If you encounter "Event loop is closed" errors:
+1. Ensure you're using `AsyncMock` for async functions
+2. Use monkeypatching for auth endpoints instead of making real requests
+3. Add proper cleanup in fixture teardowns
 
-Run a specific test file:
+### Database Connection Issues
 
-```bash
-python -m pytest tests/api/test_auth_api.py
-```
+For problems with database connections in tests:
+1. Check if you're using the test database URL in `.env.test`
+2. Ensure MongoDB is running if using a real database
+3. For CI environments, use mongomock instead of real connections
 
-Run a specific test:
+### Authentication Test Failures
 
-```bash
-python -m pytest tests/api/test_auth_api.py::test_login_with_valid_credentials
-```
+If authentication tests fail:
+1. Ensure the mock tokens match the expected format
+2. Check that all required fields are included in the mock user
+3. Verify that dependency overrides are properly set up
 
-## Troubleshooting
+## Reference
 
-### Event Loop Issues
-
-If you encounter event loop issues (e.g., "Event loop is closed" or "object NoneType can't be used in 'await' expression"), try the following:
-
-1. Use `AsyncMock`
+For full testing documentation, see:
+- [Backend Testing Guide](/backend/TESTING.md)
+- [Unified Testing Guide](/docs/testing/UNIFIED_TESTING_GUIDE.md)

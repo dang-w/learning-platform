@@ -76,6 +76,24 @@ declare global {
        * @example cy.bypassMainLayoutAuth()
        */
       bypassMainLayoutAuth(): Chainable<void>;
+
+      /**
+       * Custom command to visit a test page
+       * @example cy.visitTestPage('dashboard')
+       */
+      visitTestPage(page: string): Chainable<void>;
+
+      /**
+       * Custom command to select DOM elements by data-testid attribute
+       * @example cy.getByTestId('user-menu')
+       */
+      getByTestId(selector: string): Chainable<JQuery<HTMLElement>>;
+
+      /**
+       * Custom command to create and authenticate a test user
+       * @example cy.createAndLoginUser('testuser', 'user')
+       */
+      createAndLoginUser(username?: string, email?: string, fullName?: string): Chainable<void>;
     }
   }
 }
@@ -475,4 +493,31 @@ Cypress.Commands.add('bypassMainLayoutAuth', () => {
 
   // Log the operation
   cy.log('Authentication bypass flags set for test');
+});
+
+// Test page navigation commands
+Cypress.Commands.add('visitTestPage', (page: string) => {
+  // Use the API route to navigate to test pages
+  cy.visit(`/api/e2e-test-page?page=${page}`);
+});
+
+// Custom command to select DOM elements by data-testid attribute
+Cypress.Commands.add('getByTestId', (selector: string) => {
+  return cy.get(`[data-testid="${selector}"]`);
+});
+
+// Custom command to create and authenticate a test user
+Cypress.Commands.add('createAndLoginUser', (
+  username: string = `test_${Date.now()}`,
+  email: string = `test_${Date.now()}@example.com`,
+  fullName: string = 'Test User'
+) => {
+  // Create a test user via a task (mocked)
+  cy.task('createDirectTestUser', { username, email, fullName }).then((user) => {
+    // Log the created user info
+    cy.log(`Created test user: ${(user as { username: string }).username}`);
+
+    // Login with the created user
+    cy.loginWithToken(username);
+  });
 });

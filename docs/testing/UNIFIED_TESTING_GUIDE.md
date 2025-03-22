@@ -4,15 +4,28 @@ This document consolidates all testing information for the AI/ML Learning Platfo
 
 ## Table of Contents
 
-1. [Testing Approach](#testing-approach)
-2. [Testing Infrastructure](#testing-infrastructure)
-3. [Running Tests](#running-tests)
-4. [E2E Testing](#e2e-testing)
-5. [E2E Testing Fixes](#e2e-testing-fixes)
-6. [Creating New Tests](#creating-new-tests)
-7. [Test Data Management](#test-data-management)
-8. [Common Issues and Solutions](#common-issues-and-solutions)
-9. [Reporting Test Results](#reporting-test-results)
+1. [Testing Philosophy](#testing-philosophy)
+2. [Testing Approach](#testing-approach)
+3. [Testing Infrastructure](#testing-infrastructure)
+4. [Running Tests](#running-tests)
+5. [E2E Testing](#e2e-testing)
+6. [E2E Testing Fixes](#e2e-testing-fixes)
+7. [API-Based Testing Pattern](#api-based-testing-pattern)
+8. [Manual Testing Plan](#manual-testing-plan)
+9. [Creating New Tests](#creating-new-tests)
+10. [Test Data Management](#test-data-management)
+11. [Common Issues and Solutions](#common-issues-and-solutions)
+12. [Reporting Test Results](#reporting-test-results)
+
+## Testing Philosophy
+
+Our testing approach is guided by these key principles:
+
+- **Beyond Test Coverage**: Tests should verify functional correctness, not just code coverage
+- **Domain-Specific Validation**: Special attention to AI/ML-specific features like spaced repetition
+- **Integration Focus**: End-to-end functionality is prioritized alongside component testing
+- **Automation First**: All tests should be automatable and part of CI/CD pipelines
+- **Test Data Realism**: Using realistic AI/ML learning data in tests
 
 ## Testing Approach
 
@@ -218,6 +231,97 @@ cy.fixture('resources').then(resources => {
 ```typescript
 cy.seedResources(3); // Creates 3 test resources
 ```
+
+## API-Based Testing Pattern
+
+### Overview
+
+API-based testing provides a more resilient and reliable testing strategy compared to UI-based tests, especially in CI/CD environments where UI rendering can be unpredictable.
+
+### Benefits of API-Based Testing
+
+1. **Resilience**: API tests are less brittle than UI tests, as they don't rely on DOM elements or CSS selectors that might change frequently.
+2. **Speed**: API tests execute much faster than UI tests, as they don't need to render pages or wait for animations.
+3. **Isolation**: API tests isolate specific functionality, making it easier to identify where issues occur.
+4. **Coverage**: API tests can verify business logic without the complexity of UI interaction.
+5. **Reliability**: API tests are less prone to timing issues, network fluctuations, or rendering problems that plague UI tests.
+
+### Implementation Pattern
+
+We have successfully implemented this pattern for:
+
+- Resources management (CRUD operations)
+- Knowledge concepts management (CRUD operations)
+
+#### Core Components for API Testing
+
+1. **Authentication Setup**:
+   ```typescript
+   let authToken = 'cypress-test-token';
+
+   before(() => {
+     // Generate a proper auth token for testing
+     cy.task('generateJWT', { sub: 'test-user', role: 'user' }).then(token => {
+       authToken = token as string;
+     });
+   });
+   ```
+
+2. **API Test Structure**:
+   ```typescript
+   it('should create a resource via API', () => {
+     const resource = {
+       title: `Test Resource ${Date.now()}`,
+       url: 'https://example.com/test',
+       type: 'article'
+     };
+
+     cy.request({
+       method: 'POST',
+       url: '/api/resources',
+       body: resource,
+       headers: { Authorization: `Bearer ${authToken}` }
+     }).then(response => {
+       expect(response.status).to.eq(201);
+       expect(response.body.title).to.eq(resource.title);
+       // Verify the UI reflects the API change
+       cy.visit('/resources');
+       cy.contains(resource.title).should('be.visible');
+     });
+   });
+   ```
+
+## Manual Testing Plan
+
+Manual testing complements automated testing by verifying the user experience and catching issues that automated tests might miss. Here are key manual testing workflows:
+
+### Authentication Flow Testing
+
+1. **Registration Testing**
+   - Verify all form fields (Full Name, Username, Email, Password, Confirm Password)
+   - Test validation (empty form, invalid email, mismatched passwords)
+   - Complete registration with valid data and verify success
+
+2. **Login Testing**
+   - Verify form fields (Email/Username, Password)
+   - Test validation (empty fields, invalid credentials)
+   - Successful login and verification of redirection to dashboard
+
+3. **Password Reset Testing**
+   - Request password reset
+   - Verify email delivery (check test email service)
+   - Complete password reset with valid new password
+
+### Key Feature Testing Workflows
+
+For each core feature, manual testing should verify:
+- UI rendering correctly (responsive design, component layout)
+- Input validation working as expected
+- Expected business logic operation
+- Error handling and user feedback
+- Performance and responsiveness
+
+Detailed workflows for each feature are available in the archived MANUAL_TESTING_PLAN.md document.
 
 ## Creating New Tests
 

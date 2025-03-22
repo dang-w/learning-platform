@@ -47,9 +47,15 @@ Once the server is running, you can access the API documentation at:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+For complete API documentation, see [docs/api/API_DOCUMENTATION.md](/docs/api/API_DOCUMENTATION.md).
+
 ## Testing
 
-The backend includes a comprehensive test suite using pytest. For detailed testing instructions, see the [tests/README.md](tests/README.md) file.
+The backend includes a comprehensive test suite using pytest. For detailed testing information, please refer to:
+
+- [**TESTING.md**](TESTING.md): Main backend testing documentation ✅
+- [**tests/README.md**](tests/README.md): Test organization and structure ✅
+- [**Unified Testing Guide**](/docs/testing/UNIFIED_TESTING_GUIDE.md): Project-wide testing documentation ✅
 
 ### Running Basic Tests
 
@@ -71,6 +77,8 @@ The test suite supports multiple testing approaches:
 1. **Mock-based Testing**: Uses `mongomock` and `mongomock-motor` to mock MongoDB operations
 2. **Dependency Injection Testing**: Uses FastAPI's dependency override system with mock MongoDB
 3. **Real MongoDB Testing**: Tests against a real MongoDB instance
+
+For detailed testing instructions, see the [TESTING.md](TESTING.md) file.
 
 ## Project Structure
 
@@ -108,7 +116,7 @@ The following endpoints have been implemented to support E2E testing:
 2. **Token Management**
    - `/token/refresh` - Refresh an access token using an existing valid token
 
-These endpoints enhance the API's usability for E2E testing by allowing for more efficient data setup and improved token handling. For details on implementation, see the `ENDPOINTS_IMPLEMENTED.md` file.
+These endpoints enhance the API's usability for E2E testing by allowing for more efficient data setup and improved token handling.
 
 ### Running Tests
 
@@ -123,3 +131,7 @@ pytest tests/api/test_resources_api.py::test_create_resources_batch -v
 pytest tests/api/test_knowledge.py::test_create_concepts_batch -v
 pytest tests/api/test_learning_path_api.py::test_create_goals_batch -v
 ```
+
+## Documentation
+
+For more comprehensive documentation about the project, please refer to the [documentation hub](/docs/README.md).

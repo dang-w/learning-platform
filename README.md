@@ -1,223 +1,177 @@
 # AI/ML Learning Platform
 
-A web-based learning platform to help track progress, manage knowledge, and optimize learning while transitioning from software development to AI/ML engineering.
+A comprehensive platform for AI/ML students to organize learning resources, track progress, and manage knowledge using spaced repetition techniques.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Documentation](#documentation)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Overview
 
-This platform provides a structured approach to learning AI/ML concepts with:
-
-- Personalized learning path tracking
-- Knowledge management with spaced repetition
-- Progress monitoring and analytics
-- Focus and productivity tools
-- Interactive data visualizations
-
-## Documentation
-
-The project documentation has been reorganized for better clarity and maintenance:
-
-### Architecture and Design
-- [Architecture Documentation](docs/architecture/ARCHITECTURE.md) - System design and architecture
-
-### API Documentation
-- [API Documentation](docs/api/API_DOCUMENTATION.md) - Comprehensive API endpoints documentation
-
-### Testing
-- [Comprehensive Testing Plan](docs/testing/COMPREHENSIVE_TESTING_PLAN.md) - Testing strategy and plans
-- [Testing Guide](docs/testing/TESTING_GUIDE.md) - Guide for testing the application
-- [E2E Testing Fixes](docs/testing/e2e-testing-fixes.md) - Fixes for E2E test issues
-- [Test Results Template](docs/testing/TEST_RESULTS_TEMPLATE.md) - Template for documenting test results
-
-### Development
-- [Development Status](docs/development/DEVELOPMENT_STATUS.md) - Current status of development
-- [Findings](docs/development/FINDINGS.md) - Recent findings and progress updates
-
-### Project Analysis
-- [Project Analysis](PROJECT_ANALYSIS.md) - Comprehensive analysis and improvement plan
-
-## Current Implementation Status
-
-### Completed
-- ✅ Backend API with FastAPI
-- ✅ MongoDB database integration
-- ✅ Authentication system with JWT
-- ✅ Frontend foundation with Next.js 15
-- ✅ Resource management functionality
-- ✅ URL metadata extraction integration
-- ✅ Learning path tracking
-- ✅ Knowledge management system with spaced repetition
-- ✅ Basic UI components and layouts
-- ✅ Progress analytics dashboard
-
-### In Progress
-- 🔄 Testing suite implementation
-  - ✅ Backend unit tests with pytest
-  - ✅ Frontend unit tests with Jest
-  - 🔄 End-to-end tests with Cypress
-  - ✅ Backend integration tests
-  - ✅ Frontend integration tests
-
-### Not Started
-- ❌ Deployment configuration
-- ❌ CI/CD pipeline setup
-- ❌ Production environment configuration
+The AI/ML Learning Platform helps students efficiently manage their journey through the complex field of artificial intelligence and machine learning. It provides tools for resource organization, progress tracking, knowledge management with spaced repetition, and data-driven insights into learning patterns.
 
 ## Features
 
-### Resource Management
-- Add and organize learning resources (articles, videos, courses, books)
-- Track completion status and notes
-- Extract metadata from URLs for easy resource addition
+- **Resource Management**: Organize articles, videos, courses, and books
+- **Progress Tracking**: Monitor completion status and time spent on resources
+- **Knowledge Management**: Create concept cards and review them using spaced repetition
+- **Learning Paths**: Define learning goals and milestones
+- **Analytics**: Visualize learning progress and resource usage
+- **URL Processing**: Extract metadata from learning resource URLs
 
-### Knowledge Management System
-- Create and organize knowledge concepts with markdown support
-- Review concepts based on a spaced repetition algorithm
-- Filter concepts by topic and difficulty
-- Track confidence levels over time
-- Interactive markdown editor for content creation
+## Project Structure
 
-### Data Visualization Dashboard
-- Interactive charts for learning progress
-- Study metrics visualization with time-based filtering
-- Review statistics with confidence trends
-- Learning path progress tracking
-- Resource completion statistics by type
-- Topic distribution analysis
-
-### Progress Analytics
-- Comprehensive study time analytics with pattern recognition
-- Resource completion tracking and projections
-- Knowledge retention metrics and visualization
-- Learning path progress analysis
-- Weekly report generation with performance comparisons
-- Interactive date range selection and filtering
-- Multiple chart types for different data visualization needs
-
-### Learning Path Tracking
-- Create custom learning paths
-- Track progress through learning paths
-- Visualize completion percentages
-- Get recommendations for next resources to study
-
-## Architecture
-
-The platform has been transformed from a local script-based system to a modern web application with:
-
-- **Frontend**: Next.js application (to be hosted on Vercel)
-- **Backend**: FastAPI Python application
-- **Database**: MongoDB for data storage
-
-For detailed architecture information, see [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md).
-
-## Repository Structure
+The project is organized with a clear separation between frontend and backend components:
 
 ```
 learning-platform/
-├── docs/                  # Project documentation
-│   ├── architecture/      # System design and architecture
-│   ├── api/               # API documentation
-│   ├── testing/           # Testing documentation
-│   ├── development/       # Development status and guides
-│   └── README.md          # Documentation index
-├── backend/               # Python FastAPI backend
-│   ├── main.py            # Main application entry point
-│   ├── requirements.txt   # Python dependencies
-│   ├── auth.py            # Authentication logic
-│   ├── database.py        # Database connection
-│   ├── tests/             # Backend test suite
-│   │   ├── api/           # API endpoint tests
-│   │   ├── services/      # Service layer tests
-│   │   └── utils/         # Utility function tests
-│   ├── routers/           # API route handlers
-│   │   ├── resources.py   # Learning resources API
-│   │   ├── progress.py    # Progress tracking API
-│   │   ├── reviews.py     # Spaced repetition API
-│   │   └── learning_path.py # Learning goals and roadmap API
-│   └── .env.example       # Example environment variables
-├── frontend/              # Next.js frontend
-│   ├── src/               # Source code
-│   │   ├── app/           # Next.js App Router
-│   │   ├── components/    # Reusable UI components
-│   │   ├── lib/           # Utility functions and hooks
-│   │   ├── types/         # TypeScript type definitions
-│   │   └── __tests__/     # Frontend test suite
-│   ├── e2e-testing/       # End-to-end tests
-│   │   ├── cypress/       # Cypress test files
-│   │   │   ├── e2e/       # E2E test specifications
-│   │   │   └── support/   # Test support files
-│   │   └── test-pages/    # Test-specific page components
-│   └── jest.config.mjs    # Jest configuration
-├── PROJECT_ANALYSIS.md    # Project analysis and improvement plan
-└── README.md              # This file
+├── frontend/               # Next.js frontend application
+│   ├── src/                # Frontend source code
+│   │   ├── app/            # Next.js app directory
+│   │   ├── components/     # React components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── lib/            # Utility functions
+│   │   └── types/          # TypeScript type definitions
+│   ├── public/             # Static assets
+│   └── e2e-testing/        # End-to-end testing with Cypress
+├── backend/                # FastAPI backend application
+│   ├── app/                # Application code
+│   │   ├── api/            # API routes
+│   │   ├── models/         # Data models
+│   │   ├── services/       # Business logic
+│   │   └── utils/          # Utility functions
+│   └── tests/              # Backend tests
+└── docs/                   # Project documentation
+    ├── architecture/       # Architecture documentation
+    ├── api/                # API documentation
+    ├── testing/            # Testing documentation
+    └── development/        # Development guides
 ```
 
 ## Getting Started
 
-### Backend Setup
+### Prerequisites
 
-1. **Install dependencies**
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-2. **Configure environment variables**
-
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-3. **Run the development server**
-
-```bash
-uvicorn main:app --reload
-```
-
-The API will be available at http://localhost:8000. You can access the API documentation at http://localhost:8000/docs.
+- Node.js 18+ and npm for frontend
+- Python 3.10+ for backend
+- MongoDB 5.0+
 
 ### Frontend Setup
 
-1. **Install dependencies**
-
 ```bash
+# Navigate to frontend directory
 cd frontend
+
+# Install dependencies
 npm install
-```
 
-2. **Configure environment variables**
-
-```bash
-cp .env.local.example .env.local
-# Edit .env.local with your configuration
-```
-
-3. **Run the development server**
-
-```bash
+# Start development server
 npm run dev
 ```
 
-The frontend will be available at http://localhost:3000.
+The frontend will be available at http://localhost:3000
+
+### Backend Setup
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start development server
+uvicorn main:app --reload
+```
+
+The API will be available at http://localhost:8000
+
+## Documentation
+
+We maintain comprehensive documentation for all aspects of the project:
+
+- [**Documentation Hub**](/docs/README.md): Central index of all documentation
+- [**Architecture Documentation**](/docs/architecture/ARCHITECTURE.md): System design and components
+- [**API Documentation**](/docs/api/API_DOCUMENTATION.md): API endpoints and usage
+- [**Unified Testing Guide**](/docs/testing/UNIFIED_TESTING_GUIDE.md): Testing standards and approaches
+- [**Frontend Documentation**](/frontend/README.md): Frontend-specific documentation
+- [**Backend Documentation**](/backend/README.md): Backend-specific documentation
 
 ## Testing
 
-### Backend Tests
+The platform includes comprehensive testing for both frontend and backend:
 
-The backend has comprehensive test coverage with both unit tests and integration tests:
+### Frontend Testing
 
-#### Unit Tests
+- **End-to-End Tests**: Cypress tests simulating user interactions
+- **Integration Tests**: Testing component interactions
+- **Unit Tests**: Testing individual components
 
-Run the backend unit tests with:
+For detailed frontend testing information, see:
+- [Frontend E2E Testing Documentation](/frontend/e2e-testing/README.md)
+
+### Backend Testing
+
+- **API Tests**: Testing API endpoints
+- **Integration Tests**: Testing service interactions
+- **Unit Tests**: Testing individual functions
+
+For detailed backend testing information, see:
+- [Backend Testing Documentation](/backend/TESTING.md)
+
+### Running Tests
 
 ```bash
+# Frontend tests
+cd frontend
+npm run test:e2e        # Run E2E tests
+npm run test:unit       # Run unit tests
+
+# Backend tests
 cd backend
-pytest tests/api tests/services tests/utils
+pytest                  # Run all backend tests
+pytest --cov=app        # Run with coverage report
 ```
 
-For test coverage report:
+## Recent Structure Improvements
 
-```bash
-pytest --cov=app tests/api tests/services tests/utils
-```
+We've recently completed a project structure improvement initiative to enhance organization, reduce redundancy, and improve documentation:
+
+1. **Testing Structure Consolidation**
+   - Standardized testing directories and configurations
+   - Consolidated report directories
+   - Created unified testing documentation
+
+2. **Documentation Hub**
+   - Created a central documentation hub
+   - Organized documentation by category
+   - Added cross-references between related documents
+
+3. **Configuration Cleanup**
+   - Removed duplicate configuration files
+   - Standardized configuration approaches
+
+For complete details, see the [Structure Improvement Report](STRUCTURE_IMPROVEMENT_REPORT.md).
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit your changes: `git commit -am 'Add some feature'`
+4. Push to the branch: `git push origin feature-name`
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
