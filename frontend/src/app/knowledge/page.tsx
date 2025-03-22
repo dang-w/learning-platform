@@ -15,7 +15,7 @@ interface TopicWithCount {
   count: number;
 }
 
-export default function KnowledgePage() {
+export function KnowledgePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'concepts' | 'due' | 'statistics'>('concepts');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -355,3 +355,6 @@ export default function KnowledgePage() {
     </div>
   );
 }
+
+// Add default export for NextJS page
+export default KnowledgePage;

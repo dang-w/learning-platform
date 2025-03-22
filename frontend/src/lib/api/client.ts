@@ -30,24 +30,42 @@ export async function withBackoff<T>(
   }
 }
 
+// Ensure API paths are standardized
+function getStandardizedUrl(url: string): string {
+  let standardizedUrl = url;
+
+  // Normalize URLs to use the BACKEND_API_URL directly, without the "/api" prefix
+  if (standardizedUrl.startsWith('/api/')) {
+    // Strip the /api prefix
+    standardizedUrl = standardizedUrl.replace(/^\/api/, '');
+  }
+
+  // Ensure URLs start with a leading slash if they don't already
+  if (!standardizedUrl.startsWith('/') && !standardizedUrl.startsWith('http')) {
+    standardizedUrl = '/' + standardizedUrl;
+  }
+
+  // Handle the case of trailing slashes consistently - remove them except for root URL
+  if (standardizedUrl.length > 1 && standardizedUrl.endsWith('/')) {
+    standardizedUrl = standardizedUrl.replace(/\/+$/, '');
+  }
+
+  return standardizedUrl;
+}
+
+// Request interceptor to standardize URLs
+apiClient.interceptors.request.use((config) => {
+  if (config.url) {
+    config.url = getStandardizedUrl(config.url);
+  }
+  return config;
+});
+
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
     // Log all requests for debugging
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-
-    // Fix API path if needed - check if it already has a proper prefix
-    // and avoid double-prefixing
-    if (config.url &&
-        !config.url.startsWith('/auth/') &&
-        !config.url.startsWith('/api/') &&
-        !config.url.startsWith('auth/') &&
-        !config.url.startsWith('api/')) {
-      config.url = `/api/${config.url.replace(/^\/+/, '')}`;
-    } else if (config.url?.startsWith('api/')) {
-      // Ensure leading slash for relative paths that already have api/
-      config.url = `/${config.url}`;
-    }
 
     // Debug the final URL
     console.log(`Final Request URL: ${config.baseURL}${config.url}`);

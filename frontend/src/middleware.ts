@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Define protected routes that require authentication
-const protectedRoutes = [
+const PROTECTED_ROUTES = [
   '/dashboard',
   '/profile',
   '/resources',
@@ -12,13 +12,13 @@ const protectedRoutes = [
 ];
 
 // Define auth routes that should redirect to dashboard if already authenticated
-const authRoutes = [
+const AUTH_ROUTES = [
   '/auth/login',
   '/auth/register',
 ];
 
 // Paths that don't require authentication
-const publicPaths = [
+const PUBLIC_PATHS = [
   '/auth/login',
   '/auth/register',
   '/api/token',
@@ -30,68 +30,55 @@ const publicPaths = [
   '/', // Allow the landing page
 ];
 
-export function middleware(request: NextRequest) {
+// Main middleware function
+export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
-  // Add debug logging
-  console.log(`Middleware processing: ${pathname}`);
-
-  // Always allow direct access to register page regardless of auth status
+  // Allow direct access to the registration page
   if (pathname === '/auth/register') {
-    console.log('Allowing direct access to register page');
     return NextResponse.next();
   }
 
-  // Special bypass for Cypress tests
-  // The cookie is set by Cypress tests to bypass authentication
-  if (request.cookies.get('cypress_auth_bypass')?.value === 'true') {
-    console.log('Cypress bypass active, skipping auth checks');
+  // Skip auth check during Cypress testing
+  if (request.headers.get('x-cypress-testing') === 'true') {
     return NextResponse.next();
   }
 
-  // Check if the path is public
-  const isPublicPath = publicPaths.some(path =>
-    pathname.startsWith(path)
-  );
+  // Check if the route is protected
+  const isProtectedRoute = PROTECTED_ROUTES.some(pattern => {
+    return pathname === pattern || pathname.startsWith(`${pattern}/`);
+  });
 
-  // If it's a public path, allow the request
-  if (isPublicPath) {
-    console.log(`Public path detected: ${pathname}`);
-    return NextResponse.next();
-  }
+  // Check if the route is an auth route
+  const isAuthRoute = AUTH_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`));
 
-  // Check if the user has a token (either in cookie or localStorage)
-  const token = request.cookies.get('token')?.value;
-  console.log(`Auth check - Token exists: ${!!token}`);
+  // Check if the route is a public path
+  const isPublicPath = PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`));
+
+  // Check authentication status
+  const token = request.cookies.get('token')?.value || '';
   const isAuthenticated = !!token;
 
-  // If trying to access a protected route without authentication
-  if (protectedRoutes.some(route => pathname.startsWith(route)) && !isAuthenticated) {
-    console.log(`Redirecting to login: unauthenticated access to protected route ${pathname}`);
-    const url = new URL('/auth/login', request.url);
-    url.searchParams.set('callbackUrl', encodeURI(pathname));
-    return NextResponse.redirect(url);
+  // Handle API requests
+  if (pathname.startsWith('/api/')) {
+    if (!isAuthenticated && !isPublicPath) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    return NextResponse.next();
   }
 
-  // If trying to access auth routes while already authenticated
-  if (authRoutes.some(route => pathname.startsWith(route)) && isAuthenticated) {
-    console.log(`Redirecting to dashboard: authenticated user accessing auth route ${pathname}`);
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Redirect unauthenticated users trying to access protected routes to login
+  if (isProtectedRoute && !isAuthenticated) {
+    const redirectUrl = new URL('/auth/login', request.url);
+    // Add the current path as a callback URL
+    redirectUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(redirectUrl);
   }
 
-  // If trying to access API routes without authentication
-  if (pathname.startsWith('/api/') && !isPublicPath && !isAuthenticated) {
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    );
-  }
-
-  // If there is a token, allow the request and add it to the headers for API routes
-  if (isAuthenticated && pathname.startsWith('/api/')) {
-    const response = NextResponse.next();
-    response.headers.set('Authorization', `Bearer ${token}`);
-    return response;
+  // Redirect authenticated users trying to access auth routes to dashboard
+  if (isAuthRoute && isAuthenticated) {
+    const redirectUrl = new URL('/dashboard', request.url);
+    return NextResponse.redirect(redirectUrl);
   }
 
   return NextResponse.next();
