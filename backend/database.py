@@ -48,6 +48,17 @@ async def get_database():
         "client": new_client
     }
 
+# Alias for get_database for backward compatibility
+async def get_db():
+    """
+    Alias for get_database() for backward compatibility.
+
+    Returns:
+        The database object only.
+    """
+    conn = await get_database()
+    return conn["db"]
+
 # Create indexes
 async def create_indexes():
     """Create all required database indexes."""

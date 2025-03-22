@@ -65,8 +65,18 @@ class MockCollection:
 
         return None
 
-    async def find(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Find documents in the collection."""
+    def find(self, query: Dict[str, Any] = None) -> 'MockCursor':
+        """Find documents in the collection.
+
+        Args:
+            query: Query filter for documents. If None, returns all documents.
+
+        Returns:
+            MockCursor: Cursor object for the query results.
+        """
+        if query is None:
+            query = {}
+
         logger.info(f"Finding in {self.name} with query: {query}")
 
         results = []
@@ -79,7 +89,7 @@ class MockCollection:
             if matches:
                 results.append(doc)
 
-        return results
+        return MockCursor(results)
 
     async def insert_one(self, document: Dict[str, Any]) -> Any:
         """Insert a document into the collection."""
@@ -274,6 +284,25 @@ class MockCollection:
                 count += 1
 
         return count
+
+class MockCursor:
+    """Mock cursor for query results."""
+
+    def __init__(self, results: List[Dict[str, Any]]):
+        self.results = results
+
+    async def to_list(self, length: int = None) -> List[Dict[str, Any]]:
+        """Convert cursor to a list of documents.
+
+        Args:
+            length: Maximum number of documents to return. If None, returns all documents.
+
+        Returns:
+            List of documents.
+        """
+        if length is None:
+            return self.results
+        return self.results[:length]
 
 class MockDatabase:
     """Mock database for testing."""

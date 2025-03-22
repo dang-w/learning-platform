@@ -28,7 +28,7 @@ from auth import (
 )
 
 # Import database connection
-from database import db
+from database import db, verify_db_connection
 
 # Import utility modules
 from utils.error_handlers import APIError, handle_exception
@@ -411,36 +411,23 @@ class RefreshTokenRequest(BaseModel):
 # Root endpoint
 @app.get("/")
 async def root():
+    """Root endpoint."""
     return {"message": "Welcome to the Learning Platform API"}
 
-# Health check endpoint
+@app.get("/health")
+async def health():
+    """Health check endpoint."""
+    return {"status": "ok"}
+
 @app.get("/api/health")
 async def health_check():
-    """
-    Health check endpoint to verify API is running and
-    database connection is working.
-    """
-    try:
-        # Check database connection
-        db_status = await db.command("ping")
-
-        # Count users to further verify database access
-        user_count = await db.users.count_documents({})
-
-        return {
-            "status": "healthy",
-            "database": "connected" if db_status.get("ok") == 1 else "error",
-            "user_count": user_count,
-            "api_version": "0.1.0",
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        logger.error(f"Health check error: {str(e)}")
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
+    """API health check endpoint."""
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "timestamp": datetime.now().isoformat(),
+        "database": await verify_db_connection()
+    }
 
 # Add middleware to include rate limit headers in responses
 @app.middleware("http")
