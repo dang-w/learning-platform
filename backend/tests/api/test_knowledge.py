@@ -619,11 +619,11 @@ def test_get_review_statistics(client, auth_headers):
         assert response.status_code == 200
         stats = response.json()
         assert stats["total_concepts"] == 2
-        # The API might return different stats, so we check what's available
-        if "total_reviews" in stats:
-            assert stats["total_reviews"] == 3
-        if "average_quality" in stats:
-            assert stats["average_quality"] == 3.67  # (3 + 4 + 4) / 3 = 3.67
-        # Check for the keys that are actually in the response
-        assert "concepts_with_reviews" in stats
+
+        # Check the structure of the response matches what the API now returns
+        assert "concept_reviews" in stats
+        assert "total" in stats["concept_reviews"]
+        assert stats["concept_reviews"]["total"] == 3
         assert "average_confidence" in stats
+        assert stats["average_confidence"] > 0
+        assert "due_concepts" in stats

@@ -35,7 +35,7 @@ async def test_user_profile(async_client, auth_headers):
     # Patch the get_current_active_user function
     with patch('auth.get_current_active_user', mock_get_current_active_user):
         # Get user profile
-        response = await async_client.get("/users/me/", headers=auth_headers)
+        response = await async_client.get("/api/users/me/", headers=auth_headers)
 
         # Verify the response using the standardized response model
         user_data = verify_response(response)
@@ -53,7 +53,7 @@ async def test_user_profile_unauthorized():
     # Create a new async client without authentication
     async with AsyncClient(app=app, base_url="http://test") as client:
         # Try to get user profile without auth headers
-        response = await client.get("/users/me/")
+        response = await client.get("/api/users/me/")
 
         # Verify the response is unauthorized
         assert response.status_code == 401

@@ -69,7 +69,7 @@ async def test_auth_rate_limit():
 
             # This request should hit the rate limit
             response = await client.post(
-                "/auth/token",
+                "/api/auth/token",
                 data={
                     "username": "test",
                     "password": "test"
@@ -148,7 +148,7 @@ async def test_user_creation_rate_limit():
 
                     # This request should fail with rate limit exceeded
                     response = await client.post(
-                        "/users/",
+                        "/api/users/",
                         json={
                             "username": f"test_rate_user_exceeded_{timestamp}",
                             "email": f"test_rate_exceeded_{timestamp}@example.com",
@@ -234,7 +234,7 @@ async def test_rate_limit_headers():
 
                     # The next request should hit the rate limit
                     response = await client.post(
-                        "/users/",
+                        "/api/users/",
                         json={
                             "username": f"test_headers_user_3_{timestamp}",
                             "email": f"test_headers_3_{timestamp}@example.com",
@@ -284,7 +284,7 @@ async def test_rate_limit_reset():
                 timestamp = int(time.time())
                 for i in range(3):
                     await client.post(
-                        "/users/",
+                        "/api/users/",
                         json={
                             "username": f"test_reset_user_{i}_{timestamp}",
                             "email": f"test_reset_{i}_{timestamp}@example.com",
@@ -295,7 +295,7 @@ async def test_rate_limit_reset():
 
                 # Next request should be rate limited if Redis is functioning properly
                 response = await client.post(
-                    "/users/",
+                    "/api/users/",
                     json={
                         "username": f"test_reset_user_3_{timestamp}",
                         "email": f"test_reset_3_{timestamp}@example.com",
@@ -326,7 +326,7 @@ async def test_rate_limit_reset():
 
                 # Should be able to make request again
                 response = await client.post(
-                    "/users/",
+                    "/api/users/",
                     json={
                         "username": f"test_reset_user_4_{timestamp}",
                         "email": f"test_reset_4_{timestamp}@example.com",
@@ -369,7 +369,7 @@ async def test_different_clients():
                     # Make max requests with client1
                     for i in range(3):
                         await client1.post(
-                            "/users/",
+                            "/api/users/",
                             json={
                                 "username": f"test_client1_user_{i}_{timestamp}",
                                 "email": f"test_client1_{i}_{timestamp}@example.com",
@@ -380,7 +380,7 @@ async def test_different_clients():
 
                     # Client1 should be rate limited if Redis is working
                     response = await client1.post(
-                        "/users/",
+                        "/api/users/",
                         json={
                             "username": f"test_client1_user_3_{timestamp}",
                             "email": f"test_client1_3_{timestamp}@example.com",
@@ -405,7 +405,7 @@ async def test_different_clients():
 
                     # Client2 should still be able to make requests
                     response = await client2.post(
-                        "/users/",
+                        "/api/users/",
                         json={
                             "username": f"test_client2_user_0_{timestamp}",
                             "email": f"test_client2_0_{timestamp}@example.com",

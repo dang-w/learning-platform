@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import HTTPException, status
 import jwt
 from jwt.exceptions import PyJWTError
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Import the app and auth functions
 from main import app
@@ -42,7 +42,7 @@ def test_get_current_user_with_valid_token(client, auth_headers):
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    response = client.get("/users/me/", headers=auth_headers)
+    response = client.get("/api/users/me/", headers=auth_headers)
 
     assert response.status_code == 200
     user_data = response.json()
@@ -63,7 +63,7 @@ def test_get_current_user_without_token(client):
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_current_active_user] = override_get_current_user
 
-    response = client.get("/users/me/")
+    response = client.get("/api/users/me/")
 
     assert response.status_code == 401
     error_response = response.json()
@@ -87,7 +87,7 @@ def test_get_current_user_with_invalid_token(client):
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_current_active_user] = override_get_current_user
 
-    response = client.get("/users/me/", headers=headers)
+    response = client.get("/api/users/me/", headers=headers)
 
     assert response.status_code == 401
     error_response = response.json()
@@ -116,7 +116,7 @@ async def test_login_with_valid_credentials(client, monkeypatch):
 
     # The test should now pass regardless of the actual route logic
     response = client.post(
-        "/token",
+        "/api/auth/token",
         data={"username": "testuser", "password": "password123"},
     )
 
@@ -129,13 +129,14 @@ async def test_login_with_valid_credentials(client, monkeypatch):
 
 @patch("auth.authenticate_user")
 def test_login_with_invalid_username(mock_auth, client):
-    """Test login with an invalid username."""
-    # Mock the authenticate_user function to return None (authentication failed)
+    """Test login with invalid username."""
+    # Mock authenticate_user to return None
     mock_auth.return_value = None
 
     response = client.post(
-        "/auth/token",
-        data={"username": "invaliduser", "password": "password123"},
+        "/api/auth/token",
+        data={"username": "nonexistent", "password": "password123"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"}
     )
 
     assert response.status_code == 401
@@ -143,13 +144,14 @@ def test_login_with_invalid_username(mock_auth, client):
 
 @patch("auth.authenticate_user")
 def test_login_with_invalid_password(mock_auth, client):
-    """Test login with an invalid password."""
-    # Mock the authenticate_user function to return None (authentication failed)
+    """Test login with invalid password."""
+    # Mock authenticate_user to return None
     mock_auth.return_value = None
 
     response = client.post(
-        "/auth/token",
-        data={"username": "testuser", "password": "invalidpassword"},
+        "/api/auth/token",
+        data={"username": "testuser", "password": "wrongpassword"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"}
     )
 
     assert response.status_code == 401
@@ -160,35 +162,36 @@ def test_login_incorrect_credentials(client):
     pass
 
 def test_token_refresh(client, monkeypatch):
-    """Test refreshing an access token with a valid token."""
-    # Create a synchronous mock for the route
+    """Test refreshing an access token."""
+    # Mock the requests.post method
     def mock_post(*args, **kwargs):
         class MockResponse:
             def __init__(self):
                 self.status_code = 200
-                self.text = """{"access_token": "new_fake_access_token", "refresh_token": "new_fake_refresh_token", "token_type": "bearer"}"""
-                self._content = self.text.encode("utf-8")
 
             def json(self):
-                import json
-                return json.loads(self.text)
+                return {
+                    "access_token": "new_access_token",
+                    "refresh_token": "new_refresh_token",
+                    "token_type": "bearer"
+                }
 
         return MockResponse()
 
-    # Apply the mock to the client
-    monkeypatch.setattr(client, "post", mock_post)
+    # Apply the mock
+    monkeypatch.setattr("routers.auth.verify_refresh_token", lambda token: {"sub": "testuser", "type": "refresh"})
 
-    # The test should now pass regardless of the actual route logic
+    # Test refreshing token
     response = client.post(
-        "/token/refresh",
+        "/api/auth/token/refresh",
         json={"refresh_token": "valid_refresh_token"}
     )
 
     assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
-    assert data["token_type"] == "bearer"
+    token_data = response.json()
+    assert "access_token" in token_data
+    assert "refresh_token" in token_data
+    assert token_data["token_type"] == "bearer"
 
 def test_token_refresh_invalid_token(client):
     """Test token refresh with invalid token."""
@@ -263,49 +266,56 @@ def test_auth_me_endpoint_without_token(client):
 def test_auth_statistics_endpoint(client, auth_headers):
     """Test accessing the /api/auth/statistics endpoint."""
     # Create a mock user
+    current_time = datetime.now()
     mock_user = {
         "username": "testuser",
         "email": "test@example.com",
         "metrics": [
-            {"type": "login", "timestamp": datetime.now().isoformat()},
-            {"type": "login", "timestamp": (datetime.now()).isoformat()},
-            {"type": "token_refresh", "timestamp": datetime.now().isoformat()},
-            {"type": "logout", "timestamp": datetime.now().isoformat()}
+            {"type": "login", "timestamp": current_time - timedelta(hours=2)},
+            {"type": "login", "timestamp": current_time - timedelta(hours=1)},
+            {"type": "token_refresh", "timestamp": current_time - timedelta(minutes=30)},
+            {"type": "logout", "timestamp": current_time - timedelta(minutes=15)}
         ],
-        "created_at": datetime.now().isoformat()
+        "created_at": current_time - timedelta(days=30)
     }
-
-    # Create a mock for the database query and sessions
-    async def mock_find_one(*args, **kwargs):
-        return mock_user
-
-    async def mock_get_user_sessions(username):
-        return [{"id": "session1"}, {"id": "session2"}]
 
     # Override the dependencies
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # Patch the database call and sessions function
-    with patch("routers.auth.db.users.find_one", new_callable=AsyncMock) as mock_db:
-        mock_db.return_value = mock_user
-        with patch("routers.auth.get_user_sessions", new_callable=AsyncMock) as mock_sessions:
-            mock_sessions.return_value = [{"id": "session1"}, {"id": "session2"}]
+    # Create a mock database
+    mock_db = AsyncMock()
+    mock_db.users = AsyncMock()
+    mock_db.users.find_one = AsyncMock(return_value=mock_user)
 
-            # Make request to the statistics endpoint
-            response = client.get("/api/auth/statistics", headers=auth_headers)
+    # Apply mocks using patches
+    mock_get_user_sessions = AsyncMock(return_value=[{"id": "session1"}, {"id": "session2"}])
 
-            # Assert response is successful and contains statistics
-            assert response.status_code == 200
-            stats = response.json()
-            assert "login_count" in stats
-            assert stats["login_count"] == 2
-            assert "token_refresh_count" in stats
-            assert stats["token_refresh_count"] == 1
-            assert "logout_count" in stats
-            assert stats["logout_count"] == 1
-            assert "active_sessions_count" in stats
-            assert stats["active_sessions_count"] == 2
-            assert "last_login" in stats
+    # Create a module patch
+    modules = {
+        'routers.sessions': MagicMock(),
+    }
+    modules['routers.sessions'].get_user_sessions = mock_get_user_sessions
+
+    with patch("routers.auth.db", mock_db), \
+         patch.dict('sys.modules', modules, clear=False):
+
+        # Make request to the statistics endpoint
+        response = client.get("/api/auth/statistics", headers=auth_headers)
+
+        # Assert response is successful and contains statistics
+        assert response.status_code == 200
+        stats = response.json()
+        assert "login_count" in stats
+        assert stats["login_count"] == 2
+        assert "token_refresh_count" in stats
+        assert stats["token_refresh_count"] == 1
+        assert "logout_count" in stats
+        assert stats["logout_count"] == 1
+        assert "active_sessions_count" in stats
+        assert stats["active_sessions_count"] == 2
+        assert "last_login" in stats
+        assert "days_since_creation" in stats
+        assert "account_creation_date" in stats
 
 def test_auth_notification_preferences(client, auth_headers):
     """Test accessing the /api/auth/notification-preferences endpoint."""
@@ -324,43 +334,67 @@ def test_auth_notification_preferences(client, auth_headers):
     # Override the dependency to return our mock user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # Patch the database call
-    with patch("routers.auth.db.users.find_one", new_callable=AsyncMock) as mock_db:
-        mock_db.return_value = mock_user
+    # Create a mock database and mock the get_db function
+    mock_db = AsyncMock()
+    mock_db.users = AsyncMock()
+    mock_db.users.find_one = AsyncMock(return_value=mock_user)
 
-        # Make request to get notification preferences
+    # Patch the database module
+    with patch("routers.auth.db", mock_db):
+        # Make request to the notification preferences endpoint
         response = client.get("/api/auth/notification-preferences", headers=auth_headers)
 
         # Assert response is successful and contains preferences
         assert response.status_code == 200
         prefs = response.json()
-        assert prefs["email_notifications"] is True
-        assert prefs["learning_reminders"] is False
-        assert prefs["review_reminders"] is True
-        assert prefs["achievement_notifications"] is True
-        assert prefs["newsletter"] is False
+        assert prefs["email_notifications"] == True
+        assert prefs["learning_reminders"] == False
+        assert prefs["review_reminders"] == True
+        assert prefs["achievement_notifications"] == True
+        assert prefs["newsletter"] == False
 
-        # Test updating preferences
-        update_data = {
-            "email_notifications": False,
-            "learning_reminders": True,
-            "review_reminders": False,
-            "achievement_notifications": False,
-            "newsletter": True
+def test_update_notification_preferences(client, auth_headers):
+    """Test updating the notification preferences."""
+    # Create a mock user with notification preferences
+    mock_user = {
+        "username": "testuser",
+        "notification_preferences": {
+            "email_notifications": True,
+            "learning_reminders": False,
+            "review_reminders": True,
+            "achievement_notifications": True,
+            "newsletter": False
         }
+    }
 
-        # Patch the update call
-        with patch("routers.auth.db.users.update_one", new_callable=AsyncMock) as mock_update:
-            mock_update.return_value = MagicMock(modified_count=1)
+    # Update data
+    update_data = {
+        "email_notifications": False,
+        "learning_reminders": True,
+        "review_reminders": False,
+        "achievement_notifications": False,
+        "newsletter": True
+    }
 
-            # Make request to update preferences
-            response = client.put("/api/auth/notification-preferences", headers=auth_headers, json=update_data)
+    # Override the dependency to return our mock user
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-            # Assert update was successful
-            assert response.status_code == 200
-            updated_prefs = response.json()
-            assert updated_prefs["email_notifications"] is False
-            assert updated_prefs["learning_reminders"] is True
-            assert updated_prefs["review_reminders"] is False
-            assert updated_prefs["achievement_notifications"] is False
-            assert updated_prefs["newsletter"] is True
+    # Create a mock database and mock the update function
+    mock_db = AsyncMock()
+    mock_db.users = AsyncMock()
+    mock_db.users.find_one = AsyncMock(return_value=mock_user)
+    mock_db.users.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
+
+    # Patch the database module
+    with patch("routers.auth.db", mock_db):
+        # Make request to update preferences
+        response = client.put("/api/auth/notification-preferences", headers=auth_headers, json=update_data)
+
+        # Assert update was successful
+        assert response.status_code == 200
+        updated_prefs = response.json()
+        assert updated_prefs["email_notifications"] == False
+        assert updated_prefs["learning_reminders"] == True
+        assert updated_prefs["review_reminders"] == False
+        assert updated_prefs["achievement_notifications"] == False
+        assert updated_prefs["newsletter"] == True

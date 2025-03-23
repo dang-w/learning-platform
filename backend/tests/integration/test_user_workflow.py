@@ -150,7 +150,7 @@ async def test_user_profile(async_client, auth_headers):
 
     with patch("main.db", mock_db), patch("auth._db", mock_db):
         # Get user profile
-        response = await async_client.get("/users/me/", headers=auth_headers)
+        response = await async_client.get("/api/users/me/", headers=auth_headers)
         assert response.status_code == 200
         user_profile = response.json()
         assert user_profile["username"] == "testuser"

@@ -92,7 +92,7 @@ async def test_valid_user_creation():
                 mock_insert.return_value = insert_result
 
                 async with AsyncClient(app=app, base_url="http://test") as client:
-                    response = await client.post("/users/", json=VALID_USER)
+                    response = await client.post("/api/users/", json=VALID_USER)
                     logger.info(f"Response status: {response.status_code}")
 
                     # Verify response status and data
@@ -125,7 +125,7 @@ async def test_weak_password():
         mock_post.return_value = mock_response
 
         async with AsyncClient(app=app, base_url="http://test") as client:
-            response = await client.post("/users/", json=INVALID_USERS["weak_password"])
+            response = await client.post("/api/users/", json=INVALID_USERS["weak_password"])
 
             assert response.status_code == 422
             # Check that the error is related to string length (simple validation error)
@@ -153,7 +153,7 @@ async def test_invalid_email():
         mock_post.return_value = mock_response
 
         async with AsyncClient(app=app, base_url="http://test") as client:
-            response = await client.post("/users/", json=INVALID_USERS["invalid_email"])
+            response = await client.post("/api/users/", json=INVALID_USERS["invalid_email"])
 
             assert response.status_code == 422
             assert "email" in response.json()["detail"][0]["msg"].lower()
@@ -202,10 +202,10 @@ async def test_duplicate_username():
 
                 async with AsyncClient(app=app, base_url="http://test") as client:
                     # First create the valid user
-                    await client.post("/users/", json=VALID_USER)
+                    await client.post("/api/users/", json=VALID_USER)
 
                     # Try to create user with same username
-                    response = await client.post("/users/", json=INVALID_USERS["duplicate_username"])
+                    response = await client.post("/api/users/", json=INVALID_USERS["duplicate_username"])
 
                     assert response.status_code == 500
                     assert "error creating user" in response.json()["detail"].lower()
@@ -244,7 +244,7 @@ async def test_database_verification():
             # Test the endpoint
             async with AsyncClient(app=app, base_url="http://test") as client:
                 # Create user
-                response = await client.post("/users/", json=VALID_USER)
+                response = await client.post("/api/users/", json=VALID_USER)
 
                 # Verify the response is as expected
                 assert response.status_code == 201
@@ -323,7 +323,7 @@ async def test_concurrent_user_creation():
                 async with AsyncClient(app=app, base_url="http://test") as client:
                     # Make multiple concurrent requests
                     responses = await asyncio.gather(
-                        *[client.post("/users/", json=user) for user in test_users],
+                        *[client.post("/api/users/", json=user) for user in test_users],
                         return_exceptions=True
                     )
 

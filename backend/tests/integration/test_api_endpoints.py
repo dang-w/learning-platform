@@ -67,7 +67,7 @@ def test_api_endpoints():
             mock_verify.return_value = True
 
             # Test the user profile endpoint which was previously skipped due to validation errors
-            response = client.get("/users/me/")
+            response = client.get("/api/users/me/")
             assert response.status_code == 200, f"User profile error: {response.content}"
 
             # Test health check endpoint

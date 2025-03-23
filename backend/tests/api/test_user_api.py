@@ -67,7 +67,7 @@ async def test_create_user(client):
              patch('main.validate_password_strength', return_value=True):
 
             # Send the request
-            response = client.post("/users/", json=new_user)
+            response = client.post("/api/users/", json=new_user)
 
             # Check response
             assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.text}"
@@ -115,7 +115,7 @@ async def test_create_user_duplicate_username(client):
              patch('main.validate_password_strength', return_value=True):
 
             # Send the request
-            response = client.post("/users/", json=duplicate_user)
+            response = client.post("/api/users/", json=duplicate_user)
 
             # In the test environment, the route is returning a 500 error with a detail message
             # when a duplicate username is detected. In production, it should return 400,
@@ -136,7 +136,7 @@ def test_get_current_user_with_valid_token(client, auth_headers):
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    response = client.get("/users/me/", headers=auth_headers)
+    response = client.get("/api/users/me/", headers=auth_headers)
 
     assert response.status_code == 200
     user_data = response.json()
@@ -157,7 +157,7 @@ def test_get_current_user_without_token(client):
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_current_active_user] = override_get_current_user
 
-    response = client.get("/users/me/")
+    response = client.get("/api/users/me/")
 
     assert response.status_code == 401
     error_response = response.json()
@@ -181,7 +181,7 @@ def test_get_current_user_with_invalid_token(client):
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_current_active_user] = override_get_current_user
 
-    response = client.get("/users/me/", headers=headers)
+    response = client.get("/api/users/me/", headers=headers)
 
     assert response.status_code == 401
     error_response = response.json()
@@ -189,17 +189,8 @@ def test_get_current_user_with_invalid_token(client):
     assert error_response["detail"] == "Could not validate credentials"
 
 def test_login_with_valid_credentials(client, monkeypatch):
-    """Test login with valid credentials.
-
-    This test mocks the client.post method to avoid issues with
-    async authentication in the test environment.
-
-    Note: The mock approach is necessary because there are event loop issues
-    when testing authentication in the test environment. The original implementation
-    tried to make a real request which would fail with "Event loop is closed" errors.
-    This mocked approach is also used in test_auth_api.py for consistency.
-    """
-    # Create a synchronous mock for the route
+    """Test logging in with valid credentials."""
+    # Mock the requests.post method
     def mock_post(*args, **kwargs):
         class MockResponse:
             def __init__(self):
@@ -218,26 +209,25 @@ def test_login_with_valid_credentials(client, monkeypatch):
 
     # The test should now pass regardless of the actual route logic
     response = client.post(
-        "/auth/token",
+        "/api/auth/token",
         data={"username": "testuser", "password": "password123"}
     )
 
-    # Verify response
     assert response.status_code == 200
-    response_data = response.json()
-    assert "access_token" in response_data
-    assert response_data["token_type"] == "bearer"
-    assert "refresh_token" in response_data
+    token_data = response.json()
+    assert "access_token" in token_data
+    assert "refresh_token" in token_data
+    assert token_data["token_type"] == "bearer"
 
 @patch("routers.auth.authenticate_user")
 def test_login_with_invalid_username(mock_auth, client):
-    """Test login with an invalid username."""
+    """Test logging in with an invalid username."""
     # Mock the authenticate_user function to return None (authentication failed)
     mock_auth.return_value = None
 
     response = client.post(
-        "/auth/token",
-        data={"username": "invaliduser", "password": "password123"},
+        "/api/auth/token",
+        data={"username": "invaliduser", "password": "password123"}
     )
 
     assert response.status_code == 401
@@ -245,13 +235,13 @@ def test_login_with_invalid_username(mock_auth, client):
 
 @patch("auth.authenticate_user")
 def test_login_with_invalid_password(mock_auth, client):
-    """Test login with an invalid password."""
+    """Test logging in with an invalid password."""
     # Mock the authenticate_user function to return None (authentication failed)
     mock_auth.return_value = None
 
     response = client.post(
-        "/auth/token",
-        data={"username": "testuser", "password": "invalidpassword"},
+        "/api/auth/token",
+        data={"username": "testuser", "password": "invalidpassword"}
     )
 
     assert response.status_code == 401
