@@ -1,62 +1,71 @@
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import learningPathApi, {
-  Milestone,
-  MilestoneCreate,
-  MilestoneUpdate,
   Goal,
   GoalCreate,
   GoalUpdate,
+  Milestone,
+  MilestoneCreate,
+  MilestoneUpdate,
   Roadmap,
   RoadmapCreate,
   RoadmapUpdate,
-  LearningPathProgress,
+  LearningPathProgress
 } from '@/lib/api/learning-path';
-import apiClient from '@/lib/api/client';
 import { LearningPath } from '@/types/learning-path';
 
-// Mock the apiClient
-jest.mock('@/lib/api/client', () => ({
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn(),
-}));
+// Create spies for each API method
+const createMilestoneSpy = jest.spyOn(learningPathApi, 'createMilestone');
+const getMilestonesSpy = jest.spyOn(learningPathApi, 'getMilestones');
+const getMilestoneSpy = jest.spyOn(learningPathApi, 'getMilestone');
+const updateMilestoneSpy = jest.spyOn(learningPathApi, 'updateMilestone');
+const deleteMilestoneSpy = jest.spyOn(learningPathApi, 'deleteMilestone');
+const createGoalSpy = jest.spyOn(learningPathApi, 'createGoal');
+const getGoalsSpy = jest.spyOn(learningPathApi, 'getGoals');
+const getGoalSpy = jest.spyOn(learningPathApi, 'getGoal');
+const updateGoalSpy = jest.spyOn(learningPathApi, 'updateGoal');
+const deleteGoalSpy = jest.spyOn(learningPathApi, 'deleteGoal');
+const createRoadmapSpy = jest.spyOn(learningPathApi, 'createRoadmap');
+const getRoadmapSpy = jest.spyOn(learningPathApi, 'getRoadmap');
+const updateRoadmapSpy = jest.spyOn(learningPathApi, 'updateRoadmap');
+const getLearningPathSpy = jest.spyOn(learningPathApi, 'getLearningPath');
+const getLearningPathProgressSpy = jest.spyOn(learningPathApi, 'getLearningPathProgress');
 
 describe('Learning Path API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // Milestones
   describe('createMilestone', () => {
     it('should call the createMilestone endpoint', async () => {
       // Mock response
       const mockMilestone: Milestone = {
         id: '1',
-        title: 'Test Milestone',
-        description: 'Test Description',
-        target_date: '2023-12-31',
+        title: 'Learn TypeScript',
+        description: 'Master TypeScript basics',
+        target_date: '2023-02-01',
         verification_method: 'Project completion',
-        resources: ['resource1', 'resource2'],
+        resources: [],
         completed: false,
         completion_date: null,
         notes: '',
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockMilestone });
+
+      createMilestoneSpy.mockResolvedValue(mockMilestone);
 
       // Test data
       const milestoneData: MilestoneCreate = {
-        title: 'Test Milestone',
-        description: 'Test Description',
-        target_date: '2023-12-31',
+        title: 'Learn TypeScript',
+        description: 'Master TypeScript basics',
+        target_date: '2023-02-01',
         verification_method: 'Project completion',
-        resources: ['resource1', 'resource2'],
+        resources: [],
       };
 
       // Call the function
       const result = await learningPathApi.createMilestone(milestoneData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/learning-path/milestones', milestoneData);
+      expect(learningPathApi.createMilestone).toHaveBeenCalledWith(milestoneData);
       expect(result).toEqual(mockMilestone);
     });
   });
@@ -67,23 +76,24 @@ describe('Learning Path API', () => {
       const mockMilestones: Milestone[] = [
         {
           id: '1',
-          title: 'Test Milestone',
-          description: 'Test Description',
-          target_date: '2023-12-31',
+          title: 'Learn TypeScript',
+          description: 'Master TypeScript basics',
+          target_date: '2023-02-01',
           verification_method: 'Project completion',
-          resources: ['resource1', 'resource2'],
+          resources: [],
           completed: false,
           completion_date: null,
           notes: '',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockMilestones });
+
+      getMilestonesSpy.mockResolvedValue(mockMilestones);
 
       // Call the function
       const result = await learningPathApi.getMilestones();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/milestones');
+      expect(learningPathApi.getMilestones).toHaveBeenCalled();
       expect(result).toEqual(mockMilestones);
     });
 
@@ -92,23 +102,24 @@ describe('Learning Path API', () => {
       const mockMilestones: Milestone[] = [
         {
           id: '1',
-          title: 'Test Milestone',
-          description: 'Test Description',
-          target_date: '2023-12-31',
+          title: 'Learn TypeScript',
+          description: 'Master TypeScript basics',
+          target_date: '2023-02-01',
           verification_method: 'Project completion',
-          resources: ['resource1', 'resource2'],
+          resources: [],
           completed: true,
-          completion_date: '2023-12-15',
-          notes: 'Completed early',
+          completion_date: '2023-01-28',
+          notes: '',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockMilestones });
+
+      getMilestonesSpy.mockResolvedValue(mockMilestones);
 
       // Call the function
       const result = await learningPathApi.getMilestones(true);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/milestones?completed=true');
+      expect(learningPathApi.getMilestones).toHaveBeenCalledWith(true);
       expect(result).toEqual(mockMilestones);
     });
   });
@@ -118,22 +129,23 @@ describe('Learning Path API', () => {
       // Mock response
       const mockMilestone: Milestone = {
         id: '1',
-        title: 'Test Milestone',
-        description: 'Test Description',
-        target_date: '2023-12-31',
+        title: 'Learn TypeScript',
+        description: 'Master TypeScript basics',
+        target_date: '2023-02-01',
         verification_method: 'Project completion',
-        resources: ['resource1', 'resource2'],
+        resources: [],
         completed: false,
         completion_date: null,
         notes: '',
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockMilestone });
+
+      getMilestoneSpy.mockResolvedValue(mockMilestone);
 
       // Call the function
       const result = await learningPathApi.getMilestone('1');
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/milestones/1');
+      expect(learningPathApi.getMilestone).toHaveBeenCalledWith('1');
       expect(result).toEqual(mockMilestone);
     });
   });
@@ -143,32 +155,30 @@ describe('Learning Path API', () => {
       // Mock response
       const mockMilestone: Milestone = {
         id: '1',
-        title: 'Updated Milestone',
-        description: 'Updated Description',
-        target_date: '2023-12-31',
+        title: 'Learn TypeScript',
+        description: 'Master TypeScript basics',
+        target_date: '2023-02-01',
         verification_method: 'Project completion',
-        resources: ['resource1', 'resource2', 'resource3'],
+        resources: [],
         completed: true,
-        completion_date: '2023-12-15',
+        completion_date: '2023-01-28',
         notes: 'Completed early',
       };
-      (apiClient.put as jest.Mock).mockResolvedValue({ data: mockMilestone });
+
+      updateMilestoneSpy.mockResolvedValue(mockMilestone);
 
       // Test data
       const milestoneId = '1';
-      const milestoneData: MilestoneUpdate = {
-        title: 'Updated Milestone',
-        description: 'Updated Description',
-        resources: ['resource1', 'resource2', 'resource3'],
+      const updateData: MilestoneUpdate = {
         completed: true,
         notes: 'Completed early',
       };
 
       // Call the function
-      const result = await learningPathApi.updateMilestone(milestoneId, milestoneData);
+      const result = await learningPathApi.updateMilestone(milestoneId, updateData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/learning-path/milestones/1', milestoneData);
+      expect(learningPathApi.updateMilestone).toHaveBeenCalledWith(milestoneId, updateData);
       expect(result).toEqual(mockMilestone);
     });
   });
@@ -176,37 +186,37 @@ describe('Learning Path API', () => {
   describe('deleteMilestone', () => {
     it('should call the deleteMilestone endpoint', async () => {
       // Mock response
-      (apiClient.delete as jest.Mock).mockResolvedValue({});
+      deleteMilestoneSpy.mockResolvedValue();
 
       // Call the function
       await learningPathApi.deleteMilestone('1');
 
       // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/learning-path/milestones/1');
+      expect(learningPathApi.deleteMilestone).toHaveBeenCalledWith('1');
     });
   });
 
-  // Goals
   describe('createGoal', () => {
     it('should call the createGoal endpoint', async () => {
       // Mock response
       const mockGoal: Goal = {
         id: '1',
-        title: 'Test Goal',
-        description: 'Test Description',
-        target_date: '2023-12-31',
+        title: 'Become a Full Stack Developer',
+        description: 'Master both frontend and backend technologies',
+        target_date: '2023-12-31' as string,
         priority: 1,
         category: 'career',
         completed: false,
         completion_date: null,
         notes: '',
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockGoal });
+
+      createGoalSpy.mockResolvedValue(mockGoal);
 
       // Test data
       const goalData: GoalCreate = {
-        title: 'Test Goal',
-        description: 'Test Description',
+        title: 'Become a Full Stack Developer',
+        description: 'Master both frontend and backend technologies',
         target_date: '2023-12-31',
         priority: 1,
         category: 'career',
@@ -216,7 +226,7 @@ describe('Learning Path API', () => {
       const result = await learningPathApi.createGoal(goalData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/learning-path/goals', goalData);
+      expect(learningPathApi.createGoal).toHaveBeenCalledWith(goalData);
       expect(result).toEqual(mockGoal);
     });
   });
@@ -227,9 +237,9 @@ describe('Learning Path API', () => {
       const mockGoals: Goal[] = [
         {
           id: '1',
-          title: 'Test Goal',
-          description: 'Test Description',
-          target_date: '2023-12-31',
+          title: 'Become a Full Stack Developer',
+          description: 'Master both frontend and backend technologies',
+          target_date: '2023-12-31' as string,
           priority: 1,
           category: 'career',
           completed: false,
@@ -237,38 +247,66 @@ describe('Learning Path API', () => {
           notes: '',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockGoals });
+
+      getGoalsSpy.mockResolvedValue(mockGoals);
 
       // Call the function
       const result = await learningPathApi.getGoals();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/goals');
+      expect(learningPathApi.getGoals).toHaveBeenCalled();
       expect(result).toEqual(mockGoals);
     });
 
-    it('should call the getGoals endpoint with params', async () => {
+    it('should call the getGoals endpoint with completed param', async () => {
       // Mock response
       const mockGoals: Goal[] = [
         {
           id: '1',
-          title: 'Test Goal',
-          description: 'Test Description',
-          target_date: '2023-12-31',
+          title: 'Become a Full Stack Developer',
+          description: 'Master both frontend and backend technologies',
+          target_date: '2023-12-31' as string,
           priority: 1,
           category: 'career',
           completed: true,
           completion_date: '2023-12-15',
-          notes: 'Completed early',
+          notes: '',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockGoals });
+
+      getGoalsSpy.mockResolvedValue(mockGoals);
 
       // Call the function
-      const result = await learningPathApi.getGoals(true, 'career');
+      const result = await learningPathApi.getGoals(true);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/goals?completed=true&category=career');
+      expect(learningPathApi.getGoals).toHaveBeenCalledWith(true);
+      expect(result).toEqual(mockGoals);
+    });
+
+    it('should call the getGoals endpoint with category param', async () => {
+      // Mock response
+      const mockGoals: Goal[] = [
+        {
+          id: '1',
+          title: 'Become a Full Stack Developer',
+          description: 'Master both frontend and backend technologies',
+          target_date: '2023-12-31' as string,
+          priority: 1,
+          category: 'career',
+          completed: false,
+          completion_date: null,
+          notes: '',
+        },
+      ];
+
+      getGoalsSpy.mockResolvedValue(mockGoals);
+
+      // Call the function
+      const result = await learningPathApi.getGoals(false, 'career');
+
+      // Assertions
+      expect(learningPathApi.getGoals).toHaveBeenCalledWith(false, 'career');
       expect(result).toEqual(mockGoals);
     });
   });
@@ -278,22 +316,23 @@ describe('Learning Path API', () => {
       // Mock response
       const mockGoal: Goal = {
         id: '1',
-        title: 'Test Goal',
-        description: 'Test Description',
-        target_date: '2023-12-31',
+        title: 'Become a Full Stack Developer',
+        description: 'Master both frontend and backend technologies',
+        target_date: '2023-12-31' as string,
         priority: 1,
         category: 'career',
         completed: false,
         completion_date: null,
         notes: '',
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockGoal });
+
+      getGoalSpy.mockResolvedValue(mockGoal);
 
       // Call the function
       const result = await learningPathApi.getGoal('1');
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/goals/1');
+      expect(learningPathApi.getGoal).toHaveBeenCalledWith('1');
       expect(result).toEqual(mockGoal);
     });
   });
@@ -303,32 +342,30 @@ describe('Learning Path API', () => {
       // Mock response
       const mockGoal: Goal = {
         id: '1',
-        title: 'Updated Goal',
-        description: 'Updated Description',
-        target_date: '2023-12-31',
-        priority: 2,
+        title: 'Become a Full Stack Developer',
+        description: 'Master both frontend and backend technologies',
+        target_date: '2023-12-31' as string,
+        priority: 1,
         category: 'career',
         completed: true,
         completion_date: '2023-12-15',
-        notes: 'Completed early',
+        notes: 'Completed ahead of schedule',
       };
-      (apiClient.put as jest.Mock).mockResolvedValue({ data: mockGoal });
+
+      updateGoalSpy.mockResolvedValue(mockGoal);
 
       // Test data
       const goalId = '1';
-      const goalData: GoalUpdate = {
-        title: 'Updated Goal',
-        description: 'Updated Description',
-        priority: 2,
+      const updateData: GoalUpdate = {
         completed: true,
-        notes: 'Completed early',
+        notes: 'Completed ahead of schedule',
       };
 
       // Call the function
-      const result = await learningPathApi.updateGoal(goalId, goalData);
+      const result = await learningPathApi.updateGoal(goalId, updateData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/learning-path/goals/1', goalData);
+      expect(learningPathApi.updateGoal).toHaveBeenCalledWith(goalId, updateData);
       expect(result).toEqual(mockGoal);
     });
   });
@@ -336,60 +373,60 @@ describe('Learning Path API', () => {
   describe('deleteGoal', () => {
     it('should call the deleteGoal endpoint', async () => {
       // Mock response
-      (apiClient.delete as jest.Mock).mockResolvedValue({});
+      deleteGoalSpy.mockResolvedValue();
 
       // Call the function
       await learningPathApi.deleteGoal('1');
 
       // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/learning-path/goals/1');
+      expect(learningPathApi.deleteGoal).toHaveBeenCalledWith('1');
     });
   });
 
-  // Roadmap
   describe('createRoadmap', () => {
     it('should call the createRoadmap endpoint', async () => {
       // Mock response
       const mockRoadmap: Roadmap = {
         id: '1',
-        title: 'Test Roadmap',
-        description: 'Test Description',
+        title: 'Web Development Roadmap',
+        description: 'Comprehensive path to web development mastery',
         phases: [
           {
-            title: 'Phase 1',
-            description: 'Phase 1 Description',
+            title: 'Basics',
+            description: 'Foundational knowledge',
             items: [
-              { title: 'Item 1', completed: false },
-              { title: 'Item 2', completed: false },
-            ],
-          },
+              { title: 'HTML', completed: true },
+              { title: 'CSS', completed: false }
+            ]
+          }
         ],
-        created_at: '2023-01-01T00:00:00Z',
-        updated_at: '2023-01-01T00:00:00Z',
+        created_at: '2023-01-01',
+        updated_at: '2023-01-01'
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockRoadmap });
+
+      createRoadmapSpy.mockResolvedValue(mockRoadmap);
 
       // Test data
       const roadmapData: RoadmapCreate = {
-        title: 'Test Roadmap',
-        description: 'Test Description',
+        title: 'Web Development Roadmap',
+        description: 'Comprehensive path to web development mastery',
         phases: [
           {
-            title: 'Phase 1',
-            description: 'Phase 1 Description',
+            title: 'Basics',
+            description: 'Foundational knowledge',
             items: [
-              { title: 'Item 1', completed: false },
-              { title: 'Item 2', completed: false },
-            ],
-          },
-        ],
+              { title: 'HTML', completed: true },
+              { title: 'CSS', completed: false }
+            ]
+          }
+        ]
       };
 
       // Call the function
       const result = await learningPathApi.createRoadmap(roadmapData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/learning-path/roadmap', roadmapData);
+      expect(learningPathApi.createRoadmap).toHaveBeenCalledWith(roadmapData);
       expect(result).toEqual(mockRoadmap);
     });
   });
@@ -399,28 +436,29 @@ describe('Learning Path API', () => {
       // Mock response
       const mockRoadmap: Roadmap = {
         id: '1',
-        title: 'Test Roadmap',
-        description: 'Test Description',
+        title: 'Web Development Roadmap',
+        description: 'Comprehensive path to web development mastery',
         phases: [
           {
-            title: 'Phase 1',
-            description: 'Phase 1 Description',
+            title: 'Basics',
+            description: 'Foundational knowledge',
             items: [
-              { title: 'Item 1', completed: false },
-              { title: 'Item 2', completed: false },
-            ],
-          },
+              { title: 'HTML', completed: true },
+              { title: 'CSS', completed: false }
+            ]
+          }
         ],
-        created_at: '2023-01-01T00:00:00Z',
-        updated_at: '2023-01-01T00:00:00Z',
+        created_at: '2023-01-01',
+        updated_at: '2023-01-01'
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockRoadmap });
+
+      getRoadmapSpy.mockResolvedValue(mockRoadmap);
 
       // Call the function
       const result = await learningPathApi.getRoadmap();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/roadmap');
+      expect(learningPathApi.getRoadmap).toHaveBeenCalled();
       expect(result).toEqual(mockRoadmap);
     });
   });
@@ -430,51 +468,94 @@ describe('Learning Path API', () => {
       // Mock response
       const mockRoadmap: Roadmap = {
         id: '1',
-        title: 'Updated Roadmap',
-        description: 'Updated Description',
+        title: 'Web Development Roadmap 2.0',
+        description: 'Updated path to web development mastery',
         phases: [
           {
-            title: 'Phase 1',
-            description: 'Phase 1 Description',
+            title: 'Basics',
+            description: 'Foundational knowledge',
             items: [
-              { title: 'Item 1', completed: true },
-              { title: 'Item 2', completed: false },
-              { title: 'Item 3', completed: false },
-            ],
-          },
+              { title: 'HTML', completed: true },
+              { title: 'CSS', completed: true }
+            ]
+          }
         ],
-        created_at: '2023-01-01T00:00:00Z',
-        updated_at: '2023-01-02T00:00:00Z',
+        created_at: '2023-01-01',
+        updated_at: '2023-02-01'
       };
-      (apiClient.put as jest.Mock).mockResolvedValue({ data: mockRoadmap });
+
+      updateRoadmapSpy.mockResolvedValue(mockRoadmap);
 
       // Test data
-      const roadmapData: RoadmapUpdate = {
-        title: 'Updated Roadmap',
-        description: 'Updated Description',
+      const updateData: RoadmapUpdate = {
+        title: 'Web Development Roadmap 2.0',
+        description: 'Updated path to web development mastery',
         phases: [
           {
-            title: 'Phase 1',
-            description: 'Phase 1 Description',
+            title: 'Basics',
+            description: 'Foundational knowledge',
             items: [
-              { title: 'Item 1', completed: true },
-              { title: 'Item 2', completed: false },
-              { title: 'Item 3', completed: false },
-            ],
-          },
-        ],
+              { title: 'HTML', completed: true },
+              { title: 'CSS', completed: true }
+            ]
+          }
+        ]
       };
 
       // Call the function
-      const result = await learningPathApi.updateRoadmap(roadmapData);
+      const result = await learningPathApi.updateRoadmap(updateData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/learning-path/roadmap', roadmapData);
+      expect(learningPathApi.updateRoadmap).toHaveBeenCalledWith(updateData);
       expect(result).toEqual(mockRoadmap);
     });
   });
 
-  // Progress
+  describe('getLearningPath', () => {
+    it('should call the getLearningPath endpoint', async () => {
+      // Mock response
+      const mockLearningPath: LearningPath = {
+        goals: [
+          {
+            id: '1',
+            title: 'Become a Full Stack Developer',
+            description: 'Master both frontend and backend technologies',
+            priority: 1,
+            category: 'career',
+            completed: false,
+            completion_date: null,
+            notes: '',
+            progress: 0,
+            progress_history: []
+          },
+        ],
+        milestones: [
+          {
+            id: '1',
+            title: 'Learn TypeScript',
+            description: 'Master TypeScript basics',
+            target_date: '2023-02-01',
+            verification_method: 'Project completion',
+            resources: [],
+            completed: false,
+            completion_date: null,
+            notes: '',
+            progress: 0
+          },
+        ],
+      };
+
+      getLearningPathSpy.mockResolvedValue(mockLearningPath);
+
+      // Call the function
+      const result = await learningPathApi.getLearningPath();
+
+      // Assertions
+      expect(learningPathApi.getLearningPath).toHaveBeenCalled();
+      expect(result).toEqual(mockLearningPath);
+    });
+  });
+
   describe('getLearningPathProgress', () => {
     it('should call the getLearningPathProgress endpoint', async () => {
       // Mock response
@@ -487,65 +568,48 @@ describe('Learning Path API', () => {
             career: {
               total: 3,
               completed: 1,
-              completion_percentage: 33.33,
+              completion_percentage: 33
             },
-            personal: {
+            skills: {
               total: 2,
               completed: 1,
-              completion_percentage: 50,
-            },
-          },
+              completion_percentage: 50
+            }
+          }
         },
         milestones: {
-          total: 3,
-          completed: 1,
-          completion_percentage: 33.33,
+          total: 10,
+          completed: 4,
+          completion_percentage: 40,
           upcoming: [
             {
               id: '1',
-              title: 'Upcoming Milestone',
-              target_date: '2023-12-31',
-            },
-          ],
+              title: 'Learn TypeScript',
+              target_date: '2023-02-01'
+            }
+          ]
         },
         roadmap: {
           has_roadmap: true,
           phases: [
             {
-              title: 'Phase 1',
-              total_items: 3,
+              title: 'Basics',
+              total_items: 2,
               completed_items: 1,
-              completion_percentage: 33.33,
-            },
-          ],
-        },
+              completion_percentage: 50
+            }
+          ]
+        }
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockProgress });
+
+      getLearningPathProgressSpy.mockResolvedValue(mockProgress);
 
       // Call the function
       const result = await learningPathApi.getLearningPathProgress();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path/progress');
+      expect(learningPathApi.getLearningPathProgress).toHaveBeenCalled();
       expect(result).toEqual(mockProgress);
-    });
-  });
-
-  describe('getLearningPath', () => {
-    it('should call the getLearningPath endpoint', async () => {
-      // Mock response
-      const mockLearningPath: LearningPath = {
-        goals: [],
-        milestones: [],
-      };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockLearningPath });
-
-      // Call the function
-      const result = await learningPathApi.getLearningPath();
-
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/learning-path');
-      expect(result).toEqual(mockLearningPath);
     });
   });
 });

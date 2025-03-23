@@ -203,7 +203,7 @@ export function ReviewStats() {
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+            <div data-testid="loading-spinner" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
           </div>
         ) : isError ? (
           <div className="flex justify-center items-center h-64">

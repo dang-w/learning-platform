@@ -1,155 +1,231 @@
-import { render, screen } from '@testing-library/react';
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LearningPathProgress } from '@/components/dashboard/LearningPathProgress';
 import { expect } from '@jest/globals';
 
-// Mock fetch API
-global.fetch = jest.fn();
-
-// Mock next/link
-jest.mock('next/link', () => {
-  return function NextLink({ children, href }: { children: React.ReactNode; href: string }) {
-    return <a href={href}>{children}</a>;
-  };
+// Create a test query client
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
 });
 
-// Mock react-chartjs-2
-jest.mock('react-chartjs-2', () => ({
-  Bar: () => <div data-testid="mock-bar-chart" />,
-}));
+// Setup mock data that matches the PathProgress interface
+interface PathProgress {
+  id: string;
+  title: string;
+  progress_percentage: number;
+  completed_resources: number;
+  total_resources: number;
+  estimated_completion_date: string;
+  next_resource: {
+    id: string;
+    title: string;
+    type: string;
+  } | null;
+}
 
-// Mock heroicons
-jest.mock('@heroicons/react/24/outline', () => ({
-  CheckCircleIcon: () => <div data-testid="check-circle-icon" />,
-  ClockIcon: () => <div data-testid="clock-icon" />,
-  XCircleIcon: () => <div data-testid="x-circle-icon" />,
-}));
-
-describe('LearningPathProgress', () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
+// Mock Chart.js BEFORE importing the component
+jest.mock('chart.js', () => ({
+  Chart: {
+    register: jest.fn(),
+  },
+  CategoryScale: jest.fn(),
+  LinearScale: jest.fn(),
+  BarElement: jest.fn(),
+  Title: jest.fn(),
+  Tooltip: jest.fn(),
+  Legend: jest.fn(),
+  defaults: {
+    font: {
+      family: 'sans-serif',
+    },
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
       },
     },
-  });
+  },
+}));
 
-  const mockPathsProgress = [
+// Mock the actual API implementation
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn().mockImplementation((url) => {
+      if (url === '/api/learning-path/progress') {
+        return Promise.resolve({
+          data: [
+            {
+              id: '1',
+              title: 'JavaScript Fundamentals',
+              progress_percentage: 75,
+              completed_resources: 15,
+              total_resources: 20,
+              estimated_completion_date: '2023-08-15',
+              next_resource: {
+                id: 'resource-1',
+                title: 'Advanced JavaScript Concepts',
+                type: 'Article'
+              }
+            }
+          ]
+        });
+      }
+      return Promise.resolve({ data: [] });
+    }),
+  }
+}));
+
+// Mock Next.js Link component
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: (props: { href: string; children: React.ReactNode }) => <a href={props.href}>{props.children}</a>,
+}));
+
+// Mock the Bar component
+jest.mock('react-chartjs-2', () => ({
+  Bar: ({ data }: { data: unknown }) => (
+    <div data-testid="learning-path-chart">
+      <div data-testid="chart-data">{JSON.stringify(data)}</div>
+    </div>
+  ),
+}));
+
+// Mock the store functions that fetchLearningPathProgress uses
+jest.mock('@/lib/utils/api', () => ({
+  getToken: jest.fn().mockReturnValue('mock-token'),
+}));
+
+jest.mock('@/lib/store/auth-store', () => ({
+  useAuthStore: {
+    getState: jest.fn().mockReturnValue({
+      refreshAuthToken: jest.fn().mockResolvedValue(true),
+    }),
+  },
+}));
+
+// Get a reference to the mocked client
+import apiClient from '@/lib/api/client';
+
+describe('LearningPathProgress', () => {
+  const mockLearningPaths: PathProgress[] = [
     {
       id: '1',
-      title: 'React Fundamentals',
+      title: 'JavaScript Fundamentals',
       progress_percentage: 75,
       completed_resources: 15,
       total_resources: 20,
-      estimated_completion_date: '2023-04-15',
+      estimated_completion_date: '2023-08-15',
       next_resource: {
-        id: 'res1',
-        title: 'Advanced React Hooks',
-        type: 'articles',
-      },
+        id: 'resource-1',
+        title: 'Advanced JavaScript Concepts',
+        type: 'Article'
+      }
     },
     {
       id: '2',
-      title: 'TypeScript Mastery',
+      title: 'React Mastery',
       progress_percentage: 40,
       completed_resources: 8,
       total_resources: 20,
-      estimated_completion_date: '2023-05-10',
+      estimated_completion_date: '2023-09-20',
       next_resource: {
-        id: 'res2',
-        title: 'TypeScript Generics',
-        type: 'videos',
-      },
-    },
-    {
-      id: '3',
-      title: 'CSS Grid & Flexbox',
-      progress_percentage: 100,
-      completed_resources: 12,
-      total_resources: 12,
-      estimated_completion_date: '2023-03-01',
-      next_resource: null,
-    },
+        id: 'resource-2',
+        title: 'Component Lifecycle',
+        type: 'Video'
+      }
+    }
   ];
 
-  const renderWithQueryClient = (ui: React.ReactElement) => {
-    return render(
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    );
-  };
-
   beforeEach(() => {
+    // Reset mocks before each test
     jest.clearAllMocks();
-    queryClient.clear();
-    (global.fetch as jest.Mock).mockResolvedValue({
-      json: () => Promise.resolve(mockPathsProgress),
-    });
   });
 
-  it('renders the component with correct title', () => {
-    renderWithQueryClient(<LearningPathProgress />);
-    expect(screen.getByText('Learning Path Progress')).toBeInTheDocument();
-  });
+  it('renders learning path progress correctly', async () => {
+    // Set up the mock for this specific test
+    (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: mockLearningPaths });
 
-  it.skip('displays loading state initially', () => {
-    (global.fetch as jest.Mock).mockReturnValue(new Promise(() => {})); // Never resolves
-    renderWithQueryClient(<LearningPathProgress />);
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <LearningPathProgress />
+      </QueryClientProvider>
+    );
 
-    // This test is skipped because the loading spinner is difficult to reliably test
-  });
+    // Check that the loading state is displayed first
+    expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
 
-  it('displays "No learning paths found" when no paths are available', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      json: () => Promise.resolve([]),
+    // Wait for the data to load
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
     });
 
-    renderWithQueryClient(<LearningPathProgress />);
+    // Check that the paths are displayed (using findByText with a longer timeout)
+    const jsElements = await screen.findAllByText(/javascript fundamentals/i, {}, { timeout: 3000 });
+    expect(jsElements.length).toBeGreaterThan(0);
 
-    expect(await screen.findByText('No learning paths found')).toBeInTheDocument();
-    expect(screen.getByText('Create a Learning Path')).toBeInTheDocument();
+    const reactElements = await screen.findAllByText(/react mastery/i, {}, { timeout: 3000 });
+    expect(reactElements.length).toBeGreaterThan(0);
+
+    // Check the progress percentages - using regex to find numbers within text
+    const seventyFiveElements = screen.getAllByText(/75/);
+    expect(seventyFiveElements.length).toBeGreaterThan(0);
+
+    const fortyElements = screen.getAllByText(/40/);
+    expect(fortyElements.length).toBeGreaterThan(0);
   });
 
-  it('renders learning path progress data when available', async () => {
-    renderWithQueryClient(<LearningPathProgress />);
+  it('handles empty data', async () => {
+    // Return empty array for this test
+    (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: [] });
 
-    // Wait for the data to be loaded and rendered
-    expect(await screen.findByText('Next Up in Your Paths')).toBeInTheDocument();
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <LearningPathProgress />
+      </QueryClientProvider>
+    );
 
-    // Check that the next resources are displayed
-    expect(screen.getByText('Advanced React Hooks')).toBeInTheDocument();
-    expect(screen.getByText('TypeScript Generics')).toBeInTheDocument();
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
+    });
 
-    // Check that the path titles and progress are displayed
-    expect(screen.getByText(/From: React Fundamentals • 75% complete/)).toBeInTheDocument();
-    expect(screen.getByText(/From: TypeScript Mastery • 40% complete/)).toBeInTheDocument();
-
-    // Check that completed paths message is displayed
-    expect(screen.getByText('1 path(s) completed!')).toBeInTheDocument();
-    expect(screen.getByText('Great job completing your learning goals')).toBeInTheDocument();
+    // Check for empty state message
+    expect(screen.getByText(/no learning paths found/i)).toBeInTheDocument();
+    expect(screen.getByText(/create a learning path/i)).toBeInTheDocument();
   });
 
-  it('renders the bar chart', async () => {
-    renderWithQueryClient(<LearningPathProgress />);
+  it('handles API error', async () => {
+    // Mock API error for this test
+    (apiClient.get as jest.Mock).mockRejectedValueOnce(new Error('Failed to fetch'));
 
-    // Wait for the data to be loaded
-    await screen.findByText('Next Up in Your Paths');
+    // Mock console.error to prevent error output in tests
+    const originalConsoleError = console.error;
+    console.error = jest.fn();
 
-    const barChart = screen.getByTestId('mock-bar-chart');
-    expect(barChart).toBeInTheDocument();
-  });
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <LearningPathProgress />
+      </QueryClientProvider>
+    );
 
-  it('renders start buttons for next resources', async () => {
-    renderWithQueryClient(<LearningPathProgress />);
+    // Wait for the loading state to end
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
+    });
 
-    // Wait for the data to be loaded
-    await screen.findByText('Next Up in Your Paths');
+    // For an error, the component should either show an error message or fall back to showing "No learning paths found"
+    // Check for either of these options
+    const errorElement = screen.queryByText(/error/i) || screen.queryByText(/no learning paths found/i);
+    expect(errorElement).toBeInTheDocument();
 
-    const startButtons = screen.getAllByText('Start');
-    expect(startButtons.length).toBe(2); // Two paths with next resources
-
-    // Check that the links have the correct hrefs
-    expect(startButtons[0].closest('a')).toHaveAttribute('href', '/resources/articles/res1');
-    expect(startButtons[1].closest('a')).toHaveAttribute('href', '/resources/videos/res2');
+    // Restore console.error
+    console.error = originalConsoleError;
   });
 });

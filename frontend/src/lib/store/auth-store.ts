@@ -25,6 +25,8 @@ export interface AuthState {
   updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>;
   exportUserData: () => Promise<Blob>;
   deleteAccount: () => Promise<void>;
+  reset: () => void;
+  setRefreshToken: (refreshToken: string) => void;
   _lastTokenRefresh: number;
   _retryAfterTimestamp: number | null;
   _lastRefreshAttemptTimestamp: number | null;
@@ -358,16 +360,28 @@ export const useAuthStore = create<AuthState>()(
               const newToken = data.access_token || data.token;
               const newRefreshToken = data.refresh_token || refreshToken;
 
-              // Update all token storage locations
-              updateTokenStorage(state, newToken, newRefreshToken);
-
-              // Update timestamps and reset attempts counter
+              // Update state directly
               set({
+                token: newToken,
+                refreshToken: newRefreshToken,
                 _lastRefreshTimestamp: now,
                 _refreshAttempts: 0,
                 _retryAfterTimestamp: null,
                 isAuthenticated: true
               });
+
+              // Update localStorage
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('token', newToken);
+                localStorage.setItem('refresh_token', newRefreshToken);
+              }
+
+              // Update cookies
+              if (typeof document !== 'undefined') {
+                const tokenValue = newToken.replace(/^Bearer\s+/i, '');
+                document.cookie = `token=${tokenValue}; path=/; max-age=3600; SameSite=Lax`;
+                document.cookie = `refresh_token=${newRefreshToken}; path=/; max-age=86400; SameSite=Lax`;
+              }
 
               console.log('Token refreshed successfully');
               return true;
@@ -430,6 +444,31 @@ export const useAuthStore = create<AuthState>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      reset: () => {
+        set({
+          user: null,
+          token: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+          statistics: null,
+          notificationPreferences: null,
+          _lastTokenRefresh: 0,
+          _retryAfterTimestamp: null,
+          _lastRefreshAttemptTimestamp: null,
+          _refreshAttempts: 0,
+          _lastRefreshTimestamp: null,
+        });
+      },
+
+      setRefreshToken: (refreshToken: string) => {
+        set({ refreshToken });
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('refresh_token', refreshToken);
+        }
       },
 
       fetchStatistics: async () => {
@@ -525,34 +564,3 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
-
-// Helper function to ensure token is properly stored both in state and storage
-const updateTokenStorage = (state: AuthState, token: string, newRefreshToken?: string) => {
-  console.log('Updating token storage with new token');
-
-  // Update state
-  state.token = token;
-  if (newRefreshToken) {
-    state.refreshToken = newRefreshToken;
-  }
-
-  // Update localStorage
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('token', token);
-    if (newRefreshToken) {
-      localStorage.setItem('refresh_token', newRefreshToken);
-    }
-  }
-
-  // Update cookies for cross-request access
-  if (typeof document !== 'undefined') {
-    // Add token to cookie without Bearer prefix
-    const tokenValue = token.replace(/^Bearer\s+/i, '');
-    document.cookie = `token=${tokenValue}; path=/; max-age=3600; SameSite=Lax`;
-
-    if (newRefreshToken) {
-      document.cookie = `refresh_token=${newRefreshToken}; path=/; max-age=86400; SameSite=Lax`;
-    }
-    console.log('Updated cookies with new token');
-  }
-};
