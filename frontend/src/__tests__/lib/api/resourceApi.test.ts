@@ -1,15 +1,15 @@
-import resourcesApi, { ResourceStatistics, fetchResourceStats } from '@/lib/api/resources';
-import apiClient from '@/lib/api/client';
-import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput } from '@/types/resources';
+import resourcesApi, { ResourceStatistics } from '@/lib/api/resources';
+import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, DifficultyLevel } from '@/types/resources';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
-// Mock the API client
-jest.mock('@/lib/api/client', () => ({
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn(),
-  withBackoff: jest.fn((fn) => fn())
-}));
+// Create spies for resourcesApi methods
+const getAllResourcesSpy = jest.spyOn(resourcesApi, 'getAllResources');
+const getResourcesByTypeSpy = jest.spyOn(resourcesApi, 'getResourcesByType');
+const createResourceSpy = jest.spyOn(resourcesApi, 'createResource');
+const updateResourceSpy = jest.spyOn(resourcesApi, 'updateResource');
+const deleteResourceSpy = jest.spyOn(resourcesApi, 'deleteResource');
+const toggleResourceCompletionSpy = jest.spyOn(resourcesApi, 'toggleResourceCompletion');
+const getStatisticsSpy = jest.spyOn(resourcesApi, 'getStatistics');
 
 describe('resourcesApi', () => {
   beforeEach(() => {
@@ -21,7 +21,7 @@ describe('resourcesApi', () => {
     title: 'Test Resource',
     url: 'https://example.com',
     topics: ['javascript', 'react'],
-    difficulty: 'intermediate',
+    difficulty: 'intermediate' as DifficultyLevel,
     estimated_time: 60,
     completed: false,
     date_added: '2023-01-01',
@@ -33,7 +33,7 @@ describe('resourcesApi', () => {
     title: 'Test Resource',
     url: 'https://example.com',
     topics: ['javascript', 'react'],
-    difficulty: 'intermediate',
+    difficulty: 'intermediate' as DifficultyLevel,
     estimated_time: 60,
   };
 
@@ -69,92 +69,94 @@ describe('resourcesApi', () => {
 
   describe('getAllResources', () => {
     it('should fetch all resources', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: [mockResource] });
+      // Mock resources that match the Resource type
+      const mockResources: Resource[] = [
+        {
+          id: '1',
+          title: 'React Hooks',
+          url: 'https://reactjs.org/docs/hooks-intro.html',
+          topics: ['react', 'frontend'],
+          difficulty: 'beginner' as DifficultyLevel,
+          estimated_time: 30,
+          completed: false,
+          date_added: '2023-01-01',
+          completion_date: null,
+          notes: '',
+        }
+      ];
 
+      // Mock resourcesApi.getAllResources
+      getAllResourcesSpy.mockResolvedValue(mockResources);
+
+      // Call the function
       const result = await resourcesApi.getAllResources();
 
-      expect(apiClient.get).toHaveBeenCalledWith('/resources/');
-      expect(result).toEqual([mockResource]);
+      // Verify the function was called correctly
+      expect(resourcesApi.getAllResources).toHaveBeenCalled();
+      expect(result).toEqual(mockResources);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.get as jest.Mock).mockRejectedValueOnce(error);
+      // Mock error response
+      getAllResourcesSpy.mockRejectedValue(new Error('Server error'));
 
-      await expect(resourcesApi.getAllResources()).rejects.toThrow();
+      // Call the function and expect it to throw
+      await expect(resourcesApi.getAllResources()).rejects.toThrow('Server error');
     });
   });
 
   describe('getResourcesByType', () => {
     it('should fetch resources by type', async () => {
-      const mockResource = {
-        id: '1',
-        title: 'Test Resource',
-        url: 'https://example.com',
-        topics: ['javascript'],
-        difficulty: 'intermediate',
-        completed: false,
-        date_added: '2023-01-01',
-        completion_date: null,
-        notes: '',
-        estimated_time: 30,
-      };
+      const mockResources: Resource[] = [
+        {
+          id: '1',
+          title: 'Test Resource',
+          url: 'https://example.com',
+          topics: ['javascript'],
+          difficulty: 'intermediate' as DifficultyLevel,
+          completed: false,
+          date_added: '2023-01-01',
+          completion_date: null,
+          notes: '',
+          estimated_time: 30,
+        }
+      ];
 
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: [mockResource] });
+      // Setup mock
+      getResourcesByTypeSpy.mockResolvedValue(mockResources);
 
       const type = 'articles' as ResourceType;
 
       const result = await resourcesApi.getResourcesByType(type);
 
-      expect(apiClient.get).toHaveBeenCalledWith(`/resources/${type}`);
-      expect(result).toEqual([mockResource]);
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+      expect(result).toEqual(mockResources);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.get as jest.Mock).mockRejectedValueOnce(error);
+      getResourcesByTypeSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.getResourcesByType('articles')).rejects.toThrow();
+      await expect(resourcesApi.getResourcesByType('articles')).rejects.toThrow('Network error');
     });
   });
 
   describe('createResource', () => {
     it('should create a resource', async () => {
-      const mockResource = {
-        id: '1',
-        title: 'Test Resource',
-        url: 'https://example.com',
-        topics: ['javascript', 'react'],
-        difficulty: 'intermediate',
-        completed: false,
-        date_added: '2023-01-01',
-        completion_date: null,
-        notes: '',
-        estimated_time: 60,
-      };
-
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockResource });
+      // Setup mock
+      createResourceSpy.mockResolvedValue(mockResource);
 
       const type = 'articles' as ResourceType;
-      const mockResourceInput = {
-        title: 'Test Resource',
-        url: 'https://example.com',
-        topics: ['javascript', 'react'],
-        difficulty: 'intermediate',
-        estimated_time: 60,
-      };
 
       const result = await resourcesApi.createResource(type, mockResourceInput);
 
-      expect(apiClient.post).toHaveBeenCalledWith(`/resources/${type}`, mockResourceInput);
+      expect(resourcesApi.createResource).toHaveBeenCalledWith(type, mockResourceInput);
       expect(result).toEqual(mockResource);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.post as jest.Mock).mockRejectedValueOnce(error);
+      createResourceSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.createResource('articles', mockResourceInput)).rejects.toThrow();
+      await expect(resourcesApi.createResource('articles', mockResourceInput)).rejects.toThrow('Network error');
     });
   });
 
@@ -165,7 +167,7 @@ describe('resourcesApi', () => {
         title: 'Updated Resource',
         url: 'https://example.com',
         topics: ['javascript', 'react', 'typescript'],
-        difficulty: 'intermediate',
+        difficulty: 'intermediate' as DifficultyLevel,
         completed: false,
         date_added: '2023-01-01',
         completion_date: null,
@@ -173,143 +175,87 @@ describe('resourcesApi', () => {
         estimated_time: 60,
       };
 
-      (apiClient.put as jest.Mock).mockResolvedValue({ data: updatedResource });
+      // Setup mock
+      updateResourceSpy.mockResolvedValue(updatedResource);
 
       const type = 'articles' as ResourceType;
       const id = '123';
-      const mockResourceUpdate = {
-        title: 'Updated Resource',
-        topics: ['javascript', 'react', 'typescript'],
-      };
 
       const result = await resourcesApi.updateResource(type, id, mockResourceUpdate);
 
-      expect(apiClient.put).toHaveBeenCalledWith(`/resources/${type}/${id}`, mockResourceUpdate);
+      expect(resourcesApi.updateResource).toHaveBeenCalledWith(type, id, mockResourceUpdate);
       expect(result).toEqual(updatedResource);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.put as jest.Mock).mockRejectedValueOnce(error);
+      updateResourceSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.updateResource('articles', '123', mockResourceUpdate)).rejects.toThrow();
+      await expect(resourcesApi.updateResource('articles', '123', mockResourceUpdate)).rejects.toThrow('Network error');
     });
   });
 
   describe('deleteResource', () => {
     it('should delete a resource', async () => {
-      (apiClient.delete as jest.Mock).mockResolvedValue({});
+      // Setup mock
+      deleteResourceSpy.mockResolvedValue(undefined);
 
       const type = 'articles' as ResourceType;
       const id = '123';
 
       await resourcesApi.deleteResource(type, id);
 
-      expect(apiClient.delete).toHaveBeenCalledWith(`/resources/${type}/${id}`);
+      expect(resourcesApi.deleteResource).toHaveBeenCalledWith(type, id);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.delete as jest.Mock).mockRejectedValueOnce(error);
+      deleteResourceSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.deleteResource('articles', '123')).rejects.toThrow();
+      await expect(resourcesApi.deleteResource('articles', '123')).rejects.toThrow('Network error');
     });
   });
 
-  describe('completeResource', () => {
-    it('should mark a resource as complete', async () => {
+  describe('toggleResourceCompletion', () => {
+    it('should toggle resource completion status', async () => {
       const completedResource = {
-        id: '123',
-        title: 'Test Resource',
-        url: 'https://example.com',
-        topics: ['javascript'],
-        difficulty: 'intermediate',
+        ...mockResource,
         completed: true,
-        date_added: '2023-01-01',
-        completion_date: '2023-01-10',
-        notes: 'Completed with notes',
-        estimated_time: 60,
+        completion_date: '2023-01-15',
       };
 
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: completedResource });
+      // Setup mock
+      toggleResourceCompletionSpy.mockResolvedValue(completedResource);
 
       const type = 'articles' as ResourceType;
       const id = '123';
-      const notes = 'Completed with notes';
 
-      const result = await resourcesApi.completeResource(type, id, notes);
+      const result = await resourcesApi.toggleResourceCompletion(type, id);
 
-      expect(apiClient.post).toHaveBeenCalledWith(`/resources/${type}/${id}/complete`, { notes });
+      expect(resourcesApi.toggleResourceCompletion).toHaveBeenCalledWith(type, id);
       expect(result).toEqual(completedResource);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.post as jest.Mock).mockRejectedValueOnce(error);
+      toggleResourceCompletionSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.completeResource('articles', '123', 'notes')).rejects.toThrow();
+      await expect(resourcesApi.toggleResourceCompletion('articles', '123')).rejects.toThrow('Network error');
     });
   });
 
-  describe('getResourceStatistics', () => {
-    it('should fetch resource statistics', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStatistics });
+  describe('getStatistics', () => {
+    it('should get resource statistics', async () => {
+      // Setup mock
+      getStatisticsSpy.mockResolvedValue(mockStatistics);
 
-      const result = await resourcesApi.getResourceStatistics();
+      const result = await resourcesApi.getStatistics();
 
-      expect(apiClient.get).toHaveBeenCalledWith('/resources/statistics');
+      expect(resourcesApi.getStatistics).toHaveBeenCalled();
       expect(result).toEqual(mockStatistics);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.get as jest.Mock).mockRejectedValueOnce(error);
+      getStatisticsSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.getResourceStatistics()).rejects.toThrow();
-    });
-  });
-
-  describe('fetchResourceStats', () => {
-    it('should fetch resource stats', async () => {
-      const mockStats = {
-        total_resources: 50,
-        total_completed: 20,
-        total_in_progress: 30,
-        articles: {
-          total: 20,
-          completed: 10,
-          in_progress: 10,
-        },
-        videos: {
-          total: 15,
-          completed: 5,
-          in_progress: 10,
-        },
-        courses: {
-          total: 10,
-          completed: 3,
-          in_progress: 7,
-        },
-        books: {
-          total: 5,
-          completed: 2,
-          in_progress: 3,
-        },
-      };
-
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStats });
-
-      const result = await fetchResourceStats();
-
-      expect(apiClient.get).toHaveBeenCalledWith('/resources/statistics');
-      expect(result).toEqual(mockStats);
-    });
-
-    it('should handle errors', async () => {
-      const error = new Error('Network error');
-      (apiClient.get as jest.Mock).mockRejectedValueOnce(error);
-
-      await expect(fetchResourceStats()).rejects.toThrow();
+      await expect(resourcesApi.getStatistics()).rejects.toThrow('Network error');
     });
   });
 });

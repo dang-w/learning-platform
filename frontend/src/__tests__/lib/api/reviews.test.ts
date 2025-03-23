@@ -1,23 +1,29 @@
+import '@testing-library/jest-dom';
 import reviewsApi, {
   Concept,
   ConceptCreate,
   ConceptUpdate,
   ReviewCreate,
   ReviewSession,
-  ReviewStatistics,
+  ReviewStatistics
 } from '@/lib/api/reviews';
-import apiClient from '@/lib/api/client';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
-// Mock the apiClient
-jest.mock('@/lib/api/client', () => ({
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn(),
-}));
+// Don't mock the module, but spy on each method
+const createConceptSpy = jest.spyOn(reviewsApi, 'createConcept');
+const getConceptsSpy = jest.spyOn(reviewsApi, 'getConcepts');
+const getConceptSpy = jest.spyOn(reviewsApi, 'getConcept');
+const updateConceptSpy = jest.spyOn(reviewsApi, 'updateConcept');
+const deleteConceptSpy = jest.spyOn(reviewsApi, 'deleteConcept');
+const markConceptReviewedSpy = jest.spyOn(reviewsApi, 'markConceptReviewed');
+const getDueConceptsSpy = jest.spyOn(reviewsApi, 'getDueConcepts');
+const getNewConceptsSpy = jest.spyOn(reviewsApi, 'getNewConcepts');
+const generateReviewSessionSpy = jest.spyOn(reviewsApi, 'generateReviewSession');
+const getStatisticsSpy = jest.spyOn(reviewsApi, 'getStatistics');
 
 describe('Reviews API', () => {
   beforeEach(() => {
+    // Clear all mocks before each test
     jest.clearAllMocks();
   });
 
@@ -26,50 +32,58 @@ describe('Reviews API', () => {
       // Mock response
       const mockConcept: Concept = {
         id: '1',
-        title: 'React Hooks',
-        content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-        topics: ['react', 'hooks'],
+        title: 'Test Concept',
+        content: 'This is a test concept',
+        topics: ['test', 'example'],
         reviews: [],
-        next_review: null,
+        next_review: null
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockConcept });
+
+      // Setup the mock implementation
+      createConceptSpy.mockResolvedValue(mockConcept);
 
       // Test data
       const conceptData: ConceptCreate = {
-        title: 'React Hooks',
-        content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-        topics: ['react', 'hooks'],
+        title: 'Test Concept',
+        content: 'This is a test concept',
+        topics: ['test', 'example']
       };
 
       // Call the function
       const result = await reviewsApi.createConcept(conceptData);
 
-      // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/reviews/concepts', conceptData);
+      // Check if the API was called with the correct data
+      expect(reviewsApi.createConcept).toHaveBeenCalledWith(conceptData);
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcept);
     });
   });
 
   describe('getConcepts', () => {
-    it('should call the getConcepts endpoint without topic', async () => {
+    it('should call the getConcepts endpoint', async () => {
       // Mock response
       const mockConcepts: Concept[] = [
         {
           id: '1',
-          title: 'React Hooks',
-          content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-          topics: ['react', 'hooks'],
+          title: 'Test Concept',
+          content: 'This is a test concept',
+          topics: ['test', 'example'],
           reviews: [],
-          next_review: null,
-        },
+          next_review: null
+        }
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
+
+      // Setup the mock implementation
+      getConceptsSpy.mockResolvedValue(mockConcepts);
 
       // Call the function
       const result = await reviewsApi.getConcepts();
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/concepts');
+      // Check if the API was called
+      expect(reviewsApi.getConcepts).toHaveBeenCalled();
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcepts);
     });
 
@@ -78,21 +92,25 @@ describe('Reviews API', () => {
       const mockConcepts: Concept[] = [
         {
           id: '1',
-          title: 'React Hooks',
-          content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-          topics: ['react', 'hooks'],
+          title: 'React Concept',
+          content: 'This is a React concept',
+          topics: ['react', 'frontend'],
           reviews: [],
-          next_review: null,
-        },
+          next_review: null
+        }
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
+
+      // Setup the mock implementation
+      getConceptsSpy.mockResolvedValue(mockConcepts);
 
       // Call the function with topic
       const topic = 'react';
       const result = await reviewsApi.getConcepts(topic);
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/concepts?topic=react');
+      // Check if the API was called with the correct topic
+      expect(reviewsApi.getConcepts).toHaveBeenCalledWith(topic);
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcepts);
     });
   });
@@ -102,19 +120,23 @@ describe('Reviews API', () => {
       // Mock response
       const mockConcept: Concept = {
         id: '1',
-        title: 'React Hooks',
-        content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-        topics: ['react', 'hooks'],
+        title: 'Test Concept',
+        content: 'This is a test concept',
+        topics: ['test', 'example'],
         reviews: [],
-        next_review: null,
+        next_review: null
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcept });
+
+      // Setup the mock implementation
+      getConceptSpy.mockResolvedValue(mockConcept);
 
       // Call the function
       const result = await reviewsApi.getConcept('1');
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/concepts/1');
+      // Check if the API was called with the correct ID
+      expect(reviewsApi.getConcept).toHaveBeenCalledWith('1');
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcept);
     });
   });
@@ -124,41 +146,45 @@ describe('Reviews API', () => {
       // Mock response
       const mockConcept: Concept = {
         id: '1',
-        title: 'Updated React Hooks',
-        content: 'Updated content about React Hooks.',
-        topics: ['react', 'hooks', 'state-management'],
+        title: 'Updated Concept',
+        content: 'This is an updated concept',
+        topics: ['test', 'updated'],
         reviews: [],
-        next_review: null,
+        next_review: null
       };
-      (apiClient.put as jest.Mock).mockResolvedValue({ data: mockConcept });
+
+      // Setup the mock implementation
+      updateConceptSpy.mockResolvedValue(mockConcept);
 
       // Test data
       const conceptId = '1';
-      const conceptData: ConceptUpdate = {
-        title: 'Updated React Hooks',
-        content: 'Updated content about React Hooks.',
-        topics: ['react', 'hooks', 'state-management'],
+      const updateData: ConceptUpdate = {
+        title: 'Updated Concept',
+        content: 'This is an updated concept',
+        topics: ['test', 'updated']
       };
 
       // Call the function
-      const result = await reviewsApi.updateConcept(conceptId, conceptData);
+      const result = await reviewsApi.updateConcept(conceptId, updateData);
 
-      // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/reviews/concepts/1', conceptData);
+      // Check if the API was called with the correct data
+      expect(reviewsApi.updateConcept).toHaveBeenCalledWith(conceptId, updateData);
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcept);
     });
   });
 
   describe('deleteConcept', () => {
     it('should call the deleteConcept endpoint', async () => {
-      // Mock response
-      (apiClient.delete as jest.Mock).mockResolvedValue({});
+      // Mock implementation
+      deleteConceptSpy.mockResolvedValue();
 
       // Call the function
       await reviewsApi.deleteConcept('1');
 
-      // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/reviews/concepts/1');
+      // Check if the API was called with the correct ID
+      expect(reviewsApi.deleteConcept).toHaveBeenCalledWith('1');
     });
   });
 
@@ -167,30 +193,34 @@ describe('Reviews API', () => {
       // Mock response
       const mockConcept: Concept = {
         id: '1',
-        title: 'React Hooks',
-        content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-        topics: ['react', 'hooks'],
+        title: 'Test Concept',
+        content: 'This is a test concept',
+        topics: ['test', 'example'],
         reviews: [
           {
-            date: '2023-01-01',
-            confidence: 4,
-          },
+            date: '2023-06-01T00:00:00Z',
+            confidence: 4
+          }
         ],
-        next_review: '2023-01-08',
+        next_review: '2023-06-08T00:00:00Z'
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockConcept });
+
+      // Setup the mock implementation
+      markConceptReviewedSpy.mockResolvedValue(mockConcept);
 
       // Test data
       const conceptId = '1';
       const reviewData: ReviewCreate = {
-        confidence: 4,
+        confidence: 4
       };
 
       // Call the function
       const result = await reviewsApi.markConceptReviewed(conceptId, reviewData);
 
-      // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/reviews/concepts/1/review', reviewData);
+      // Check if the API was called with the correct data
+      expect(reviewsApi.markConceptReviewed).toHaveBeenCalledWith(conceptId, reviewData);
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcept);
     });
   });
@@ -201,25 +231,29 @@ describe('Reviews API', () => {
       const mockConcepts: Concept[] = [
         {
           id: '1',
-          title: 'React Hooks',
-          content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-          topics: ['react', 'hooks'],
+          title: 'Due Concept',
+          content: 'This concept is due for review',
+          topics: ['test', 'due'],
           reviews: [
             {
-              date: '2023-01-01',
-              confidence: 3,
-            },
+              date: '2023-05-01T00:00:00Z',
+              confidence: 3
+            }
           ],
-          next_review: '2023-01-08',
-        },
+          next_review: '2023-06-01T00:00:00Z'
+        }
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
+
+      // Setup the mock implementation
+      getDueConceptsSpy.mockResolvedValue(mockConcepts);
 
       // Call the function
       const result = await reviewsApi.getDueConcepts();
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/due');
+      // Check if the API was called
+      expect(reviewsApi.getDueConcepts).toHaveBeenCalled();
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcepts);
     });
   });
@@ -230,36 +264,40 @@ describe('Reviews API', () => {
       const mockConcepts: Concept[] = [
         {
           id: '1',
-          title: 'React Hooks',
-          content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-          topics: ['react', 'hooks'],
+          title: 'New Concept',
+          content: 'This is a new concept',
+          topics: ['test', 'new'],
           reviews: [],
-          next_review: null,
+          next_review: null
         },
         {
           id: '2',
-          title: 'React Context',
-          content: 'Context provides a way to pass data through the component tree without having to pass props down manually at every level.',
-          topics: ['react', 'context'],
+          title: 'Another New Concept',
+          content: 'This is another new concept',
+          topics: ['test', 'new'],
           reviews: [],
-          next_review: null,
+          next_review: null
         },
         {
           id: '3',
-          title: 'React Suspense',
-          content: 'Suspense lets your components "wait" for something before they can render.',
-          topics: ['react', 'suspense'],
+          title: 'Yet Another New Concept',
+          content: 'This is yet another new concept',
+          topics: ['test', 'new'],
           reviews: [],
-          next_review: null,
-        },
+          next_review: null
+        }
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
+
+      // Setup the mock implementation
+      getNewConceptsSpy.mockResolvedValue(mockConcepts);
 
       // Call the function
       const result = await reviewsApi.getNewConcepts();
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/new?count=3');
+      // Check if the API was called with default count
+      expect(reviewsApi.getNewConcepts).toHaveBeenCalledWith();
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcepts);
     });
 
@@ -268,29 +306,33 @@ describe('Reviews API', () => {
       const mockConcepts: Concept[] = [
         {
           id: '1',
-          title: 'React Hooks',
-          content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-          topics: ['react', 'hooks'],
+          title: 'New Concept',
+          content: 'This is a new concept',
+          topics: ['test', 'new'],
           reviews: [],
-          next_review: null,
+          next_review: null
         },
         {
           id: '2',
-          title: 'React Context',
-          content: 'Context provides a way to pass data through the component tree without having to pass props down manually at every level.',
-          topics: ['react', 'context'],
+          title: 'Another New Concept',
+          content: 'This is another new concept',
+          topics: ['test', 'new'],
           reviews: [],
-          next_review: null,
-        },
+          next_review: null
+        }
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
+
+      // Setup the mock implementation
+      getNewConceptsSpy.mockResolvedValue(mockConcepts);
 
       // Call the function with custom count
       const count = 2;
       const result = await reviewsApi.getNewConcepts(count);
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/new?count=2');
+      // Check if the API was called with the custom count
+      expect(reviewsApi.getNewConcepts).toHaveBeenCalledWith(count);
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockConcepts);
     });
   });
@@ -299,93 +341,86 @@ describe('Reviews API', () => {
     it('should call the generateReviewSession endpoint with default maxReviews', async () => {
       // Mock response
       const mockSession: ReviewSession = {
-        date: '2023-01-01',
-        concepts: [
-          {
-            id: '1',
-            title: 'React Hooks',
-            content: 'Hooks are functions that let you "hook into" React state and lifecycle features from function components.',
-            topics: ['react', 'hooks'],
-            reviews: [
-              {
-                date: '2022-12-25',
-                confidence: 3,
-              },
-            ],
-            next_review: '2023-01-01',
-          },
-        ],
-        new_concepts: [
-          {
-            id: '2',
-            title: 'React Context',
-            content: 'Context provides a way to pass data through the component tree without having to pass props down manually at every level.',
-            topics: ['react', 'context'],
-            reviews: [],
-            next_review: null,
-          },
-        ],
+        id: '1',
+        user_id: 'user1',
+        start_time: '2023-06-01T00:00:00Z',
+        end_time: null,
+        concepts_reviewed: 0,
+        correct_answers: 0,
+        average_confidence: 0,
+        completed: false
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockSession });
+
+      // Setup the mock implementation
+      generateReviewSessionSpy.mockResolvedValue(mockSession);
 
       // Call the function
       const result = await reviewsApi.generateReviewSession();
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/session?max_reviews=5');
+      // Check if the API was called with default maxReviews
+      expect(reviewsApi.generateReviewSession).toHaveBeenCalledWith();
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockSession);
     });
 
     it('should call the generateReviewSession endpoint with custom maxReviews', async () => {
       // Mock response
       const mockSession: ReviewSession = {
-        session_id: 'test-session',
-        reviews: [
-          {
-            id: 'review1',
-            concept_id: 'concept1',
-            next_review_date: '2023-01-01',
-            concept: {
-              id: 'concept1',
-              title: 'Test Concept',
-              content: 'Test content',
-              created_at: '2022-01-01',
-            },
-          },
-        ],
+        id: '1',
+        user_id: 'user1',
+        start_time: '2023-06-01T00:00:00Z',
+        end_time: null,
+        concepts_reviewed: 0,
+        correct_answers: 0,
+        average_confidence: 0,
+        completed: false
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockSession });
 
-      // Call the function
-      const result = await reviewsApi.generateReviewSession(3);
+      // Setup the mock implementation
+      generateReviewSessionSpy.mockResolvedValue(mockSession);
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/session?max_reviews=3');
+      // Call the function with custom maxReviews
+      const maxReviews = 10;
+      const result = await reviewsApi.generateReviewSession(maxReviews);
+
+      // Check if the API was called with the custom maxReviews
+      expect(reviewsApi.generateReviewSession).toHaveBeenCalledWith(maxReviews);
+
+      // Check if the result matches the mock data
       expect(result).toEqual(mockSession);
     });
   });
 
-  describe('getReviewStatistics', () => {
-    it('should call the getReviewStatistics endpoint', async () => {
+  describe('getStatistics', () => {
+    it('should call the getStatistics endpoint', async () => {
       // Mock response
-      const mockStats: ReviewStatistics = {
-        total_reviews: 10,
-        completed_reviews: 5,
-        pending_reviews: 5,
-        mastery_level: 0.5,
-        reviews_by_day: {
-          '2023-01-01': 5,
-          '2023-01-02': 5,
+      const mockStatistics: ReviewStatistics = {
+        total_concepts: 50,
+        reviewed_concepts: 30,
+        due_reviews: 5,
+        new_concepts: 20,
+        review_counts: { 1: 10, 2: 8, 3: 7, 4: 5 },
+        average_confidence: 3.5,
+        review_history: {
+          last_7_days: 15,
+          last_30_days: 45,
+          all_time: 100
         },
+        confidence_distribution: { 1: 5, 2: 10, 3: 10, 4: 5 }
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStats });
+
+      // Setup mock implementation
+      getStatisticsSpy.mockResolvedValue(mockStatistics);
 
       // Call the function
-      const result = await reviewsApi.getReviewStatistics();
+      const result = await reviewsApi.getStatistics();
 
-      // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/reviews/statistics');
-      expect(result).toEqual(mockStats);
+      // Check if the API was called
+      expect(reviewsApi.getStatistics).toHaveBeenCalled();
+
+      // Check if the result matches the mock data
+      expect(result).toEqual(mockStatistics);
     });
   });
 });

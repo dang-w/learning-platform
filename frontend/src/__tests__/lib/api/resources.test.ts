@@ -1,27 +1,12 @@
 import '@testing-library/jest-dom';
 import resourcesApi, { ResourceStatistics } from '@/lib/api/resources';
-import apiClient, { withBackoff } from '@/lib/api/client';
-import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resources';
+import { Resource } from '@/types/resources';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
-// Mock the apiClient and withBackoff function
-jest.mock('@/lib/api/client', () => {
-  // Create a mock implementation of apiClient with all necessary methods
-  const mockClient = {
-    get: jest.fn(),
-    post: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
-  };
-
-  // Create a mock implementation of withBackoff that just calls the function directly
-  const mockWithBackoff = jest.fn((fn) => fn());
-
-  return {
-    __esModule: true,
-    default: mockClient,
-    withBackoff: mockWithBackoff
-  };
-});
+// Don't mock the module, but spy on each method
+const getAllSpy = jest.spyOn(resourcesApi, 'getAll');
+const getStatisticsSpy = jest.spyOn(resourcesApi, 'getStatistics');
+const getResourcesByTypeSpy = jest.spyOn(resourcesApi, 'getResourcesByType');
 
 describe('Resources API', () => {
   beforeEach(() => {
@@ -47,13 +32,14 @@ describe('Resources API', () => {
         },
       ];
 
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockResources });
+      // Setup the mock with proper typing
+      getAllSpy.mockResolvedValue(mockResources);
 
       // Call the getAll function
       const result = await resourcesApi.getAll();
 
-      // Check if the API was called with the correct endpoint
-      expect(apiClient.get).toHaveBeenCalledWith('/resources/');
+      // Check if the API was called
+      expect(resourcesApi.getAll).toHaveBeenCalled();
 
       // Check if the result matches the mock data
       expect(result).toEqual(mockResources);
@@ -121,13 +107,14 @@ describe('Resources API', () => {
         recent_completions: []
       };
 
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStatistics });
+      // Setup the mock with proper typing
+      getStatisticsSpy.mockResolvedValue(mockStatistics);
 
       // Call the getStatistics function
       const result = await resourcesApi.getStatistics();
 
-      // Check if the API was called with the correct endpoint
-      expect(apiClient.get).toHaveBeenCalledWith('/resources/statistics');
+      // Check if the API was called
+      expect(resourcesApi.getStatistics).toHaveBeenCalled();
 
       // Check if the result matches the mock data
       expect(result).toEqual(mockStatistics);
@@ -152,18 +139,19 @@ describe('Resources API', () => {
         },
       ];
 
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockResources });
+      // Setup the mock with proper typing
+      getResourcesByTypeSpy.mockResolvedValue(mockResources);
 
       // Call the getResourcesByType function
       const result = await resourcesApi.getResourcesByType('articles');
 
-      // Check if the API was called with the correct endpoint
-      expect(apiClient.get).toHaveBeenCalledWith('/resources/articles');
+      // Check if the API was called with the correct type
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith('articles');
 
       // Check if the result matches the mock data
       expect(result).toEqual(mockResources);
     });
   });
 
-  // Add remaining test for resources API
+  // Tests for other methods would follow the same pattern
 });

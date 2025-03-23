@@ -1,16 +1,32 @@
 import '@testing-library/jest-dom';
-import type { jest } from '@jest/globals';
 import progressApi, { Metric, MetricCreate, MetricsSummary, WeeklyReport } from '@/lib/api/progress';
-import apiClient from '@/lib/api/client';
 import { LearningProgress } from '@/types/progress';
+import * as apiUtils from '@/lib/utils/api';
+import { expect } from '@jest/globals';
 
 // Mock the apiClient
-jest.mock('@/lib/api/client', () => ({
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn(),
+jest.mock('@/lib/api/client', () => {
+  return {
+    __esModule: true,
+    default: {
+      get: jest.fn(),
+      post: jest.fn(),
+      put: jest.fn(),
+      delete: jest.fn(),
+    }
+  };
+});
+
+// Mock the fetchJsonWithAuth function
+jest.mock('@/lib/utils/api', () => ({
+  fetchJsonWithAuth: jest.fn(),
+  logAuthOperation: jest.fn(),
+  getToken: jest.fn(),
+  refreshTokenAndRetry: jest.fn(),
 }));
+
+// Import the mocked client
+const mockedFetchJsonWithAuth = apiUtils.fetchJsonWithAuth as jest.MockedFunction<typeof apiUtils.fetchJsonWithAuth>;
 
 describe('Progress API', () => {
   beforeEach(() => {
@@ -28,7 +44,7 @@ describe('Progress API', () => {
         focus_score: 8,
         notes: 'Productive study session',
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockMetric });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockMetric);
 
       // Test data
       const metricData: MetricCreate = {
@@ -43,7 +59,10 @@ describe('Progress API', () => {
       const result = await progressApi.addMetric(metricData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/progress/metrics', metricData);
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics', {
+        method: 'POST',
+        body: JSON.stringify(metricData),
+      });
       expect(result).toEqual(mockMetric);
     });
   });
@@ -61,13 +80,13 @@ describe('Progress API', () => {
           notes: 'Productive study session',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockMetrics });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockMetrics);
 
       // Call the function
       const result = await progressApi.getMetrics();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics');
       expect(result).toEqual(mockMetrics);
     });
 
@@ -91,7 +110,7 @@ describe('Progress API', () => {
           notes: 'Worked on routing',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockMetrics });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockMetrics);
 
       // Call the function with date range
       const startDate = '2023-01-01';
@@ -99,7 +118,7 @@ describe('Progress API', () => {
       const result = await progressApi.getMetrics(startDate, endDate);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics?start_date=2023-01-01&end_date=2023-01-07');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics?start_date=2023-01-01&end_date=2023-01-07');
       expect(result).toEqual(mockMetrics);
     });
   });
@@ -123,13 +142,13 @@ describe('Progress API', () => {
           },
         ],
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockSummary });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockSummary);
 
       // Call the function
       const result = await progressApi.getRecentMetricsSummary();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics/recent?days=7');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics/recent?days=7');
       expect(result).toEqual(mockSummary);
     });
 
@@ -151,14 +170,14 @@ describe('Progress API', () => {
           },
         ],
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockSummary });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockSummary);
 
       // Call the function with custom days
       const days = 14;
       const result = await progressApi.getRecentMetricsSummary(days);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/progress/metrics/recent?days=14');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics/recent?days=14');
       expect(result).toEqual(mockSummary);
     });
   });
@@ -204,13 +223,13 @@ describe('Progress API', () => {
           focus_change_percentage: 5.5,
         },
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockReport });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockReport);
 
       // Call the function
       const result = await progressApi.generateWeeklyReport();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/progress/report/weekly');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/report/weekly');
       expect(result).toEqual(mockReport);
     });
 
@@ -254,14 +273,14 @@ describe('Progress API', () => {
           focus_change_percentage: 5.5,
         },
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockReport });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockReport);
 
       // Call the function with date
       const date = '2023-01-01';
       const result = await progressApi.generateWeeklyReport(date);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/progress/report/weekly?date=2023-01-01');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/report/weekly?date=2023-01-01');
       expect(result).toEqual(mockReport);
     });
   });
@@ -269,13 +288,15 @@ describe('Progress API', () => {
   describe('deleteMetric', () => {
     it('should call the deleteMetric endpoint', async () => {
       // Mock response
-      (apiClient.delete as jest.Mock).mockResolvedValue({});
+      mockedFetchJsonWithAuth.mockResolvedValue(undefined);
 
       // Call the function
       await progressApi.deleteMetric('1');
 
       // Assertions
-      expect(apiClient.delete).toHaveBeenCalledWith('/progress/metrics/1');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics/1', {
+        method: 'DELETE'
+      });
     });
   });
 
@@ -305,13 +326,13 @@ describe('Progress API', () => {
           },
         ]
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockProgress });
+      mockedFetchJsonWithAuth.mockResolvedValue(mockProgress);
 
       // Call the function
       const result = await progressApi.fetchLearningProgress();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/progress');
+      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/learning-path/progress');
       expect(result).toEqual(mockProgress);
     });
   });

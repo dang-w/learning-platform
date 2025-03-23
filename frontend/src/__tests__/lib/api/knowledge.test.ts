@@ -11,6 +11,7 @@ import {
   SpacedRepetitionSettings,
   SpacedRepetitionAlgorithm,
 } from '@/types/knowledge';
+import { expect } from '@jest/globals';
 
 // Mock the apiClient
 jest.mock('@/lib/api/client', () => ({
@@ -21,6 +22,9 @@ jest.mock('@/lib/api/client', () => ({
 }));
 
 describe('Knowledge API', () => {
+  // Use type-safe mocking approach
+  const mockedApiClient = apiClient as jest.Mocked<typeof apiClient>;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -39,15 +43,18 @@ describe('Knowledge API', () => {
           review_count: 0,
           confidence_level: 0,
           user_id: '1',
+          reviews: [],
+          next_review: null,
+          updated_at: '2023-01-01T00:00:00Z',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
+      mockedApiClient.get.mockResolvedValue({ data: mockConcepts });
 
       // Call the function
       const result = await knowledgeApi.getConcepts();
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/concepts', { params: undefined });
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/reviews/concepts', { params: undefined });
       expect(result).toEqual(mockConcepts);
     });
 
@@ -64,16 +71,19 @@ describe('Knowledge API', () => {
           review_count: 0,
           confidence_level: 0,
           user_id: '1',
+          reviews: [],
+          next_review: null,
+          updated_at: '2023-01-01T00:00:00Z',
         },
       ];
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
+      mockedApiClient.get.mockResolvedValue({ data: mockConcepts });
 
       // Call the function with params
       const params = { topic: 'javascript', difficulty: 'beginner' };
       const result = await knowledgeApi.getConcepts(params);
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/concepts', { params });
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/reviews/concepts', { params });
       expect(result).toEqual(mockConcepts);
     });
   });
@@ -91,14 +101,17 @@ describe('Knowledge API', () => {
         review_count: 0,
         confidence_level: 0,
         user_id: '1',
+        reviews: [],
+        next_review: null,
+        updated_at: '2023-01-01T00:00:00Z',
       };
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcept });
+      mockedApiClient.get.mockResolvedValue({ data: mockConcept });
 
       // Call the function
       const result = await knowledgeApi.getConcept('1');
 
       // Assertions
-      expect(apiClient.get).toHaveBeenCalledWith('/api/reviews/concepts/1');
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/reviews/concepts/1');
       expect(result).toEqual(mockConcept);
     });
   });
@@ -116,8 +129,11 @@ describe('Knowledge API', () => {
         review_count: 0,
         confidence_level: 0,
         user_id: '1',
+        reviews: [],
+        next_review: null,
+        updated_at: '2023-01-01T00:00:00Z',
       };
-      (apiClient.post as jest.Mock).mockResolvedValue({ data: mockConcept });
+      mockedApiClient.post.mockResolvedValue({ data: mockConcept });
 
       // Test data
       const conceptData: ConceptCreateInput = {
@@ -131,7 +147,7 @@ describe('Knowledge API', () => {
       const result = await knowledgeApi.createConcept(conceptData);
 
       // Assertions
-      expect(apiClient.post).toHaveBeenCalledWith('/api/reviews/concepts', conceptData);
+      expect(mockedApiClient.post).toHaveBeenCalledWith('/api/reviews/concepts', conceptData);
       expect(result).toEqual(mockConcept);
     });
   });
@@ -149,8 +165,11 @@ describe('Knowledge API', () => {
         review_count: 0,
         confidence_level: 0,
         user_id: '1',
+        reviews: [],
+        next_review: null,
+        updated_at: '2023-01-01T00:00:00Z',
       };
-      (apiClient.put as jest.Mock).mockResolvedValue({ data: mockConcept });
+      mockedApiClient.put.mockResolvedValue({ data: mockConcept });
 
       // Test data
       const conceptData: ConceptUpdateInput = {
@@ -165,7 +184,7 @@ describe('Knowledge API', () => {
       const result = await knowledgeApi.updateConcept(conceptData);
 
       // Assertions
-      expect(apiClient.put).toHaveBeenCalledWith('/api/reviews/concepts/1', conceptData);
+      expect(mockedApiClient.put).toHaveBeenCalledWith('/api/reviews/concepts/1', conceptData);
       expect(result).toEqual(mockConcept);
     });
   });
@@ -189,10 +208,10 @@ describe('Knowledge API', () => {
       const mockReview: Review = {
         id: '1',
         concept_id: '1',
-        reviewed_at: '2023-01-01T00:00:00Z',
         confidence_level: 4,
         notes: '',
         user_id: '1',
+        created_at: '2023-01-01T00:00:00Z',
       };
       (apiClient.post as jest.Mock).mockResolvedValue({ data: mockReview });
 
@@ -226,6 +245,9 @@ describe('Knowledge API', () => {
           review_count: 0,
           confidence_level: 0,
           user_id: '1',
+          reviews: [],
+          next_review: null,
+          updated_at: '2023-01-01T00:00:00Z',
         },
       ];
       (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
@@ -253,6 +275,9 @@ describe('Knowledge API', () => {
           review_count: 0,
           confidence_level: 0,
           user_id: '1',
+          reviews: [],
+          next_review: null,
+          updated_at: '2023-01-01T00:00:00Z',
         },
       ];
       (apiClient.get as jest.Mock).mockResolvedValue({ data: mockConcepts });
@@ -271,8 +296,8 @@ describe('Knowledge API', () => {
       // Mock response
       const mockSession: ReviewSession = {
         id: '1',
-        user_id: '1',
-        created_at: '2023-01-01T00:00:00Z',
+        date: '2023-01-01T00:00:00Z',
+        completed: false,
         concepts: [
           {
             id: '1',
@@ -284,6 +309,9 @@ describe('Knowledge API', () => {
             review_count: 0,
             confidence_level: 0,
             user_id: '1',
+            reviews: [],
+            next_review: null,
+            updated_at: '2023-01-01T00:00:00Z',
           },
         ],
       };
@@ -330,6 +358,15 @@ describe('Knowledge API', () => {
           'typescript': 2,
         },
         review_streak: 3,
+        total_reviews: 10,
+        concepts_with_reviews: 7,
+        concepts_without_reviews: 3,
+        topics: ['javascript', 'typescript'],
+        review_history: [],
+        top_topics: [{ name: 'javascript', count: 3 }, { name: 'typescript', count: 2 }],
+        recently_reviewed_concepts: [],
+        due_concepts: 3,
+        streak_days: 3,
       };
       (apiClient.get as jest.Mock).mockResolvedValue({ data: mockStats });
 
