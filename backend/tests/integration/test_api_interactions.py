@@ -371,7 +371,7 @@ async def test_user_profile_endpoint(async_client, mock_user, auth_headers):
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    response = await async_client.get("/users/me/", headers=auth_headers)
+    response = await async_client.get("/api/users/me/", headers=auth_headers)
     assert response.status_code == 200
     user_data = response.json()
     assert user_data["username"] == mock_user.username

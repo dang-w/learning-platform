@@ -27,7 +27,7 @@ def test_authentication(client, auth_headers):
     Test that authentication works with a valid token.
     """
     # Make a request with the auth headers
-    response = client.get("/users/me/", headers=auth_headers)
+    response = client.get("/api/users/me/", headers=auth_headers)
 
     # Verify the response using the standardized response model
     user_data = verify_response(response)
@@ -47,7 +47,7 @@ def test_authentication_failure():
     invalid_headers = {"Authorization": "Bearer invalid_token"}
 
     # Make a request with invalid auth headers
-    response = client.get("/users/me/", headers=invalid_headers)
+    response = client.get("/api/users/me/", headers=invalid_headers)
 
     # Verify the response is unauthorized
     assert response.status_code == 401

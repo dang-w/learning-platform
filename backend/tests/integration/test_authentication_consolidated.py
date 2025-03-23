@@ -47,7 +47,7 @@ def test_authentication(client, auth_headers):
     Test that authentication works with a valid token using TestClient.
     """
     # Make a request with the auth headers
-    response = client.get("/users/me/", headers=auth_headers)
+    response = client.get("/api/users/me/", headers=auth_headers)
 
     # Verify the response
     assert response.status_code == 200
@@ -68,7 +68,7 @@ def test_authentication_failure():
     invalid_headers = {"Authorization": "Bearer invalid_token"}
 
     # Make a request with invalid auth headers
-    response = client.get("/users/me/", headers=invalid_headers)
+    response = client.get("/api/users/me/", headers=invalid_headers)
 
     # Verify the response is unauthorized
     assert response.status_code == 401
@@ -286,11 +286,12 @@ async def test_login_success(async_client):
         }
 
         # Use the correct path /auth/token instead of /token
-        response = await async_client.post("/auth/token", data=login_data)
+        response = await async_client.post("/api/auth/token", data=login_data)
         assert response.status_code == 200
         token_data = response.json()
         assert "access_token" in token_data
-        assert token_data["token_type"] == "bearer"
+        assert "refresh_token" in token_data
+        assert token_data["token_type"].lower() == "bearer"
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -315,11 +316,11 @@ async def test_login_invalid_credentials(async_client):
         }
 
         # Use the correct path /auth/token instead of /token
-        response = await async_client.post("/auth/token", data=login_data)
+        response = await async_client.post("/api/auth/token", data=login_data)
         assert response.status_code == 401
-        error_data = response.json()
-        assert "detail" in error_data
-        assert "Incorrect username or password" in error_data["detail"]
+        error_detail = response.json()
+        assert "detail" in error_detail
+        assert error_detail["detail"] == "Incorrect username or password"
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -330,7 +331,7 @@ async def test_protected_endpoint_with_token(async_client, auth_headers):
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    response = await async_client.get("/users/me/", headers=auth_headers)
+    response = await async_client.get("/api/users/me/", headers=auth_headers)
     assert response.status_code == 200
     user_data = response.json()
     assert user_data["username"] == "testuser"
@@ -345,8 +346,8 @@ async def test_protected_endpoint_without_token(async_client):
     # Create a new client without authentication headers
     from httpx import AsyncClient
     async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.get("/users/me/")
+        response = await client.get("/api/users/me/")
         assert response.status_code == 401
-        error_data = response.json()
-        assert "detail" in error_data
-        assert "Not authenticated" in error_data["detail"]
+        error_detail = response.json()
+        assert "detail" in error_detail
+        assert error_detail["detail"] == "Not authenticated"
