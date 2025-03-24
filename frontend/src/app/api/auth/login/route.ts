@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { API_URL } from '@/config';
 
 /**
+ * Clean token by removing Bearer prefix if present
+ */
+function cleanToken(token: string): string {
+  return token.replace(/^Bearer\s+/i, '').trim();
+}
+
+/**
  * Handles user login and returns tokens
  */
 export async function POST(request: NextRequest) {
@@ -29,6 +36,7 @@ export async function POST(request: NextRequest) {
     const formData = new URLSearchParams();
     formData.append('username', body.username);
     formData.append('password', body.password);
+    formData.append('grant_type', 'password');
 
     // Forward the request to the backend using x-www-form-urlencoded format
     const backendResponse = await fetch(loginEndpoint, {
@@ -71,24 +79,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Rename tokens for frontend consistency
+    // Clean and format tokens for frontend consistency
+    const cleanedToken = cleanToken(responseData.access_token);
     const tokenResponse = {
-      token: responseData.access_token,
-      refreshToken: responseData.refresh_token
+      token: cleanedToken, // Send clean token without Bearer prefix
+      refreshToken: responseData.refresh_token,
+      tokenType: responseData.token_type
     };
 
-    // Set cookies for server-side authentication
-    const response = NextResponse.json(tokenResponse, { status: 200 });
+    // Create response with proper headers
+    const response = NextResponse.json(tokenResponse, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
 
-    // Set HTTP-only cookie for added security
+    // Set cookies for server-side authentication
     response.cookies.set({
       name: 'token',
-      value: tokenResponse.token,
+      value: cleanedToken,
       httpOnly: true,
       path: '/',
       maxAge: 60 * 60, // 1 hour
       sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
     });
+
+    if (responseData.refresh_token) {
+      response.cookies.set({
+        name: 'refresh_token',
+        value: responseData.refresh_token,
+        httpOnly: true,
+        path: '/',
+        maxAge: 60 * 60 * 24, // 24 hours
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      });
+    }
 
     console.log('Login successful, returning tokens and setting cookies');
     return response;

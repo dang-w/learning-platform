@@ -1,94 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_URL } from '@/config';
-import { getServerAuthToken, logAuthSources } from '@/lib/utils/api';
 
 /**
- * Get user statistics from the backend API
+ * Get user statistics
  */
 export async function GET(request: NextRequest) {
-  console.log('User Statistics API route: Processing request');
+  console.log('Statistics request received');
 
   try {
-    // Get authentication token using standardized utility
-    const authToken = getServerAuthToken(request);
-
-    // Log token debug information
-    logAuthSources(request);
-
-    if (!authToken) {
-      console.log('No token found, returning 401');
+    // Extract token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No Authorization header present');
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Construct the backend API URL - use the correct endpoint
+    console.log('Found token in Authorization header');
+
+    // Construct the backend API URL
     const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
-    const endpoint = `${backendUrl}/api/users/me/statistics`;
+    const endpoint = `${backendUrl}/api/auth/statistics`;
 
-    console.log(`User Statistics API route: Forwarding to backend: ${endpoint}`);
-
-    // Set up headers with auth token
-    const headers = {
-      'Authorization': authToken,
-      'Content-Type': 'application/json'
-    };
+    console.log(`Forwarding statistics request to backend: ${endpoint}`);
 
     // Forward the request to the backend
     const backendResponse = await fetch(endpoint, {
       method: 'GET',
-      headers,
-      cache: 'no-store',
-      credentials: 'include'
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      cache: 'no-store'
     });
 
-    console.log(`User Statistics API route: Backend response status: ${backendResponse.status}`);
+    console.log(`Backend response status: ${backendResponse.status}`);
 
     if (!backendResponse.ok) {
-      const errorText = await backendResponse.text();
-      console.error(`User Statistics API route: Backend error: ${errorText}`);
-
-      if (backendResponse.status === 404) {
-        // Return dummy data for development if endpoint doesn't exist yet
-        if (process.env.NODE_ENV === 'development') {
-          console.log('User Statistics API route: Returning mock data in development mode');
-          return NextResponse.json({
-            totalCoursesEnrolled: 5,
-            completedCourses: 3,
-            averageScore: 85,
-            totalTimeSpent: 24,
-            conceptsLearned: 42,
-            reviewsCompleted: 120,
-            streakDays: 7,
-            lastActivity: new Date().toISOString()
-          });
-        }
-      }
-
+      const errorData = await backendResponse.json().catch(() => ({}));
+      console.error('Error from backend:', errorData);
       return NextResponse.json(
-        { message: 'Failed to fetch user statistics' },
+        { message: errorData.detail || 'Failed to fetch statistics' },
         { status: backendResponse.status }
       );
     }
 
-    // Transform the backend response to match the expected frontend format
-    const backendData = await backendResponse.json();
+    // Return the statistics data
+    const data = await backendResponse.json();
+    return NextResponse.json(data, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
 
-    // Map backend fields to frontend expected format
-    const transformedData = {
-      totalCoursesEnrolled: backendData.total_learning_paths || 0,
-      completedCourses: backendData.completed_resources || 0,
-      averageScore: backendData.review_accuracy || 0,
-      totalTimeSpent: backendData.study_time || 0,
-      conceptsLearned: backendData.total_concepts || 0,
-      completionRate: backendData.completion_rate || 0,
-      streakDays: backendData.active_days || 0,
-      lastActivity: new Date().toISOString()
-    };
-
-    return NextResponse.json(transformedData);
   } catch (error) {
-    console.error('Error in user statistics route:', error);
+    console.error('Error fetching statistics:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'An error occurred while fetching statistics' },
       { status: 500 }
     );
   }

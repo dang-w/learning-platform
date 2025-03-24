@@ -101,6 +101,36 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Add request interceptor to add Authorization header
+apiClient.interceptors.request.use(
+  async (config) => {
+    // Don't add auth headers to the token refresh endpoint
+    if (config.url?.includes('/auth/token/refresh')) {
+      return config;
+    }
+
+    try {
+      // Get the token from localStorage
+      const token = localStorage.getItem('token');
+
+      if (token) {
+        // Make sure headers object exists
+        config.headers = config.headers || {};
+
+        // Add the token to the Authorization header
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error('Error setting auth header:', error);
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Request interceptor to add auth token - update to always get the latest token
 apiClient.interceptors.request.use(
   async (config) => {
@@ -165,10 +195,13 @@ const refreshToken = async (): Promise<boolean> => {
         return false;
       }
 
-      // Call the token refresh endpoint
-      console.log('Calling token refresh endpoint: /api/auth/token/refresh');
-      const response = await axios.post('/api/auth/token/refresh', {
+      // Call the token refresh endpoint using direct axios instead of apiClient
+      // to avoid interceptor loops
+      console.log('Calling token refresh endpoint with absolute URL');
+      const response = await axios.post(`${BACKEND_API_URL}/api/auth/token/refresh`, {
         refresh_token: refreshToken
+      }, {
+        withCredentials: true
       });
 
       if (response.status === 200 && (response.data.token || response.data.access_token)) {
@@ -196,9 +229,11 @@ const refreshToken = async (): Promise<boolean> => {
         authStore.useAuthStore.setState({
           token: newToken,
           refreshToken: response.data.refresh_token || refreshToken,
-          isAuthenticated: true
+          isAuthenticated: true,
+          _lastTokenRefresh: Date.now()
         });
 
+        console.log('Token refresh successful, auth state updated');
         return true;
       }
 
@@ -233,41 +268,50 @@ apiClient.interceptors.response.use(
       const originalRequest = error.config;
 
       // Prevent infinite loops - don't retry the refresh token endpoint itself
-      if (originalRequest.url?.includes('/token/refresh')) {
+      if (originalRequest.url?.includes('/token/refresh') ||
+          originalRequest.url?.includes('/auth/token/refresh')) {
         console.log('Not retrying token refresh endpoint');
         return Promise.reject(error);
       }
 
       try {
-        // Try to refresh the token
+        // Attempt to refresh the token
         const refreshSuccessful = await refreshToken();
 
-        // If token refresh was successful, update the Authorization header and retry
         if (refreshSuccessful) {
           console.log('Token refreshed successfully, retrying original request');
 
-          // Get the updated token
-          const token = localStorage.getItem('token');
-
           // Update the Authorization header with the new token
-          originalRequest.headers.Authorization = `Bearer ${token}`;
+          const newToken = localStorage.getItem('token');
+          if (newToken) {
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+          }
 
           // Retry the original request with the new token
-          return apiClient(originalRequest);
+          return axios(originalRequest);
         } else {
-          console.log('Token refresh failed, rejecting request');
+          console.log('Token refresh failed, redirecting to login');
 
-          // Redirecting to login page would be handled by the auth provider
-          // This is just to ensure the error is properly propagated
+          // Clear auth state on token refresh failure
+          const authStore = await import('@/lib/store/auth-store');
+          authStore.useAuthStore.getState().logout();
+
+          // Reject the promise to propagate the 401 error
           return Promise.reject(error);
         }
       } catch (refreshError) {
         console.error('Error during token refresh:', refreshError);
+
+        // Clear auth state on token refresh error
+        const authStore = await import('@/lib/store/auth-store');
+        authStore.useAuthStore.getState().logout();
+
         return Promise.reject(error);
       }
     }
 
-    // For all other errors, just reject the promise
+    // For other errors, just reject the promise
     return Promise.reject(error);
   }
 );

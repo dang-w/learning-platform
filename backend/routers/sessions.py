@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["sessions"])
 
-# Session expiry duration in minutes (e.g., 24 hours)
-SESSION_EXPIRY_MINUTES = 60 * 24
+# Session expiry duration in minutes (e.g., 1 hour)
+SESSION_EXPIRY_MINUTES = 60
 
 class Session(BaseModel):
     session_id: str = Field(default_factory=lambda: str(uuid4()))
@@ -148,9 +148,46 @@ async def cleanup_expired_sessions() -> int:
 
 @router.post("/cleanup", status_code=status.HTTP_200_OK)
 async def trigger_cleanup(background_tasks: BackgroundTasks) -> Any:
-    """Trigger a background task to clean up expired sessions."""
+    """Trigger a cleanup of expired sessions"""
     background_tasks.add_task(cleanup_expired_sessions)
-    return {"message": "Session cleanup triggered"}
+    return {"status": "cleanup scheduled"}
+
+async def get_user_sessions(username: str) -> List[Dict[str, Any]]:
+    """
+    Get all active sessions for a user by username.
+    This function is used by the auth module to retrieve session information.
+
+    Args:
+        username: The username to lookup sessions for
+
+    Returns:
+        List of active session dictionaries
+    """
+    try:
+        # First, get the user ID for this username
+        user = await db.users.find_one({"username": username})
+        if not user:
+            logger.warning(f"User not found when fetching sessions: {username}")
+            return []
+
+        user_id = str(user.get("_id"))
+
+        # Find all active sessions for this user
+        cursor = db.sessions.find({
+            "user_id": user_id,
+            "expires_at": {"$gt": datetime.utcnow()}
+        })
+
+        sessions = []
+        async for session in cursor:
+            # Convert ObjectId to string for JSON serialization
+            session["_id"] = str(session["_id"])
+            sessions.append(session)
+
+        return sessions
+    except Exception as e:
+        logger.error(f"Error fetching user sessions: {str(e)}")
+        return []
 
 async def create_login_session(
     user_id: str,

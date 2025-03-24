@@ -156,6 +156,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     )
     try:
         logger.debug("Attempting to decode JWT token")
+        logger.info(f"Token debug info: Length={len(token) if token else 0}, Prefix={token[:10] + '...' if token and len(token) > 10 else 'N/A'}")
+
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
         username: str = payload.get("sub")
@@ -174,6 +176,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         if user is None:
             logger.warning(f"User not found: {token_data.username}")
             raise credentials_exception
+        logger.info(f"Successfully authenticated user: {token_data.username}")
         return user
     except Exception as e:
         logger.error(f"Failed to get user: {str(e)}")
