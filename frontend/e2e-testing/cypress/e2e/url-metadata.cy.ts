@@ -1,23 +1,10 @@
 import { resourcesPage } from '../support/page-objects';
+import { setupCompleteAuthBypass } from '../support/auth-test-utils';
 
 describe('URL Metadata Extraction', () => {
   beforeEach(() => {
-    // Clear cookies and local storage
-    cy.clearCookies();
-    cy.clearLocalStorage();
-
-    // Create test user and login
-    cy.createTestUser({
-      username: 'test-user-cypress',
-      email: 'test-user-cypress@example.com',
-      password: 'TestPassword123!',
-      fullName: 'Test User Cypress'
-    });
-
-    cy.login('test-user-cypress', 'TestPassword123!');
-
-    // Check if token is set
-    cy.window().its('localStorage').invoke('getItem', 'token').should('not.be.null');
+    // Setup auth with complete bypass
+    setupCompleteAuthBypass('test-user-cypress');
 
     // Visit the new resource page using POM
     resourcesPage.visitNewResource();

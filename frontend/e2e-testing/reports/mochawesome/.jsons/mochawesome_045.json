@@ -1,0 +1,222 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 6,
+    "passes": 2,
+    "pending": 0,
+    "failures": 4,
+    "start": "2025-03-24T11:43:36.526Z",
+    "end": "2025-03-24T11:47:59.055Z",
+    "duration": 262529,
+    "testsRegistered": 6,
+    "passPercent": 33.33333333333333,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "4bb10843-ce42-41c3-91c5-b0da7c622b7f",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "file": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "443b81f3-4ebe-4311-aa23-2a6a4068438d",
+          "title": "User Profile",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display user profile information",
+              "fullTitle": "User Profile should display user profile information",
+              "timedOut": null,
+              "duration": 1990,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Wait for user data to load\ncy.wait('@getUser');\n// Check profile tab content\ncy.get('[data-testid=\"profile-tab\"]').should('be.visible');\ncy.get('[data-testid=\"profile-email\"]').should('have.value', 'test@example.com');\ncy.get('[data-testid=\"profile-full-name\"]').should('have.value', 'Test User');",
+              "err": {},
+              "uuid": "7e1f3ac4-40c1-4a1c-93d3-eb49a8d5cd73",
+              "parentUUID": "443b81f3-4ebe-4311-aa23-2a6a4068438d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow updating profile information",
+              "fullTitle": "User Profile should allow updating profile information",
+              "timedOut": null,
+              "duration": 2363,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Wait for user data to load\ncy.wait('@getUser');\n// Mock profile update request\ncy.intercept('PUT', '/api/users/me', {\n    statusCode: 200,\n    body: {\n        id: '123',\n        username: 'testuser',\n        email: 'updated@example.com',\n        firstName: 'Updated',\n        lastName: 'User',\n        role: 'user',\n        createdAt: new Date().toISOString()\n    }\n}).as('updateProfile');\n// Update profile information\ncy.get('[data-testid=\"profile-email\"]').clear().type('updated@example.com');\ncy.get('[data-testid=\"profile-full-name\"]').clear().type('Updated User');\ncy.get('[data-testid=\"profile-form\"]').submit();\n// Wait for update request\ncy.wait('@updateProfile');\n// Check success message\ncy.get('[data-testid=\"profile-success\"]').should('be.visible');",
+              "err": {},
+              "uuid": "7f647bdf-4121-4146-8a14-32d8648952e2",
+              "parentUUID": "443b81f3-4ebe-4311-aa23-2a6a4068438d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display account statistics",
+              "fullTitle": "User Profile should display account statistics",
+              "timedOut": null,
+              "duration": 22425,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should display account statistics (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should display account statistics (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should display account statistics (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for user data to load\ncy.wait('@getUser');\n// Click statistics tab\ncy.get('[data-testid=\"statistics-tab\"]').click();\n// Wait for either Next.js API route or direct backend route\ncy.wait(['@getStatistics', '@getBackendStatistics']);\n// Check statistics content\ncy.get('[data-testid=\"account-statistics\"]').within(function () {\n    cy.contains('Total Courses Enrolled').parent().contains('5');\n    cy.contains('Completed Courses').parent().contains('3');\n    cy.contains('Average Score').parent().contains('85%');\n});",
+              "err": {
+                "message": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getStatistics`. No request ever occurred.\n\nhttps://on.cypress.io/wait",
+                "estack": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getStatistics`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)",
+                "diff": null
+              },
+              "uuid": "f130f6e0-3fd6-4a14-a3a7-4b35fc1316da",
+              "parentUUID": "443b81f3-4ebe-4311-aa23-2a6a4068438d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle notification preferences",
+              "fullTitle": "User Profile should handle notification preferences",
+              "timedOut": null,
+              "duration": 22471,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for user data to load\ncy.wait('@getUser');\n// Click notifications tab\ncy.get('[data-testid=\"notifications-tab\"]').click();\n// Wait for either Next.js API route or direct backend route\ncy.wait(['@getPreferences', '@getBackendPreferences']);\n// Mock preferences update request\ncy.intercept('PUT', '/api/auth/notification-preferences', {\n    statusCode: 200,\n    body: {\n        emailNotifications: false,\n        courseUpdates: true,\n        newMessages: true,\n        marketingEmails: false,\n        weeklyDigest: false\n    }\n}).as('updatePreferences');\n// Toggle preferences\ncy.get('[data-testid=\"email-notifications-toggle\"]').click();\ncy.get('[data-testid=\"course-updates-toggle\"]').click();\n// Wait for update request\ncy.wait('@updatePreferences');\n// Check success message\ncy.get('[data-testid=\"success-notification\"]').should('be.visible');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getPreferences`. No request ever occurred.\n\nhttps://on.cypress.io/wait",
+                "estack": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getPreferences`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)",
+                "diff": null
+              },
+              "uuid": "48b99cf7-fc92-4cd0-a057-51f1a00d85e5",
+              "parentUUID": "443b81f3-4ebe-4311-aa23-2a6a4068438d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle data export",
+              "fullTitle": "User Profile should handle data export",
+              "timedOut": null,
+              "duration": 17614,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for user data to load\ncy.wait('@getUser');\n// Click export tab\ncy.get('[data-testid=\"export-tab\"]').click();\n// Mock export request\ncy.intercept('GET', '/api/users/me/export', {\n    statusCode: 200,\n    body: {\n        user: {\n            id: '123',\n            username: 'testuser',\n            email: 'test@example.com'\n        },\n        courses: [],\n        progress: []\n    }\n}).as('exportData');\n// Click export button and check loading state\ncy.get('[data-testid=\"export-data-button\"]').as('exportBtn');\ncy.get('@exportBtn').click();\ncy.get('@exportBtn').should('have.text', 'Exporting...');\ncy.wait('@exportData');\ncy.get('@exportBtn').should('have.text', 'Export My Data');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 15000ms: expected '<button.inline-flex.items-center.px-4.py-2.border.border-transparent.shadow-sm.text-sm.font-medium.rounded-md.text-white.bg-indigo-600.hover:bg-indigo-700.focus:outline-none.focus:ring-2.focus:ring-offset-2.focus:ring-indigo-500>' to have text 'Exporting...', but the text was 'Export My Data'",
+                "estack": "AssertionError: Timed out retrying after 15000ms: expected '<button.inline-flex.items-center.px-4.py-2.border.border-transparent.shadow-sm.text-sm.font-medium.rounded-md.text-white.bg-indigo-600.hover:bg-indigo-700.focus:outline-none.focus:ring-2.focus:ring-offset-2.focus:ring-indigo-500>' to have text 'Exporting...', but the text was 'Export My Data'\n    at Context.eval (webpack:///./cypress/e2e/profile.cy.ts:190:0)",
+                "diff": "- 'Export My Data'\n+ 'Exporting...'\n"
+              },
+              "uuid": "7b38224f-39bc-4e8d-bad6-d12009de9e85",
+              "parentUUID": "443b81f3-4ebe-4311-aa23-2a6a4068438d",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle account deletion flow",
+              "fullTitle": "User Profile should handle account deletion flow",
+              "timedOut": null,
+              "duration": 22395,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for user data to load\ncy.wait('@getUser');\n// Click account tab\ncy.get('[data-testid=\"account-tab\"]').click();\n// Mock delete request\ncy.intercept('DELETE', '/api/users/me', {\n    statusCode: 200\n}).as('deleteAccount');\n// Click delete button and confirm\ncy.get('[data-testid=\"delete-account-button\"]').click();\ncy.get('[data-testid=\"confirm-delete-button\"]').click();\n// Wait for delete request\ncy.wait('@deleteAccount');\n// Should redirect to login page\ncy.url().should('include', '/auth/login');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `deleteAccount`. No request ever occurred.\n\nhttps://on.cypress.io/wait",
+                "estack": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `deleteAccount`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)",
+                "diff": null
+              },
+              "uuid": "6690eb62-305b-4e91-8232-7298e0888079",
+              "parentUUID": "443b81f3-4ebe-4311-aa23-2a6a4068438d",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "7e1f3ac4-40c1-4a1c-93d3-eb49a8d5cd73",
+            "7f647bdf-4121-4146-8a14-32d8648952e2"
+          ],
+          "failures": [
+            "f130f6e0-3fd6-4a14-a3a7-4b35fc1316da",
+            "48b99cf7-fc92-4cd0-a057-51f1a00d85e5",
+            "7b38224f-39bc-4e8d-bad6-d12009de9e85",
+            "6690eb62-305b-4e91-8232-7298e0888079"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 89258,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

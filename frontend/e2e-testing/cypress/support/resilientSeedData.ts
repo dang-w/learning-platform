@@ -219,15 +219,20 @@ export const seedAllDataReliably = (options = { resources: 5, concepts: 5, goals
  * Use this as a beforeEach in test specs that need auth + data
  */
 export const setupAuthenticatedTestWithData = () => {
-  // Ensure user is logged in
-  cy.isLoggedIn().then(loggedIn => {
-    if (!loggedIn) {
-      cy.login('test-user-cypress', 'TestPassword123!');
-    }
-  });
+  // Use auth bypass instead of conventional login to avoid mixing promises
+  cy.useAuthBypass('test-user-cypress');
 
-  // Seed data
-  seedAllDataReliably();
+  // Seed data after login is complete, using proper Cypress command chaining
+  cy.log('Seeding test data with resilient endpoints');
+
+  // Seed resources
+  seedResourcesReliably(5);
+
+  // Seed concepts
+  seedConceptsReliably(5);
+
+  // Seed goals
+  seedGoalsReliably(5);
 };
 
 /**

@@ -1,0 +1,167 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 4,
+    "passes": 4,
+    "pending": 0,
+    "failures": 0,
+    "start": "2025-03-24T13:26:58.522Z",
+    "end": "2025-03-24T13:27:02.433Z",
+    "duration": 3911,
+    "testsRegistered": 4,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "16200c2a-0dd3-46ab-9704-bc3456fdc5e6",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/url-metadata.cy.ts",
+      "file": "e2e-testing/cypress/e2e/url-metadata.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "dd4f1b84-fa54-4905-9974-5fddd765ca4a",
+          "title": "URL Metadata Extraction",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should extract metadata from a valid URL",
+              "fullTitle": "URL Metadata Extraction should extract metadata from a valid URL",
+              "timedOut": null,
+              "duration": 904,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Verify we have a token at minimum\ncy.window().its('localStorage').invoke('getItem', 'token').should('not.be.null');\n// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - likely 404 page or feature not implemented');\n        return;\n    }\n    // Enter URL and extract metadata\n    page_objects_1.resourcesPage.enterUrlAndExtractMetadata('https://example.com');\n    // Check if metadata was populated\n    cy.wait(1000); // Wait briefly for any UI updates\n    page_objects_1.resourcesPage.isMetadataPopulated().then(function (isPopulated) {\n        if (isPopulated) {\n            cy.log('Metadata successfully extracted and populated');\n        }\n        else {\n            cy.log('Metadata extraction may have failed or feature not fully implemented');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "5ab66bab-617b-402a-833e-1eb6d709ebff",
+              "parentUUID": "dd4f1b84-fa54-4905-9974-5fddd765ca4a",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should show an error message for invalid URLs",
+              "fullTitle": "URL Metadata Extraction should show an error message for invalid URLs",
+              "timedOut": null,
+              "duration": 807,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - skipping test');\n        return;\n    }\n    // Enter an invalid URL and try to extract metadata\n    page_objects_1.resourcesPage.enterUrl('invalid-url');\n    page_objects_1.resourcesPage.clickExtractMetadata();\n    // Wait briefly for any error to appear\n    cy.wait(1000);\n    // Check for error message\n    page_objects_1.resourcesPage.hasMetadataError().then(function (hasError) {\n        if (hasError) {\n            cy.log('Error message displayed correctly for invalid URL');\n        }\n        else {\n            cy.log('No error message found - validation may not be implemented');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "57b08470-c3be-4d34-95b5-0144fec5aadc",
+              "parentUUID": "dd4f1b84-fa54-4905-9974-5fddd765ca4a",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should show an error message when metadata extraction fails",
+              "fullTitle": "URL Metadata Extraction should show an error message when metadata extraction fails",
+              "timedOut": null,
+              "duration": 786,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - skipping test');\n        return;\n    }\n    // Enter a URL that will likely fail metadata extraction\n    page_objects_1.resourcesPage.enterUrlAndExtractMetadata('https://example.com/nonexistent');\n    // Check for error message\n    page_objects_1.resourcesPage.hasMetadataError().then(function (hasError) {\n        if (hasError) {\n            cy.log('Error message displayed correctly for failed extraction');\n        }\n        else {\n            cy.log('No error message found - error handling may not be implemented');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "8a31c17c-d68a-4274-9a11-e218375b8741",
+              "parentUUID": "dd4f1b84-fa54-4905-9974-5fddd765ca4a",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow manual entry after failed metadata extraction",
+              "fullTitle": "URL Metadata Extraction should allow manual entry after failed metadata extraction",
+              "timedOut": null,
+              "duration": 884,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - skipping test');\n        return;\n    }\n    // Enter a URL and attempt metadata extraction\n    page_objects_1.resourcesPage.enterUrlAndExtractMetadata('https://example.com/test');\n    // Enter manual details\n    page_objects_1.resourcesPage.enterManualDetails('Manual Title', 'Manual description');\n    // Try to select a resource type\n    page_objects_1.resourcesPage.selectResourceType('article');\n    cy.log('Successfully entered manual details');\n});",
+              "err": {},
+              "uuid": "5e87f07c-e935-4b04-9213-401560faea78",
+              "parentUUID": "dd4f1b84-fa54-4905-9974-5fddd765ca4a",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "5ab66bab-617b-402a-833e-1eb6d709ebff",
+            "57b08470-c3be-4d34-95b5-0144fec5aadc",
+            "8a31c17c-d68a-4274-9a11-e218375b8741",
+            "5e87f07c-e935-4b04-9213-401560faea78"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 3381,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

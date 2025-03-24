@@ -1,0 +1,222 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 6,
+    "passes": 2,
+    "pending": 0,
+    "failures": 4,
+    "start": "2025-03-24T10:48:36.595Z",
+    "end": "2025-03-24T10:52:35.326Z",
+    "duration": 238731,
+    "testsRegistered": 6,
+    "passPercent": 33.33333333333333,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "577e3966-15ff-4201-90d4-35c94ec7da7c",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "file": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "fc68ad40-323c-44c2-b367-8385ba42086f",
+          "title": "User Profile",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display user profile information",
+              "fullTitle": "User Profile should display user profile information",
+              "timedOut": null,
+              "duration": 3906,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile-should display user profile information-profile-information.png\"\n    ]\n  ]\n}",
+              "code": "// Wait for profile data to load\ncy.wait('@getProfile');\n// Verify profile info elements are visible and contain correct data\ncy.get('input[name=\"email\"]')\n    .should('be.visible')\n    .and('have.value', testUser.email);\ncy.get('input[name=\"fullName\"]')\n    .should('be.visible')\n    .and('have.value', \"\".concat(testUser.firstName, \" \").concat(testUser.lastName));\n// Take screenshot of profile page\nprofilePage.takeScreenshot('profile-information');",
+              "err": {},
+              "uuid": "94a9beaf-7c41-4dce-bccb-b00d3a6f8210",
+              "parentUUID": "fc68ad40-323c-44c2-b367-8385ba42086f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow updating profile information",
+              "fullTitle": "User Profile should allow updating profile information",
+              "timedOut": null,
+              "duration": 3795,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile-should allow updating profile information-profile-update-success.png\"\n    ]\n  ]\n}",
+              "code": "// Wait for profile data to load\ncy.wait('@getProfile');\n// Setup update profile intercept\ncy.intercept('PUT', '/api/users/me', {\n    statusCode: 200,\n    body: {\n        message: 'Profile updated successfully'\n    }\n}).as('updateProfile');\n// Update profile info with unique name\nvar newName = \"Test User \".concat(Date.now());\ncy.get('input[name=\"fullName\"]').clear().type(newName);\ncy.get('button[type=\"submit\"]').click();\n// Wait for update request and verify success message\ncy.wait('@updateProfile');\ncy.contains('Profile updated successfully').should('be.visible');\nprofilePage.takeScreenshot('profile-update-success');",
+              "err": {},
+              "uuid": "3cab6b74-14c1-42ae-86f9-55885b2b8d75",
+              "parentUUID": "fc68ad40-323c-44c2-b367-8385ba42086f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display account statistics",
+              "fullTitle": "User Profile should display account statistics",
+              "timedOut": null,
+              "duration": 21736,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should display account statistics (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should display account statistics (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should display account statistics (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for profile data to load\ncy.wait(['@getProfile', '@getStatistics']);\n// Click the statistics tab\ncy.contains('Statistics').click();\ncy.get('[data-testid=\"account-statistics\"]').should('be.visible');\n// Verify statistics values\ncy.contains('Total Courses Enrolled').parent().find('dd').should('contain', '5');\ncy.contains('Completed Courses').parent().find('dd').should('contain', '3');\ncy.contains('Average Score').parent().find('dd').should('contain', '85');\nprofilePage.takeScreenshot('account-statistics');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getStatistics`. No request ever occurred.\n\nhttps://on.cypress.io/wait",
+                "estack": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getStatistics`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)\nFrom Your Spec Code:\n    at Context.eval (webpack:///./cypress/e2e/profile.cy.ts:108:0)",
+                "diff": null
+              },
+              "uuid": "ee79f7e2-7083-4019-81f3-3d3c37c4e173",
+              "parentUUID": "fc68ad40-323c-44c2-b367-8385ba42086f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle notification preferences",
+              "fullTitle": "User Profile should handle notification preferences",
+              "timedOut": null,
+              "duration": 21403,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for profile data and preferences to load\ncy.wait(['@getProfile', '@getPreferences']);\n// Setup notification preferences update intercept\ncy.intercept('PUT', '/api/users/me/preferences', {\n    statusCode: 200,\n    body: {\n        emailNotifications: false,\n        courseUpdates: true,\n        marketingEmails: false\n    }\n}).as('updatePreferences');\n// Click the notifications tab\ncy.contains('Notifications').click();\ncy.get('[data-testid=\"notifications-settings\"]').should('be.visible');\n// Toggle email notifications\ncy.get('[type=\"checkbox\"]').first().click();\n// Wait for update request\ncy.wait('@updatePreferences');\nprofilePage.takeScreenshot('notification-preferences');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getPreferences`. No request ever occurred.\n\nhttps://on.cypress.io/wait",
+                "estack": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getPreferences`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)\nFrom Your Spec Code:\n    at Context.eval (webpack:///./cypress/e2e/profile.cy.ts:120:0)",
+                "diff": null
+              },
+              "uuid": "60eda246-4084-4f31-a10a-3c5962f53d4c",
+              "parentUUID": "fc68ad40-323c-44c2-b367-8385ba42086f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle data export",
+              "fullTitle": "User Profile should handle data export",
+              "timedOut": null,
+              "duration": 16868,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for profile data to load\ncy.wait('@getProfile');\n// Setup data export intercept\ncy.intercept('GET', '/api/users/me/export', {\n    statusCode: 200,\n    body: {\n        user: {\n            id: 'user123',\n            username: testUser.username,\n            email: testUser.email\n        },\n        data: {\n            courses: [],\n            progress: {},\n            preferences: {}\n        }\n    }\n}).as('exportData');\n// Click the export tab\ncy.contains('Export').click();\ncy.get('[data-testid=\"data-export\"]').should('be.visible');\n// Click export button and verify loading state\ncy.get('[data-testid=\"export-data-button\"]').click();\ncy.contains('Exporting...').should('be.visible');\n// Wait for export request\ncy.wait('@exportData');\nprofilePage.takeScreenshot('data-export');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 15050ms: `cy.click()` failed because this element is not visible:\n\n`<option value=\"export\">Export</option>`\n\nThis element `<option>` is not visible because its parent `<div.sm:hidden>` has CSS property: `display: none`\n\nFix this problem, or use `{force: true}` to disable error checking.\n\nhttps://on.cypress.io/element-cannot-be-interacted-with",
+                "estack": "CypressError: Timed out retrying after 15050ms: `cy.click()` failed because this element is not visible:\n\n`<option value=\"export\">Export</option>`\n\nThis element `<option>` is not visible because its parent `<div.sm:hidden>` has CSS property: `display: none`\n\nFix this problem, or use `{force: true}` to disable error checking.\n\nhttps://on.cypress.io/element-cannot-be-interacted-with\n    at runVisibilityCheck (http://localhost:3000/__cypress/runner/cypress_runner.js:145708:58)\n    at Object.isStrictlyVisible (http://localhost:3000/__cypress/runner/cypress_runner.js:145722:10)\n    at runAllChecks (http://localhost:3000/__cypress/runner/cypress_runner.js:112398:26)\n    at retryActionability (http://localhost:3000/__cypress/runner/cypress_runner.js:112466:16)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)\nFrom Your Spec Code:\n    at Object.proxyGetter [as get] (http://localhost:3000/__cypress/runner/cypress_runner.js:77938:22)\n    at exists (http://localhost:3000/__cypress/runner/cypress_runner.js:143717:26)\n    at elExists (http://localhost:3000/__cypress/runner/cypress_runner.js:143732:10)\n    at ensureExistence (http://localhost:3000/__cypress/runner/cypress_runner.js:143913:22)\n    at onFailFn (http://localhost:3000/__cypress/runner/cypress_runner.js:143942:53)",
+                "diff": null
+              },
+              "uuid": "25054b3c-d2da-432a-8f00-459e317996c0",
+              "parentUUID": "fc68ad40-323c-44c2-b367-8385ba42086f",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle account deletion flow",
+              "fullTitle": "User Profile should handle account deletion flow",
+              "timedOut": null,
+              "duration": 16879,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Wait for profile data to load\ncy.wait('@getProfile');\n// Setup account deletion intercept\ncy.intercept('DELETE', '/api/users/me', {\n    statusCode: 200,\n    body: {\n        message: 'Account deleted successfully'\n    }\n}).as('deleteAccount');\n// Click the account tab\ncy.contains('Account').click();\ncy.get('[data-testid=\"delete-account-section\"]').should('be.visible');\n// Click delete button and verify confirmation dialog\ncy.get('[data-testid=\"delete-account-button\"]').click();\ncy.get('[data-testid=\"delete-account-confirmation\"]').should('be.visible');\nprofilePage.takeScreenshot('account-deletion');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 15050ms: `cy.click()` failed because this element is not visible:\n\n`<option value=\"account\">Account</option>`\n\nThis element `<option>` is not visible because its parent `<div.sm:hidden>` has CSS property: `display: none`\n\nFix this problem, or use `{force: true}` to disable error checking.\n\nhttps://on.cypress.io/element-cannot-be-interacted-with",
+                "estack": "CypressError: Timed out retrying after 15050ms: `cy.click()` failed because this element is not visible:\n\n`<option value=\"account\">Account</option>`\n\nThis element `<option>` is not visible because its parent `<div.sm:hidden>` has CSS property: `display: none`\n\nFix this problem, or use `{force: true}` to disable error checking.\n\nhttps://on.cypress.io/element-cannot-be-interacted-with\n    at runVisibilityCheck (http://localhost:3000/__cypress/runner/cypress_runner.js:145708:58)\n    at Object.isStrictlyVisible (http://localhost:3000/__cypress/runner/cypress_runner.js:145722:10)\n    at runAllChecks (http://localhost:3000/__cypress/runner/cypress_runner.js:112398:26)\n    at retryActionability (http://localhost:3000/__cypress/runner/cypress_runner.js:112466:16)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)\nFrom Your Spec Code:\n    at Object.proxyGetter [as get] (http://localhost:3000/__cypress/runner/cypress_runner.js:77938:22)\n    at exists (http://localhost:3000/__cypress/runner/cypress_runner.js:143717:26)\n    at elExists (http://localhost:3000/__cypress/runner/cypress_runner.js:143732:10)\n    at ensureExistence (http://localhost:3000/__cypress/runner/cypress_runner.js:143913:22)\n    at onFailFn (http://localhost:3000/__cypress/runner/cypress_runner.js:143942:53)",
+                "diff": null
+              },
+              "uuid": "b5a2d6ea-59f8-41e4-aa06-75ce976a239c",
+              "parentUUID": "fc68ad40-323c-44c2-b367-8385ba42086f",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "94a9beaf-7c41-4dce-bccb-b00d3a6f8210",
+            "3cab6b74-14c1-42ae-86f9-55885b2b8d75"
+          ],
+          "failures": [
+            "ee79f7e2-7083-4019-81f3-3d3c37c4e173",
+            "60eda246-4084-4f31-a10a-3c5962f53d4c",
+            "25054b3c-d2da-432a-8f00-459e317996c0",
+            "b5a2d6ea-59f8-41e4-aa06-75ce976a239c"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 84587,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

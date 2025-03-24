@@ -1,0 +1,172 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-24T13:03:02.301Z",
+    "end": "2025-03-24T13:03:05.935Z",
+    "duration": 3634,
+    "testsRegistered": 4,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 3,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "5a21961e-11bc-4280-8591-b1e665235b04",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/url-metadata.cy.ts",
+      "file": "e2e-testing/cypress/e2e/url-metadata.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "493ae3c6-6dd9-4bea-8c92-07635dac94ef",
+          "title": "URL Metadata Extraction",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should extract metadata from a valid URL",
+              "fullTitle": "URL Metadata Extraction should extract metadata from a valid URL",
+              "timedOut": null,
+              "duration": 756,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/url-metadata.cy.ts/URL Metadata Extraction -- should extract metadata from a valid URL (failed).png\"\n    ],\n    [\n      \"/url-metadata.cy.ts/URL Metadata Extraction -- should extract metadata from a valid URL (failed) (attempt 2).png\"\n    ],\n    [\n      \"/url-metadata.cy.ts/URL Metadata Extraction -- should extract metadata from a valid URL -- before each hook (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Verify we have a token at minimum\ncy.window().its('localStorage').invoke('getItem', 'token').should('not.be.null');\n// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - likely 404 page or feature not implemented');\n        return;\n    }\n    // Enter URL and extract metadata\n    page_objects_1.resourcesPage.enterUrlAndExtractMetadata('https://example.com');\n    // Check if metadata was populated\n    cy.wait(1000); // Wait briefly for any UI updates\n    page_objects_1.resourcesPage.isMetadataPopulated().then(function (isPopulated) {\n        if (isPopulated) {\n            cy.log('Metadata successfully extracted and populated');\n        }\n        else {\n            cy.log('Metadata extraction may have failed or feature not fully implemented');\n        }\n    });\n});",
+              "err": {
+                "message": "CypressError: Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.request()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nThis error occurred while creating the session. Because the session setup failed, we failed the test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `URL Metadata Extraction`",
+                "estack": "CypressError: Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.request()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nThis error occurred while creating the session. Because the session setup failed, we failed the test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `URL Metadata Extraction`\n    at cy.<computed> [as log] (http://localhost:3000/__cypress/runner/cypress_runner.js:138922:64)\n    at eval (webpack:///./cypress/support/e2e.js:157:11)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)\nFrom Your Spec Code:\n    at tryLogin (webpack:///./cypress/support/commands.ts:194:0)\n    at Context.eval (webpack:///./cypress/support/commands.ts:209:0)\n    at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:118349:20)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:118360:66)\n    at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:118611:21)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138862:19)",
+                "diff": null
+              },
+              "uuid": "814da264-b138-4756-8eb3-0a169af788ec",
+              "parentUUID": "493ae3c6-6dd9-4bea-8c92-07635dac94ef",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should show an error message for invalid URLs",
+              "fullTitle": "URL Metadata Extraction should show an error message for invalid URLs",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - skipping test');\n        return;\n    }\n    // Enter an invalid URL and try to extract metadata\n    page_objects_1.resourcesPage.enterUrl('invalid-url');\n    page_objects_1.resourcesPage.clickExtractMetadata();\n    // Wait briefly for any error to appear\n    cy.wait(1000);\n    // Check for error message\n    page_objects_1.resourcesPage.hasMetadataError().then(function (hasError) {\n        if (hasError) {\n            cy.log('Error message displayed correctly for invalid URL');\n        }\n        else {\n            cy.log('No error message found - validation may not be implemented');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "57dcc4b1-6baa-4bf1-9f23-2689c9e3ace4",
+              "parentUUID": "493ae3c6-6dd9-4bea-8c92-07635dac94ef",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should show an error message when metadata extraction fails",
+              "fullTitle": "URL Metadata Extraction should show an error message when metadata extraction fails",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - skipping test');\n        return;\n    }\n    // Enter a URL that will likely fail metadata extraction\n    page_objects_1.resourcesPage.enterUrlAndExtractMetadata('https://example.com/nonexistent');\n    // Check for error message\n    page_objects_1.resourcesPage.hasMetadataError().then(function (hasError) {\n        if (hasError) {\n            cy.log('Error message displayed correctly for failed extraction');\n        }\n        else {\n            cy.log('No error message found - error handling may not be implemented');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "14b408c2-ff6c-4c8d-b9ec-cad9723352c4",
+              "parentUUID": "493ae3c6-6dd9-4bea-8c92-07635dac94ef",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow manual entry after failed metadata extraction",
+              "fullTitle": "URL Metadata Extraction should allow manual entry after failed metadata extraction",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if URL input exists\npage_objects_1.resourcesPage.isUrlInputAvailable().then(function (exists) {\n    if (!exists) {\n        cy.log('URL input not found - skipping test');\n        return;\n    }\n    // Enter a URL and attempt metadata extraction\n    page_objects_1.resourcesPage.enterUrlAndExtractMetadata('https://example.com/test');\n    // Enter manual details\n    page_objects_1.resourcesPage.enterManualDetails('Manual Title', 'Manual description');\n    // Try to select a resource type\n    page_objects_1.resourcesPage.selectResourceType('article');\n    cy.log('Successfully entered manual details');\n});",
+              "err": {},
+              "uuid": "19bf8638-1bc7-4701-a3b3-c2799908043a",
+              "parentUUID": "493ae3c6-6dd9-4bea-8c92-07635dac94ef",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "814da264-b138-4756-8eb3-0a169af788ec"
+          ],
+          "pending": [],
+          "skipped": [
+            "57dcc4b1-6baa-4bf1-9f23-2689c9e3ace4",
+            "14b408c2-ff6c-4c8d-b9ec-cad9723352c4",
+            "19bf8638-1bc7-4701-a3b3-c2799908043a"
+          ],
+          "duration": 756,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

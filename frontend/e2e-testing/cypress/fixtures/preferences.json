@@ -1,0 +1,7 @@
+{
+  "emailNotifications": true,
+  "courseUpdates": true,
+  "newMessages": true,
+  "marketingEmails": false,
+  "weeklyDigest": true
+}

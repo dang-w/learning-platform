@@ -1,0 +1,191 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-24T13:01:28.610Z",
+    "end": "2025-03-24T13:01:32.277Z",
+    "duration": 3667,
+    "testsRegistered": 5,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 4,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "2c91db4f-560b-4a5a-9756-25e4f2e6ad54",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/analytics-visualization.cy.ts",
+      "file": "e2e-testing/cypress/e2e/analytics-visualization.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "dcb982d8-c1e8-4d2a-97ee-3153b4439753",
+          "title": "Progress Analytics - Data Visualization",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display the analytics dashboard with charts",
+              "fullTitle": "Progress Analytics - Data Visualization should display the analytics dashboard with charts",
+              "timedOut": null,
+              "duration": 866,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/analytics-visualization.cy.ts/Progress Analytics - Data Visualization -- should display the analytics dashboard with charts (failed).png\"\n    ],\n    [\n      \"/analytics-visualization.cy.ts/Progress Analytics - Data Visualization -- should display the analytics dashboard with charts (failed) (attempt 2).png\"\n    ],\n    [\n      \"/analytics-visualization.cy.ts/Progress Analytics - Data Visualization -- should display the analytics dashboard with charts -- before each hook (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Take screenshot for documentation\n    page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard');\n    // Verify charts are visible\n    page_objects_1.analyticsPage.verifyOverviewChartVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Overview chart is visible');\n        }\n        else {\n            cy.log('Overview chart not visible');\n        }\n    });\n    page_objects_1.analyticsPage.verifyUsageChartVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Usage chart is visible');\n        }\n        else {\n            cy.log('Usage chart not visible');\n        }\n    });\n    page_objects_1.analyticsPage.verifyProgressChartVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Progress chart is visible');\n        }\n        else {\n            cy.log('Progress chart not visible');\n        }\n    });\n});",
+              "err": {
+                "message": "CypressError: Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.request()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nThis error occurred while creating the session. Because the session setup failed, we failed the test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Progress Analytics - Data V...`",
+                "estack": "CypressError: Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.request()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nThis error occurred while creating the session. Because the session setup failed, we failed the test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Progress Analytics - Data V...`\n    at cy.<computed> [as log] (http://localhost:3000/__cypress/runner/cypress_runner.js:138922:64)\n    at eval (webpack:///./cypress/support/e2e.js:157:11)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)",
+                "diff": null
+              },
+              "uuid": "e0203171-2792-4505-80c1-cc5d79e8b905",
+              "parentUUID": "dcb982d8-c1e8-4d2a-97ee-3153b4439753",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow filtering analytics by date range",
+              "fullTitle": "Progress Analytics - Data Visualization should allow filtering analytics by date range",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Set custom date range for last 7 days\n    var endDate = new Date().toISOString().split('T')[0];\n    var startDate = new Date();\n    startDate.setDate(startDate.getDate() - 7);\n    var formattedStartDate = startDate.toISOString().split('T')[0];\n    // Apply date filter\n    page_objects_1.analyticsPage.setDateRange(formattedStartDate, endDate);\n    page_objects_1.analyticsPage.takeScreenshot('analytics-7-day-filter');\n    // Verify URL contains filter parameters\n    cy.url().then(function (url) {\n        var hasDateParams = url.includes('start=') || url.includes('range=') || url.includes('period=');\n        if (!hasDateParams) {\n            cy.log('URL does not contain expected date parameters');\n        }\n    });\n    // Verify charts are updated\n    page_objects_1.analyticsPage.verifyOverviewChartVisible();\n});",
+              "err": {},
+              "uuid": "3ffe2f61-0388-4162-8fd5-76f506dd6e1a",
+              "parentUUID": "dcb982d8-c1e8-4d2a-97ee-3153b4439753",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow toggling between different chart types",
+              "fullTitle": "Progress Analytics - Data Visualization should allow toggling between different chart types",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Check if chart type selector exists\n    cy.get('body').then(function ($body) {\n        var hasChartTypeSelector = $body.find('[data-testid=\"chart-type-toggle\"]').length > 0 ||\n            $body.find('[data-testid=\"chart-type-selector\"]').length > 0;\n        if (hasChartTypeSelector) {\n            // Try clicking on different chart types\n            if ($body.find('[data-testid=\"chart-type-bar\"]').length > 0) {\n                cy.get('[data-testid=\"chart-type-bar\"]').click();\n                page_objects_1.analyticsPage.takeScreenshot('bar-chart-type');\n            }\n            if ($body.find('[data-testid=\"chart-type-line\"]').length > 0) {\n                cy.get('[data-testid=\"chart-type-line\"]').click();\n                page_objects_1.analyticsPage.takeScreenshot('line-chart-type');\n            }\n        }\n        else {\n            cy.log('Chart type selector not available');\n            page_objects_1.analyticsPage.takeScreenshot('no-chart-type-selector');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "1785742d-6d34-49ae-af6a-9850a68fa4d7",
+              "parentUUID": "dcb982d8-c1e8-4d2a-97ee-3153b4439753",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow exporting analytics data if available",
+              "fullTitle": "Progress Analytics - Data Visualization should allow exporting analytics data if available",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Check if export functionality exists\n    cy.get('body').then(function ($body) {\n        var hasExportButton = $body.find('[data-testid=\"export-button\"]').length > 0 ||\n            $body.find('[data-testid=\"export-data-button\"]').length > 0;\n        if (hasExportButton) {\n            // Use the page object method to export if available\n            page_objects_1.analyticsPage.exportAsCSV();\n            page_objects_1.analyticsPage.takeScreenshot('export-csv-attempted');\n            // Check for export options\n            cy.get('body').then(function ($updatedBody) {\n                var hasExportOptions = $updatedBody.find('[data-testid=\"export-options\"]').length > 0;\n                if (hasExportOptions) {\n                    cy.log('Export options displayed successfully');\n                }\n            });\n        }\n        else {\n            cy.log('Export functionality not available');\n            page_objects_1.analyticsPage.takeScreenshot('export-not-available');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "bfe7a899-6725-4968-aed8-9dbd5987890a",
+              "parentUUID": "dcb982d8-c1e8-4d2a-97ee-3153b4439753",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should navigate between different analytics sections",
+              "fullTitle": "Progress Analytics - Data Visualization should navigate between different analytics sections",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics dashboard not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-dashboard-not-loaded');\n        return;\n    }\n    // Navigate through available tabs\n    ['overview', 'resources', 'concepts', 'users'].forEach(function (tab) {\n        page_objects_1.analyticsPage.switchToTab(tab);\n        page_objects_1.analyticsPage.takeScreenshot(\"analytics-\".concat(tab, \"-tab\"));\n        cy.wait(500); // Small wait to allow charts to render\n    });\n    // Return to dashboard\n    page_objects_1.dashboardPage.visitDashboard();\n    page_objects_1.dashboardPage.takeScreenshot('return-to-dashboard');\n});",
+              "err": {},
+              "uuid": "7cb74875-4ff3-4f85-90e0-cf6f5c71fad6",
+              "parentUUID": "dcb982d8-c1e8-4d2a-97ee-3153b4439753",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "e0203171-2792-4505-80c1-cc5d79e8b905"
+          ],
+          "pending": [],
+          "skipped": [
+            "3ffe2f61-0388-4162-8fd5-76f506dd6e1a",
+            "1785742d-6d34-49ae-af6a-9850a68fa4d7",
+            "bfe7a899-6725-4968-aed8-9dbd5987890a",
+            "7cb74875-4ff3-4f85-90e0-cf6f5c71fad6"
+          ],
+          "duration": 866,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

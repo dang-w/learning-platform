@@ -101,19 +101,9 @@ export class ConceptsPage extends BasePage {
   /**
    * Navigate to the concepts page
    */
-  visitConcepts(): Cypress.Chainable<void> {
-    // First try to visit the test page
-    return cy.visit('/e2e-test-fixes/knowledge-test').then(($body) => {
-      // Check if we're on the test page
-      if ($body.find(this.selectors.conceptsContainer).length > 0) {
-        cy.log('Using test page for concept testing');
-        return cy.wrap(null);
-      } else {
-        // Fallback to the real application page
-        cy.log('Test page not found, using real application page');
-        return this.visitProtected('/knowledge/concepts');
-      }
-    });
+  visitConcepts(): Cypress.Chainable {
+    // Directly visit the real application page
+    return this.visitProtected('/knowledge');
   }
 
   /**
@@ -509,29 +499,60 @@ export class ConceptsPage extends BasePage {
   /**
    * Navigate to knowledge review page
    */
-  visitKnowledgeReview(): Cypress.Chainable<void> {
+  visitKnowledgeReview(): Cypress.Chainable {
     return this.visitProtected('/knowledge/review');
   }
 
   /**
    * Navigate to knowledge statistics page
    */
-  visitKnowledgeStatistics(): Cypress.Chainable<void> {
+  visitKnowledgeStatistics(): Cypress.Chainable {
     return this.visitProtected('/knowledge/statistics');
+  }
+
+  /**
+   * Navigate to the spaced repetition test page
+   */
+  visitSpacedRepetition(): Cypress.Chainable {
+    cy.visit('/test-pages/knowledge-spaced-repetition', {
+      failOnStatusCode: false,
+      timeout: 30000
+    });
+
+    return cy.document().then(doc => {
+      const body = doc.body;
+      // Check if we're on the test page
+      if (Cypress.$(body).find(this.selectors.conceptsContainer).length > 0) {
+        cy.log('Successfully loaded spaced repetition test page');
+      } else {
+        cy.log('Failed to load spaced repetition test page, trying again');
+        cy.visit('/test-pages/knowledge-spaced-repetition', {
+          failOnStatusCode: false,
+          timeout: 30000
+        });
+      }
+    });
   }
 
   /**
    * Navigate to the review section
    */
-  navigateToReview(): Cypress.Chainable<void> {
-    return cy.url().then(url => {
-      // Check if we're on the test page
-      if (url.includes('/e2e-test-fixes/knowledge-test')) {
-        // Use the test page navigation
-        return cy.get(this.selectors.navKnowledgeReview).click();
+  navigateToReview(): Cypress.Chainable {
+    // First check if we're already on the review tab
+    return cy.document().then(doc => {
+      const $body = Cypress.$(doc.body);
+
+      if ($body.find('[data-testid="review-dashboard"]').length > 0 ||
+          $body.find('[data-testid="review-session"]').length > 0) {
+        cy.log('Already on review tab');
+      } else if ($body.find(this.selectors.navKnowledgeReview).length > 0) {
+        // Click the review tab if it exists
+        cy.log('Navigating to review tab');
+        cy.get(this.selectors.navKnowledgeReview).click();
       } else {
-        // Navigate to the actual application review page
-        return cy.visit('/knowledge/review');
+        cy.log('Review tab not found, trying to visit the test page');
+        // Try to visit the test page directly
+        this.visitSpacedRepetition();
       }
     });
   }
@@ -539,15 +560,14 @@ export class ConceptsPage extends BasePage {
   /**
    * Navigate to the statistics section
    */
-  navigateToStatistics(): Cypress.Chainable<void> {
+  navigateToStatistics(): Cypress.Chainable {
     return cy.url().then(url => {
-      // Check if we're on the test page
       if (url.includes('/e2e-test-fixes/knowledge-test')) {
         // Use the test page navigation
-        return cy.get(this.selectors.navKnowledgeStats).click();
+        cy.get(this.selectors.navKnowledgeStats).click();
       } else {
         // Navigate to the actual application statistics page
-        return cy.visit('/knowledge/statistics');
+        cy.visit('/knowledge/statistics');
       }
     });
   }

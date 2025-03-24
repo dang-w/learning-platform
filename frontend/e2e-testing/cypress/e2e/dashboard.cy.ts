@@ -3,12 +3,12 @@
  * Using resilient testing patterns for better test stability
  */
 import { dashboardPage } from '../support/page-objects';
-import { setupAuthenticatedTestWithData } from '../support/resilientSeedData';
+import { setupCompleteAuthBypass } from '../support/auth-test-utils';
 
 describe('Dashboard', () => {
   beforeEach(() => {
-    // Setup authenticated test with data seeding
-    setupAuthenticatedTestWithData();
+    // Setup auth with complete bypass
+    setupCompleteAuthBypass('test-user-cypress');
 
     // Navigate to dashboard using page object
     dashboardPage.visitDashboard();

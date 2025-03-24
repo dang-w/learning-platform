@@ -7,6 +7,9 @@ import { join } from 'path';
 // Base directory for e2e testing (relative to frontend directory)
 const E2E_BASE_DIR = 'e2e-testing';
 
+// Store test data between tests
+const testData: Record<string, unknown> = {};
+
 export default defineConfig({
   // Common reporter configuration
   reporter: 'cypress-multi-reporters',
@@ -31,7 +34,7 @@ export default defineConfig({
   e2e: {
     baseUrl: 'http://localhost:3000',
     specPattern: join(E2E_BASE_DIR, 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}'),
-    supportFile: join(E2E_BASE_DIR, 'cypress/support/e2e.ts'),
+    supportFile: join(E2E_BASE_DIR, 'cypress/support/e2e.js'),
     fixturesFolder: join(E2E_BASE_DIR, 'cypress/fixtures'),
     downloadsFolder: join(E2E_BASE_DIR, 'cypress/downloads'),
     screenshotsFolder: join(E2E_BASE_DIR, 'cypress/screenshots'),
@@ -54,6 +57,26 @@ export default defineConfig({
         },
         table(message: object) {
           console.table(message);
+          return null;
+        },
+        setTestData(data: Record<string, unknown>) {
+          console.log('Setting test data:', data);
+          Object.assign(testData, data);
+          return testData;
+        },
+        getTestData(key?: string) {
+          if (key) {
+            console.log(`Getting test data for key: ${key}`);
+            return testData[key] || null;
+          }
+          console.log('Getting all test data');
+          return testData;
+        },
+        clearTestData() {
+          console.log('Clearing test data');
+          Object.keys(testData).forEach(key => {
+            delete testData[key];
+          });
           return null;
         },
         logFailure(message: string) {
