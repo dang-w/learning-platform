@@ -27,7 +27,6 @@ export function getAuthHeaders(): Record<string, string> {
     // Check if token looks valid (basic validation)
     if (token.length > 20) {
       const cleanedToken = cleanToken(token);
-      console.log(`Using token from localStorage (prefix): ${cleanedToken.substring(0, 10)}...`);
 
       // Update cookies to ensure consistency across the app
       document.cookie = `token=${cleanedToken}; path=/; max-age=3600; SameSite=Lax`;
@@ -48,7 +47,6 @@ export function getAuthHeaders(): Record<string, string> {
       const cookieToken = tokenCookie.split('=')[1];
       if (cookieToken && cookieToken.length > 20) {
         const cleanedToken = cleanToken(cookieToken);
-        console.log(`Using token from cookie (prefix): ${cleanedToken.substring(0, 10)}...`);
 
         // Sync to localStorage for future use
         localStorage.setItem('token', cleanedToken);
@@ -59,8 +57,6 @@ export function getAuthHeaders(): Record<string, string> {
         };
       }
     }
-
-    console.log('No valid token found in localStorage or cookies');
   }
 
   return defaultHeaders;
@@ -129,8 +125,6 @@ function syncToken(token: string | null): void {
 const authApi = {
   async login(credentials: LoginCredentials): Promise<{token: string, refreshToken?: string}> {
     try {
-      console.log('Attempting login with credentials:', { username: credentials.username });
-
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -150,10 +144,6 @@ const authApi = {
       }
 
       const data = await response.json();
-      console.log('Login response:', {
-        hasToken: !!data.token,
-        hasRefreshToken: !!data.refreshToken
-      });
 
       // Handle token from response
       const token = data.token;
@@ -174,8 +164,6 @@ const authApi = {
           document.cookie = `refresh_token=${refreshToken}; path=/; max-age=86400; SameSite=Lax`;
         }
       }
-
-      console.log('Login successful, tokens stored');
 
       return {
         token: `Bearer ${token}`,

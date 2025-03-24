@@ -1,0 +1,98 @@
+version: '3.8'
+
+# Define the services that make up the application
+services:
+  # MongoDB database service
+  mongodb:
+    image: mongo:7.0
+    container_name: learning-platform-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - learning-platform-network
+
+  # Redis cache service
+  redis:
+    image: redis:7.2-alpine
+    container_name: learning-platform-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - learning-platform-network
+
+  # Backend API service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: learning-platform-backend
+    volumes:
+      - ./backend:/app
+      - backend_deps:/app/.venv
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://admin:password@mongodb:27017/
+      - DATABASE_NAME=learning_platform
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your_secret_key_for_development
+      - DEBUG=true
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - learning-platform-network
+
+  # Frontend web application service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: learning-platform-frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - learning-platform-network
+
+# Define persistent volumes
+volumes:
+  mongodb_data:
+  redis_data:
+  backend_deps:
+
+# Define networks
+networks:
+  learning-platform-network:
+    driver: bridge

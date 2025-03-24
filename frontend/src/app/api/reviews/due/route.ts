@@ -6,8 +6,6 @@ import { getServerAuthToken, logAuthSources } from '@/lib/utils/api';
  * Get due reviews from the backend API
  */
 export async function GET(request: NextRequest) {
-  console.log('Due Reviews API route: Processing request');
-
   try {
     // Get authentication token using standardized utility
     const authToken = getServerAuthToken(request);
@@ -16,7 +14,6 @@ export async function GET(request: NextRequest) {
     logAuthSources(request);
 
     if (!authToken) {
-      console.log('No token found, returning 401');
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,8 +25,6 @@ export async function GET(request: NextRequest) {
     // Construct the backend API URL with query parameters
     const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
     const dueReviewsEndpoint = `${backendUrl}/api/reviews/due?limit=${limit}&offset=${offset}`;
-
-    console.log(`Due Reviews API route: Forwarding to backend: ${dueReviewsEndpoint}`);
 
     // Set up headers with auth token
     const headers = {
@@ -45,12 +40,9 @@ export async function GET(request: NextRequest) {
       credentials: 'include'
     });
 
-    console.log(`Due Reviews API route: Backend response status: ${backendResponse.status}`);
-
     if (!backendResponse.ok) {
       // Handle 404 with empty array instead of error
       if (backendResponse.status === 404) {
-        console.log('Due Reviews API route: No due reviews found, returning empty array');
         return NextResponse.json([]);
       }
 
@@ -64,7 +56,6 @@ export async function GET(request: NextRequest) {
 
     // Forward the successful response
     const data = await backendResponse.json();
-    console.log('Due Reviews API route: Data received successfully');
     return NextResponse.json(data);
 
   } catch (error) {
