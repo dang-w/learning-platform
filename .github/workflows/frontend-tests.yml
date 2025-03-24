@@ -1,0 +1,52 @@
+name: Frontend Unit Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run unit tests
+        run: |
+          cd frontend
+          npm run test:coverage
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: frontend-test-coverage
+          path: frontend/coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: frontend-test-results
+          path: frontend/jest-results.json
