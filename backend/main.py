@@ -17,6 +17,9 @@ import time
 import traceback
 import re
 import uuid
+import psutil
+import platform
+from datetime import timezone
 
 # Import authentication from auth module
 from auth import (
@@ -188,12 +191,44 @@ async def health():
 
 @app.get("/api/health")
 async def health_check():
-    """API health check endpoint."""
+    """
+    API health check endpoint with detailed system information.
+    Used by monitoring systems and Docker health checks.
+    """
+    # Check database connection
+    db_status = await verify_db_connection()
+
+    # Check Redis connection if available
+    redis_status = "unavailable"
+    try:
+        from utils.cache import get_redis_connection
+        redis = get_redis_connection()
+        if redis and await redis.ping():
+            redis_status = "ok"
+    except Exception as e:
+        redis_status = f"error: {str(e)}"
+
+    # Get memory usage
+    process = psutil.Process()
+    memory_info = process.memory_info()
+
     return {
         "status": "ok",
         "version": "1.0.0",
-        "timestamp": datetime.now().isoformat(),
-        "database": await verify_db_connection()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "uptime": time.time() - process.create_time(),
+        "system": {
+            "platform": platform.platform(),
+            "python_version": platform.python_version(),
+        },
+        "resources": {
+            "memory_usage_mb": memory_info.rss / (1024 * 1024),
+            "cpu_percent": process.cpu_percent(interval=0.1),
+        },
+        "services": {
+            "database": db_status,
+            "redis": redis_status
+        }
     }
 
 # Add middleware to include rate limit headers in responses

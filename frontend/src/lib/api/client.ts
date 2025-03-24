@@ -39,7 +39,6 @@ export async function withBackoff<T>(
 
 // Ensure API paths are standardized
 function getStandardizedUrl(url: string): string {
-  console.log(`Standardizing URL (original): ${url}`);
   let standardizedUrl = url;
 
   // Handle frontend API routes vs direct backend calls
@@ -47,7 +46,6 @@ function getStandardizedUrl(url: string): string {
   // we should route through our Next.js API endpoints
   if (url.startsWith('/api') && !url.startsWith(BACKEND_API_URL)) {
     // This is already a Next.js API route, don't modify it
-    console.log(`Using Next.js API route: ${url}`);
     return url;
   }
 
@@ -55,48 +53,25 @@ function getStandardizedUrl(url: string): string {
   if (!url.startsWith('/api') && !url.startsWith('http')) {
     // Add /api prefix for backend calls
     standardizedUrl = '/api/' + url.replace(/^\/+/, '');
-    console.log(`Added /api prefix for backend call: ${standardizedUrl}`);
   }
 
   // Ensure URLs start with a leading slash if they don't already
   if (!standardizedUrl.startsWith('/') && !standardizedUrl.startsWith('http')) {
     standardizedUrl = '/' + standardizedUrl;
-    console.log(`Added leading slash: ${standardizedUrl}`);
   }
 
   // Handle the case of trailing slashes consistently - remove them except for root URL
   if (standardizedUrl.length > 1 && standardizedUrl.endsWith('/')) {
     standardizedUrl = standardizedUrl.replace(/\/+$/, '');
-    console.log(`Removed trailing slash: ${standardizedUrl}`);
   }
 
-  console.log(`Standardized URL (result): ${standardizedUrl}`);
   return standardizedUrl;
 }
 
 // Request interceptor to standardize URLs
 apiClient.interceptors.request.use((config) => {
   if (config.url) {
-    console.log(`Standardizing URL: ${config.url}`);
     config.url = getStandardizedUrl(config.url);
-    console.log(`Standardized URL result: ${config.url}`);
-
-    // Add special debugging for learning path progress endpoint
-    if (config.url.includes('learning-path/progress')) {
-      console.log('*** LEARNING PATH PROGRESS REQUEST ***');
-      console.log('Original URL:', config.url);
-      console.log('Auth header:', config.headers.Authorization ?
-        `${String(config.headers.Authorization).substring(0, 15)}...` : 'Not set');
-      console.log('Request method:', config.method);
-      console.log('Full config:', JSON.stringify({
-        ...config,
-        headers: {
-          ...config.headers,
-          Authorization: config.headers.Authorization ?
-            `${String(config.headers.Authorization).substring(0, 15)}...` : 'Not set'
-        }
-      }, null, 2));
-    }
   }
   return config;
 });
@@ -140,12 +115,9 @@ apiClient.interceptors.request.use(
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('Added auth token to request:', config.url, `Bearer ${token.substring(0, 10)}...`);
 
         // Ensure the token is also in cookies for SSR
         document.cookie = `token=${token}; path=/; max-age=3600; SameSite=Lax`;
-      } else {
-        console.log('No auth token available for request:', config.url);
       }
 
       // Add session ID header if available
@@ -154,10 +126,6 @@ apiClient.interceptors.request.use(
         config.headers['x-session-id'] = sessionId;
       }
     }
-
-    // Log API request
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    console.log('Request headers:', config.headers);
 
     return config;
   },
@@ -171,15 +139,12 @@ apiClient.interceptors.request.use(
 const refreshToken = async (): Promise<boolean> => {
   // Check if a refresh is already in progress, return that promise
   if (isRefreshing && refreshPromise) {
-    console.log('Token refresh already in progress, waiting for it to complete');
     return refreshPromise;
   }
 
   // Check if we need to observe the cooldown period after a failed refresh
   const now = Date.now();
   if (refreshFailedTimestamp > 0 && now - refreshFailedTimestamp < REFRESH_COOLDOWN) {
-    const timeLeft = Math.ceil((REFRESH_COOLDOWN - (now - refreshFailedTimestamp)) / 1000);
-    console.log(`Token refresh is in cooldown period. Please wait ${timeLeft} seconds.`);
     return false;
   }
 
@@ -197,7 +162,6 @@ const refreshToken = async (): Promise<boolean> => {
 
       // Call the token refresh endpoint using direct axios instead of apiClient
       // to avoid interceptor loops
-      console.log('Calling token refresh endpoint with absolute URL');
       const response = await axios.post(`${BACKEND_API_URL}/api/auth/token/refresh`, {
         refresh_token: refreshToken
       }, {
@@ -233,7 +197,6 @@ const refreshToken = async (): Promise<boolean> => {
           _lastTokenRefresh: Date.now()
         });
 
-        console.log('Token refresh successful, auth state updated');
         return true;
       }
 
@@ -262,15 +225,12 @@ apiClient.interceptors.response.use(
     console.error(`API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status || 'Network Error'}`);
 
     if (error.response?.status === 401) {
-      console.log('Attempting to refresh token due to 401 response');
-
       // Store the original request config
       const originalRequest = error.config;
 
       // Prevent infinite loops - don't retry the refresh token endpoint itself
       if (originalRequest.url?.includes('/token/refresh') ||
           originalRequest.url?.includes('/auth/token/refresh')) {
-        console.log('Not retrying token refresh endpoint');
         return Promise.reject(error);
       }
 
@@ -279,8 +239,6 @@ apiClient.interceptors.response.use(
         const refreshSuccessful = await refreshToken();
 
         if (refreshSuccessful) {
-          console.log('Token refreshed successfully, retrying original request');
-
           // Update the Authorization header with the new token
           const newToken = localStorage.getItem('token');
           if (newToken) {
@@ -291,8 +249,6 @@ apiClient.interceptors.response.use(
           // Retry the original request with the new token
           return axios(originalRequest);
         } else {
-          console.log('Token refresh failed, redirecting to login');
-
           // Clear auth state on token refresh failure
           const authStore = await import('@/lib/store/auth-store');
           authStore.useAuthStore.getState().logout();

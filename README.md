@@ -62,6 +62,7 @@ learning-platform/
 - Node.js 18+ and npm for frontend
 - Python 3.10+ for backend
 - MongoDB 5.0+
+- Docker and Docker Compose (optional, for containerized setup)
 
 ### Frontend Setup
 
@@ -97,6 +98,66 @@ uvicorn main:app --reload
 
 The API will be available at http://localhost:8000
 
+### Docker Setup (Recommended)
+
+The project includes Docker configuration for easy setup and deployment. We use Docker Compose to orchestrate all services.
+
+#### Prerequisites
+
+- Docker 24.0+
+- Docker Compose 2.20+
+
+#### Running with Docker
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/learning-platform.git
+cd learning-platform
+
+# Build and start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# View logs for a specific service
+docker-compose logs -f backend
+
+# Stop all services
+docker-compose down
+
+# Stop all services and remove volumes (will delete all data)
+docker-compose down -v
+```
+
+This will start the following services:
+- Frontend at http://localhost:3000
+- Backend API at http://localhost:8000
+- MongoDB at localhost:27017
+- Redis at localhost:6379
+
+#### Environment Configuration
+
+You can customize the environment by editing the variables in the `docker-compose.yml` file or by creating a `.env` file in the project root.
+
+```bash
+# Example .env file content
+MONGO_USERNAME=admin
+MONGO_PASSWORD=secure_password
+SECRET_KEY=your_production_secret_key
+DEBUG=false
+```
+
+#### Docker in Production
+
+For production deployments, consider the following best practices:
+
+1. Use proper secrets management (not environment variables)
+2. Set up proper logging and monitoring
+3. Use a container orchestration system like Kubernetes
+4. Configure TLS for all services
+5. Set up proper backup systems for databases
+
 ## Documentation
 
 We maintain comprehensive documentation for all aspects of the project:
@@ -105,6 +166,7 @@ We maintain comprehensive documentation for all aspects of the project:
 - [**Architecture Documentation**](/docs/architecture/ARCHITECTURE.md): System design and components
 - [**API Documentation**](/docs/api/API_DOCUMENTATION.md): API endpoints and usage
 - [**Unified Testing Guide**](/docs/testing/UNIFIED_TESTING_GUIDE.md): Testing standards and approaches
+- [**Docker Setup Guide**](/docs/DOCKER.md): Complete Docker configuration and usage
 - [**Frontend Documentation**](/frontend/README.md): Frontend-specific documentation
 - [**Backend Documentation**](/backend/README.md): Backend-specific documentation
 
