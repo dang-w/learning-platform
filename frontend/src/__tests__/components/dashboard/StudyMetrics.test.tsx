@@ -102,6 +102,18 @@ describe('StudyMetrics', () => {
     // This test is skipped because the loading spinner is difficult to reliably test
   });
 
+  it('displays loading state initially', async () => {
+    // Create a loading state by returning a promise that doesn't resolve
+    (progressApi.getRecentMetricsSummary as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (progressApi.getMetrics as jest.Mock).mockReturnValue(new Promise(() => {}));
+
+    renderWithQueryClient(<StudyMetrics />);
+
+    // Check for loading indicators
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  });
+
   it('displays metrics summary data when loaded', async () => {
     renderWithQueryClient(<StudyMetrics />);
 
