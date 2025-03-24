@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-03-24T14:26:18.168743",
+  "analysis": {
+    "issues": [
+      "The confidence factor calculation is simplistic and doesn't follow proper SM2 algorithm.",
+      "The intervals are hardcoded and don't follow the exponential growth pattern of SM2 algorithm.",
+      "No implementation of easiness factor (EF) which is key to the SM2 algorithm.",
+      "ReviewSettings model doesn't have an algorithm field to switch between different algorithms.",
+      "Inconsistency between frontend SpacedRepetitionSettings interface and backend ReviewSettings model"
+    ],
+    "recommendations": [
+      "Ensure consistency between frontend types and backend models for spaced repetition settings",
+      "Implement proper algorithm selection mechanism to switch between SM2, Leitner, and custom algorithms"
+    ],
+    "implementation_status": {
+      "sm2": true,
+      "leitner": true,
+      "custom": true
+    }
+  },
+  "fixes": {
+    "backend_fixes": {
+      "reviews.py": {
+        "calculate_next_review_date": "\ndef calculate_next_review_date(review_count, confidence_level=3, algorithm=\"sm2\", ef=2.5, box=1):\n    \"\"\"\n    Calculate the next review date based on the algorithm, previous reviews, and confidence level.\n\n    Args:\n        review_count (int): Number of times the concept has been reviewed\n        confidence_level (int): Confidence level (1-5)\n        algorithm (str): Algorithm to use - \"sm2\", \"leitner\", or \"custom\"\n        ef (float): Easiness factor for SM2 algorithm\n        box (int): Current box for Leitner system\n\n    Returns:\n        tuple: (datetime for next review, updated ef, updated box)\n    \"\"\"\n    now = datetime.now()\n\n    if algorithm.lower() == \"sm2\":\n        # Use SM2 algorithm\n        previous_interval = 0 if review_count == 0 else (\n            1 if review_count == 1 else ef\n        )\n        new_interval, new_ef = sm2_algorithm(previous_interval, ef, confidence_level)\n        return now + timedelta(days=new_interval), new_ef, box\n\n    elif algorithm.lower() == \"leitner\":\n        # Use Leitner system\n        new_box = leitner_algorithm(box, confidence_level)\n        interval_days = leitner_intervals(new_box)\n        return now + timedelta(days=interval_days), ef, new_box\n\n    else:\n        # Use custom algorithm (current implementation)\n        intervals = [1, 3, 7, 14, 30, 60]\n        base_interval = intervals[min(review_count, len(intervals) - 1)]\n        confidence_factor = max(0.5, confidence_level / 5)  # 0.5 to 1.0\n        adjusted_interval = base_interval * confidence_factor\n        return now + timedelta(days=adjusted_interval), ef, box\n",
+        "ReviewSettings": "\nclass ReviewSettings(BaseModel):\n    \"\"\"Review settings model.\"\"\"\n    daily_review_target: int = 5\n    notification_frequency: str = \"daily\"\n    review_reminder_time: str = \"18:00\"\n    enable_spaced_repetition: bool = True\n    auto_schedule_reviews: bool = True\n    show_hints: bool = True\n    difficulty_threshold: int = 3\n    algorithm: str = \"sm2\"  # \"sm2\", \"leitner\", or \"custom\"\n    new_concepts_per_day: int = 3\n    include_new_concepts: bool = True\n",
+        "Concept": "\nclass Concept(ConceptBase):\n    id: str\n    reviews: List[Review] = []\n    next_review: Optional[str] = None\n    ef: float = 2.5  # Easiness factor for SM2 algorithm\n    box: int = 1  # Box number for Leitner system\n    review_count: int = 0  # Number of times concept has been reviewed\n"
+      }
+    },
+    "frontend_fixes": {}
+  }
+}
