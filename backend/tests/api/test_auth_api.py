@@ -4,13 +4,10 @@ from fastapi import HTTPException, status
 import jwt
 from jwt.exceptions import PyJWTError
 from datetime import datetime, timedelta
-
-# Import the app and auth functions
+from bson import ObjectId
 from main import app
 from routers.auth import login_for_access_token
 from auth import get_current_user, get_current_active_user
-
-# Import the MockUser class from conftest
 from tests.conftest import MockUser
 
 # Test data
@@ -20,6 +17,25 @@ test_user_data = {
     "full_name": "Test User",
     "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
     "disabled": False
+}
+
+test_user = {
+    "username": "testuser",
+    "email": "test@example.com",
+    "metrics": [
+        {"type": "login", "timestamp": datetime.now() - timedelta(hours=2)},
+        {"type": "login", "timestamp": datetime.now() - timedelta(hours=1)},
+        {"type": "token_refresh", "timestamp": datetime.now() - timedelta(minutes=30)},
+        {"type": "logout", "timestamp": datetime.now() - timedelta(minutes=15)}
+    ],
+    "created_at": datetime.now() - timedelta(days=30),
+    "notification_preferences": {
+        "email_notifications": True,
+        "learning_reminders": False,
+        "review_reminders": True,
+        "achievement_notifications": True,
+        "newsletter": False
+    }
 }
 
 @pytest.fixture(scope="function", autouse=True)
@@ -32,6 +48,35 @@ def clear_dependency_overrides():
 
     # Clear overrides after the test
     app.dependency_overrides.clear()
+
+@pytest.fixture(autouse=True)
+def mock_database():
+    """Mock database for testing."""
+    mock_db = MagicMock()
+    mock_db.users = MagicMock()
+    mock_db.users.find_one = AsyncMock(return_value=test_user)
+    mock_db.users.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
+
+    # Import the modules that use the database
+    import database
+    import utils.db_utils
+
+    # Save the original database
+    original_db = database.db
+    original_get_database = database.get_database
+
+    # Replace with the mock database
+    async def mock_get_database():
+        return {"db": mock_db, "client": None}
+
+    database.get_database = mock_get_database
+    utils.db_utils.db = mock_db
+
+    yield mock_db
+
+    # Restore the original database
+    database.db = original_db
+    database.get_database = original_get_database
 
 def test_get_current_user_with_valid_token(client, auth_headers):
     """Test getting the current user with a valid token."""
@@ -282,12 +327,7 @@ def test_auth_statistics_endpoint(client, auth_headers):
     # Override the dependencies
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # Create a mock database
-    mock_db = AsyncMock()
-    mock_db.users = AsyncMock()
-    mock_db.users.find_one = AsyncMock(return_value=mock_user)
-
-    # Apply mocks using patches
+    # Create a mock for get_user_sessions
     mock_get_user_sessions = AsyncMock(return_value=[{"id": "session1"}, {"id": "session2"}])
 
     # Create a module patch
@@ -296,26 +336,26 @@ def test_auth_statistics_endpoint(client, auth_headers):
     }
     modules['routers.sessions'].get_user_sessions = mock_get_user_sessions
 
-    with patch("routers.auth.db", mock_db), \
-         patch.dict('sys.modules', modules, clear=False):
-
-        # Make request to the statistics endpoint
+    # Patch the modules
+    with patch.dict('sys.modules', modules, clear=False):
         response = client.get("/api/auth/statistics", headers=auth_headers)
-
-        # Assert response is successful and contains statistics
         assert response.status_code == 200
-        stats = response.json()
-        assert "login_count" in stats
-        assert stats["login_count"] == 2
-        assert "token_refresh_count" in stats
-        assert stats["token_refresh_count"] == 1
-        assert "logout_count" in stats
-        assert stats["logout_count"] == 1
-        assert "active_sessions_count" in stats
-        assert stats["active_sessions_count"] == 2
-        assert "last_login" in stats
-        assert "days_since_creation" in stats
-        assert "account_creation_date" in stats
+        data = response.json()
+
+        # Verify the response contains the expected fields
+        assert "login_count" in data
+        assert "token_refresh_count" in data
+        assert "logout_count" in data
+        assert "active_sessions_count" in data
+        assert "last_login" in data
+        assert "account_creation_date" in data
+        assert "days_since_creation" in data
+
+        # Verify the counts are correct
+        assert data["login_count"] == 2
+        assert data["token_refresh_count"] == 1
+        assert data["logout_count"] == 1
+        assert data["active_sessions_count"] == 2
 
 def test_auth_notification_preferences(client, auth_headers):
     """Test accessing the /api/auth/notification-preferences endpoint."""
@@ -334,24 +374,16 @@ def test_auth_notification_preferences(client, auth_headers):
     # Override the dependency to return our mock user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # Create a mock database and mock the get_db function
-    mock_db = AsyncMock()
-    mock_db.users = AsyncMock()
-    mock_db.users.find_one = AsyncMock(return_value=mock_user)
+    response = client.get("/api/auth/notification-preferences", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
 
-    # Patch the database module
-    with patch("routers.auth.db", mock_db):
-        # Make request to the notification preferences endpoint
-        response = client.get("/api/auth/notification-preferences", headers=auth_headers)
-
-        # Assert response is successful and contains preferences
-        assert response.status_code == 200
-        prefs = response.json()
-        assert prefs["email_notifications"] == True
-        assert prefs["learning_reminders"] == False
-        assert prefs["review_reminders"] == True
-        assert prefs["achievement_notifications"] == True
-        assert prefs["newsletter"] == False
+    # Verify the response contains all expected preferences
+    assert data["email_notifications"] is True
+    assert data["learning_reminders"] is False
+    assert data["review_reminders"] is True
+    assert data["achievement_notifications"] is True
+    assert data["newsletter"] is False
 
 def test_update_notification_preferences(client, auth_headers):
     """Test updating the notification preferences."""
@@ -379,22 +411,13 @@ def test_update_notification_preferences(client, auth_headers):
     # Override the dependency to return our mock user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # Create a mock database and mock the update function
-    mock_db = AsyncMock()
-    mock_db.users = AsyncMock()
-    mock_db.users.find_one = AsyncMock(return_value=mock_user)
-    mock_db.users.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
+    response = client.put("/api/auth/notification-preferences", headers=auth_headers, json=update_data)
+    assert response.status_code == 200
+    data = response.json()
 
-    # Patch the database module
-    with patch("routers.auth.db", mock_db):
-        # Make request to update preferences
-        response = client.put("/api/auth/notification-preferences", headers=auth_headers, json=update_data)
-
-        # Assert update was successful
-        assert response.status_code == 200
-        updated_prefs = response.json()
-        assert updated_prefs["email_notifications"] == False
-        assert updated_prefs["learning_reminders"] == True
-        assert updated_prefs["review_reminders"] == False
-        assert updated_prefs["achievement_notifications"] == False
-        assert updated_prefs["newsletter"] == True
+    # Verify the response contains the updated preferences
+    assert data["email_notifications"] is False
+    assert data["learning_reminders"] is True
+    assert data["review_reminders"] is False
+    assert data["achievement_notifications"] is False
+    assert data["newsletter"] is True

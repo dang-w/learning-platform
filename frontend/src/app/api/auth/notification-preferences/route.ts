@@ -1,172 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_URL } from '@/config';
-import { getServerAuthToken, logAuthSources } from '@/lib/utils/api';
 
 /**
- * Get user notification preferences from the backend API
+ * Get notification preferences
  */
 export async function GET(request: NextRequest) {
-  console.log('Notification Preferences API route: Processing GET request');
+  console.log('Notification preferences request received');
 
   try {
-    // Get authentication token using standardized utility
-    const authToken = getServerAuthToken(request);
-
-    // Log token debug information
-    logAuthSources(request);
-
-    if (!authToken) {
-      console.log('No token found, returning 401');
+    // Extract token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No Authorization header present');
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('Found token in Authorization header');
+
     // Construct the backend API URL
     const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
-    const endpoint = `${backendUrl}/api/users/me/notifications`;
+    const endpoint = `${backendUrl}/api/auth/notification-preferences`;
 
-    console.log(`Notification Preferences API route: Forwarding to backend: ${endpoint}`);
-
-    // Set up headers with auth token
-    const headers = {
-      'Authorization': authToken,
-      'Content-Type': 'application/json'
-    };
+    console.log(`Forwarding preferences request to backend: ${endpoint}`);
 
     // Forward the request to the backend
     const backendResponse = await fetch(endpoint, {
       method: 'GET',
-      headers,
-      cache: 'no-store',
-      credentials: 'include'
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      cache: 'no-store'
     });
 
-    console.log(`Notification Preferences API route: Backend response status: ${backendResponse.status}`);
+    console.log(`Backend response status: ${backendResponse.status}`);
 
     if (!backendResponse.ok) {
-      const errorText = await backendResponse.text();
-      console.error(`Notification Preferences API route: Backend error: ${errorText}`);
-
-      if (backendResponse.status === 404) {
-        // Return dummy data for development if endpoint doesn't exist yet
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Notification Preferences API route: Returning mock data in development mode');
-          return NextResponse.json({
-            emailNotifications: true,
-            courseUpdates: true,
-            newMessages: true,
-            marketingEmails: false,
-            weeklyDigest: true
-          });
-        }
-      }
-
+      const errorData = await backendResponse.json().catch(() => ({}));
+      console.error('Error from backend:', errorData);
       return NextResponse.json(
-        { message: 'Failed to fetch notification preferences' },
+        { message: errorData.detail || 'Failed to fetch notification preferences' },
         { status: backendResponse.status }
       );
     }
 
-    // Transform the backend data to the frontend format
-    const backendData = await backendResponse.json();
+    // Return the preferences data
+    const data = await backendResponse.json();
+    return NextResponse.json(data, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
 
-    // Map backend property names to frontend property names
-    const transformedData = {
-      emailNotifications: backendData.email_notifications || false,
-      courseUpdates: backendData.learning_reminders || false,
-      newMessages: backendData.achievement_notifications || false,
-      marketingEmails: backendData.newsletter || false,
-      weeklyDigest: backendData.review_reminders || false
-    };
-
-    return NextResponse.json(transformedData);
   } catch (error) {
-    console.error('Error in notification preferences route:', error);
+    console.error('Error fetching notification preferences:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'An error occurred while fetching notification preferences' },
       { status: 500 }
     );
   }
 }
 
 /**
- * Update user notification preferences
+ * Update notification preferences
  */
 export async function PUT(request: NextRequest) {
-  console.log('Notification Preferences API route: Processing PUT request');
+  console.log('Update notification preferences request received');
 
   try {
-    // Get authentication token using standardized utility
-    const authToken = getServerAuthToken(request);
-
-    // Log token debug information
-    logAuthSources(request);
-
-    if (!authToken) {
-      console.log('No token found, returning 401');
+    // Extract token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No Authorization header present');
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse the request body
-    const frontendPrefs = await request.json();
-
-    // Transform frontend format to backend format
-    const backendPrefs = {
-      email_notifications: frontendPrefs.emailNotifications || false,
-      learning_reminders: frontendPrefs.courseUpdates || false,
-      achievement_notifications: frontendPrefs.newMessages || false,
-      newsletter: frontendPrefs.marketingEmails || false,
-      review_reminders: frontendPrefs.weeklyDigest || false
-    };
+    // Get request body
+    const preferences = await request.json();
 
     // Construct the backend API URL
     const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
-    const endpoint = `${backendUrl}/api/users/me/notifications`;
+    const endpoint = `${backendUrl}/api/auth/notification-preferences`;
 
-    console.log(`Notification Preferences API route: Forwarding to backend: ${endpoint}`);
-
-    // Set up headers with auth token
-    const headers = {
-      'Authorization': authToken,
-      'Content-Type': 'application/json'
-    };
+    console.log(`Forwarding preferences update to backend: ${endpoint}`);
 
     // Forward the request to the backend
     const backendResponse = await fetch(endpoint, {
       method: 'PUT',
-      headers,
-      body: JSON.stringify(backendPrefs),
-      cache: 'no-store',
-      credentials: 'include'
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(preferences),
+      cache: 'no-store'
     });
 
-    console.log(`Notification Preferences API route: Backend response status: ${backendResponse.status}`);
+    console.log(`Backend response status: ${backendResponse.status}`);
 
     if (!backendResponse.ok) {
-      const errorText = await backendResponse.text();
-      console.error(`Notification Preferences API route: Backend error: ${errorText}`);
+      const errorData = await backendResponse.json().catch(() => ({}));
+      console.error('Error from backend:', errorData);
       return NextResponse.json(
-        { message: 'Failed to update notification preferences' },
+        { message: errorData.detail || 'Failed to update notification preferences' },
         { status: backendResponse.status }
       );
     }
 
-    // Transform the response back to frontend format
-    const backendData = await backendResponse.json();
+    // Return the updated preferences
+    const data = await backendResponse.json();
+    return NextResponse.json(data, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
 
-    // Map backend property names back to frontend property names
-    const transformedData = {
-      emailNotifications: backendData.email_notifications || false,
-      courseUpdates: backendData.learning_reminders || false,
-      newMessages: backendData.achievement_notifications || false,
-      marketingEmails: backendData.newsletter || false,
-      weeklyDigest: backendData.review_reminders || false
-    };
-
-    return NextResponse.json(transformedData);
   } catch (error) {
-    console.error('Error in notification preferences update route:', error);
+    console.error('Error updating notification preferences:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'An error occurred while updating notification preferences' },
       { status: 500 }
     );
   }

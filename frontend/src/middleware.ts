@@ -1,17 +1,48 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Define public routes that don't require authentication
+const PUBLIC_ROUTES = [
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/token',
+  '/api/auth/token/refresh',
+  '/api/auth/verify',
+  '/api/auth/debug'
+];
+
+/**
+ * Clean token by removing Bearer prefix if present and ensuring no double prefix
+ */
+function cleanToken(token: string): string {
+  // Remove any existing Bearer prefix, case insensitive
+  const cleanedToken = token.replace(/^Bearer\s+/gi, '').trim();
+
+  // Ensure the token looks valid (basic validation)
+  if (!cleanedToken || cleanedToken.length < 20) {
+    console.log('[Middleware] Invalid token format detected');
+    return '';
+  }
+
+  return cleanedToken;
+}
+
 /**
  * Middleware function to handle authentication
  */
 export async function middleware(request: NextRequest) {
   const requestPath = request.nextUrl.pathname;
 
+  // Skip authentication for public routes
+  if (PUBLIC_ROUTES.includes(requestPath)) {
+    console.log(`[Middleware] Skipping auth check for public route: ${requestPath}`);
+    return NextResponse.next();
+  }
+
   // Check for rate limiting signals
   const isRateLimited = checkRateLimiting(request);
   if (isRateLimited) {
     console.log(`[Middleware] Request to ${requestPath} is rate limited, bypassing authentication checks`);
-    // Pass the original request through if we're rate limited
     return NextResponse.next();
   }
 
@@ -20,32 +51,32 @@ export async function middleware(request: NextRequest) {
 
   // Extract token from Authorization header or cookies
   const authHeader = request.headers.get('Authorization');
-  const tokenFromHeader = authHeader ?
-    (authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader)
-    : null;
+  const tokenFromHeader = authHeader ? cleanToken(authHeader) : null;
   const tokenFromCookie = request.cookies.get('token')?.value;
+  const cleanedCookieToken = tokenFromCookie ? cleanToken(tokenFromCookie) : null;
 
-  const token = tokenFromHeader || tokenFromCookie;
+  // Use the first available clean token
+  const token = tokenFromHeader || cleanedCookieToken;
 
   // For debugging only - log token details
   console.log(`[Middleware] Token sources:`, {
     path: requestPath,
     headerPresent: !!authHeader,
-    headerValue: authHeader ? `${authHeader.substring(0, 15)}...` : 'none',
+    headerValue: tokenFromHeader ? `${tokenFromHeader.substring(0, 10)}...` : 'none',
     cookiePresent: !!tokenFromCookie,
-    cookieValue: tokenFromCookie ? `${tokenFromCookie.substring(0, 10)}...` : 'none',
+    cookieValue: cleanedCookieToken ? `${cleanedCookieToken.substring(0, 10)}...` : 'none',
     finalToken: token ? `${token.substring(0, 10)}...` : 'none'
   });
 
   if (!token) {
     // For XHR/fetch requests, return 401
     if (isAPIRequest(requestPath) && isClientSideRequest(request)) {
-      console.log(`[Middleware] No token found for API request to ${requestPath}, returning 401`);
+      console.log(`[Middleware] No valid token found for API request to ${requestPath}, returning 401`);
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     // For other requests without a token, redirect to login
-    console.log(`[Middleware] No token found for page request to ${requestPath}, redirecting to login`);
+    console.log(`[Middleware] No valid token found for page request to ${requestPath}, redirecting to login`);
     const url = new URL('/auth/login', request.url);
     url.searchParams.set('from', requestPath);
     return NextResponse.redirect(url);
@@ -54,11 +85,10 @@ export async function middleware(request: NextRequest) {
   // Clone the request headers to avoid modifying the original
   const requestHeaders = new Headers(request.headers);
 
-  // Ensure token is in Bearer format for Authorization header
-  const formattedToken = `Bearer ${token.replace(/^Bearer\s+/i, '')}`;
-  requestHeaders.set('Authorization', formattedToken);
+  // Set clean token in Authorization header (without Bearer prefix)
+  requestHeaders.set('Authorization', `Bearer ${token}`);
 
-  console.log(`[Middleware] Set Authorization header: ${formattedToken.substring(0, 15)}...`);
+  console.log(`[Middleware] Set Authorization header with clean token: Bearer ${token.substring(0, 10)}...`);
 
   // Create response with modified headers
   const response = NextResponse.next({
@@ -67,13 +97,10 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Ensure token is in cookie for future requests (strip Bearer prefix if present)
-  const cookieToken = token.replace(/^Bearer\s+/i, '');
-  console.log(`[Middleware] Setting token cookie: ${cookieToken.substring(0, 10)}...`);
-
+  // Set clean token in cookie
   response.cookies.set({
     name: 'token',
-    value: cookieToken,
+    value: token, // Already cleaned
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
@@ -136,8 +163,7 @@ export const config = {
     '/api/user/:path*',
     '/api/users/:path*',
     '/api/resources/:path*',
-    '/api/auth/:path*',
-    '/api/token/:path*',
+    '/api/auth/((?!login|register|token|verify|debug).)*', // Match auth routes except public ones
     '/api/sessions/:path*',
 
     // Catch all other API routes

@@ -1,5 +1,12 @@
 import axios from 'axios';
-import { API_URL } from '@/config';
+import { API_URL, BACKEND_API_URL } from '../config';
+
+/**
+ * Clean token by removing Bearer prefix if present
+ */
+function cleanToken(token: string): string {
+  return token.replace(/^Bearer\s+/i, '').trim();
+}
 
 // Helper function to get auth headers for client-side requests
 export function getAuthHeaders(): Record<string, string> {
@@ -19,13 +26,14 @@ export function getAuthHeaders(): Record<string, string> {
   if (token) {
     // Check if token looks valid (basic validation)
     if (token.length > 20) {
-      console.log(`Using token from localStorage (prefix): ${token.substring(0, 10)}...`);
+      const cleanedToken = cleanToken(token);
+      console.log(`Using token from localStorage (prefix): ${cleanedToken.substring(0, 10)}...`);
 
       // Update cookies to ensure consistency across the app
-      document.cookie = `token=${token}; path=/; max-age=3600; SameSite=Lax`;
+      document.cookie = `token=${cleanedToken}; path=/; max-age=3600; SameSite=Lax`;
 
       return {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${cleanedToken}`,
         'Content-Type': 'application/json'
       };
     } else {
@@ -39,13 +47,14 @@ export function getAuthHeaders(): Record<string, string> {
     if (tokenCookie) {
       const cookieToken = tokenCookie.split('=')[1];
       if (cookieToken && cookieToken.length > 20) {
-        console.log(`Using token from cookie (prefix): ${cookieToken.substring(0, 10)}...`);
+        const cleanedToken = cleanToken(cookieToken);
+        console.log(`Using token from cookie (prefix): ${cleanedToken.substring(0, 10)}...`);
 
         // Sync to localStorage for future use
-        localStorage.setItem('token', cookieToken);
+        localStorage.setItem('token', cleanedToken);
 
         return {
-          'Authorization': `Bearer ${cookieToken}`,
+          'Authorization': `Bearer ${cleanedToken}`,
           'Content-Type': 'application/json'
         };
       }
@@ -104,9 +113,10 @@ export interface NotificationPreferences {
 // Synchronize token between localStorage and cookies
 function syncToken(token: string | null): void {
   if (token) {
-    localStorage.setItem('token', token);
+    const cleanedToken = cleanToken(token);
+    localStorage.setItem('token', cleanedToken);
     if (typeof document !== 'undefined') {
-      document.cookie = `token=${token}; path=/; max-age=3600; SameSite=Lax`;
+      document.cookie = `token=${cleanedToken}; path=/; max-age=3600; SameSite=Lax`;
     }
   } else {
     localStorage.removeItem('token');
@@ -118,26 +128,63 @@ function syncToken(token: string | null): void {
 
 const authApi = {
   async login(credentials: LoginCredentials): Promise<{token: string, refreshToken?: string}> {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(credentials),
-      cache: 'no-store'
-    });
+    try {
+      console.log('Attempting login with credentials:', { username: credentials.username });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Login failed');
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: credentials.username,
+          password: credentials.password
+        }),
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Login failed:', error);
+        throw new Error(error.message || 'Login failed');
+      }
+
+      const data = await response.json();
+      console.log('Login response:', {
+        hasToken: !!data.token,
+        hasRefreshToken: !!data.refreshToken
+      });
+
+      // Handle token from response
+      const token = data.token;
+      const refreshToken = data.refreshToken;
+
+      if (!token) {
+        console.error('No token in response:', data);
+        throw new Error('Invalid login response - no token received');
+      }
+
+      // Store clean tokens
+      syncToken(token);
+
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
+        // Also set refresh token cookie
+        if (typeof document !== 'undefined') {
+          document.cookie = `refresh_token=${refreshToken}; path=/; max-age=86400; SameSite=Lax`;
+        }
+      }
+
+      console.log('Login successful, tokens stored');
+
+      return {
+        token: `Bearer ${token}`,
+        refreshToken
+      };
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    syncToken(data.token);
-    return {
-      token: data.token,
-      refreshToken: data.refreshToken
-    };
   },
 
   async register(data: RegisterData): Promise<void> {
@@ -316,28 +363,123 @@ const authApi = {
   },
 
   getUserStatistics: async (): Promise<UserStatistics> => {
-    const response = await axios.get(`${API_URL}/api/auth/statistics`, {
-      withCredentials: true,
-    });
-    return response.data;
+    try {
+      const headers = getAuthHeaders();
+
+      // Try Next.js API route first
+      try {
+        const response = await fetch('/api/auth/statistics', {
+          method: 'GET',
+          headers,
+          cache: 'no-store',
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch statistics: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (nextApiError) {
+        console.log('Failed to fetch from Next.js API route:', nextApiError);
+
+        // Fallback to direct backend call
+        const backendResponse = await fetch(`${BACKEND_API_URL}/api/auth/statistics`, {
+          method: 'GET',
+          headers,
+          cache: 'no-store',
+          credentials: 'include'
+        });
+
+        if (!backendResponse.ok) {
+          throw new Error(`Failed to fetch statistics from backend: ${backendResponse.status}`);
+        }
+
+        return await backendResponse.json();
+      }
+    } catch (error) {
+      console.error('Error fetching user statistics:', error);
+      // Return default statistics on error
+      return {
+        totalCoursesEnrolled: 0,
+        completedCourses: 0,
+        averageScore: 0,
+        totalTimeSpent: 0,
+        lastActive: new Date().toISOString(),
+        achievementsCount: 0
+      };
+    }
   },
 
   getNotificationPreferences: async (): Promise<NotificationPreferences> => {
-    const response = await axios.get(`${API_URL}/api/auth/notification-preferences`, {
-      withCredentials: true,
-    });
-    return response.data;
+    try {
+      const headers = getAuthHeaders();
+
+      // Try Next.js API route first
+      try {
+        const response = await fetch('/api/auth/notification-preferences', {
+          method: 'GET',
+          headers,
+          cache: 'no-store',
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch preferences: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (nextApiError) {
+        console.log('Failed to fetch from Next.js API route:', nextApiError);
+
+        // Fallback to direct backend call
+        const backendResponse = await fetch(`${BACKEND_API_URL}/api/auth/notification-preferences`, {
+          method: 'GET',
+          headers,
+          cache: 'no-store',
+          credentials: 'include'
+        });
+
+        if (!backendResponse.ok) {
+          throw new Error(`Failed to fetch preferences from backend: ${backendResponse.status}`);
+        }
+
+        return await backendResponse.json();
+      }
+    } catch (error) {
+      console.error('Error fetching notification preferences:', error);
+      // Return default preferences on error
+      return {
+        emailNotifications: true,
+        courseUpdates: true,
+        newMessages: true,
+        marketingEmails: false,
+        weeklyDigest: true
+      };
+    }
   },
 
   updateNotificationPreferences: async (preferences: NotificationPreferences): Promise<NotificationPreferences> => {
-    const response = await axios.put(
-      `${API_URL}/api/auth/notification-preferences`,
-      preferences,
-      {
-        withCredentials: true,
+    try {
+      const headers = getAuthHeaders();
+
+      const response = await fetch('/api/auth/notification-preferences', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(preferences),
+        cache: 'no-store',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update preferences: ${response.status}`);
       }
-    );
-    return response.data;
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating notification preferences:', error);
+      throw error;
+    }
   },
 
   exportUserData: async (): Promise<Blob> => {

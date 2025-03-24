@@ -155,8 +155,16 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}): Pro
         tokenPrefix: token.substring(0, 10) + '...'
       });
     } else {
-      // Token not available, continue without it - might be a public endpoint
-      logAuthOperation('fetchWithAuth', { tokenAvailable: false, url });
+      // No token available, try to refresh first
+      logAuthOperation('fetchWithAuth', { tokenAvailable: false, url, action: 'attempting refresh' });
+      try {
+        const refreshResult = await refreshTokenAndRetry(fetchOptions, url);
+        if (refreshResult.ok) {
+          return refreshResult;
+        }
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+      }
     }
 
     // Send cookies along with the request
@@ -176,9 +184,12 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}): Pro
     if (response.status === 401) {
       logAuthOperation('fetchWithAuth', { status: 401, url, message: 'Authentication failed' });
 
-      // Attempt to refresh token and retry
-      const retryResponse = await refreshTokenAndRetry(fetchOptions, url);
-      return retryResponse;
+      // Only attempt refresh if we haven't already
+      if (!url.includes('/auth/token/refresh')) {
+        // Attempt to refresh token and retry
+        const retryResponse = await refreshTokenAndRetry(fetchOptions, url);
+        return retryResponse;
+      }
     }
 
     // Return the successful response
@@ -219,13 +230,12 @@ export const fetchJsonWithAuth = async <T>(url: string, options: RequestInit = {
 
         // If still failing after refresh, throw error
         throw new Error(`Request failed after token refresh: ${retryResponse.status}`);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (error) {
+      } catch (refreshError) {
         // If token refresh fails, redirect to login
-        console.error('[fetchJsonWithAuth] Token refresh failed, redirecting to login');
+        console.error('[fetchJsonWithAuth] Token refresh failed:', refreshError);
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token');
-          window.location.href = '/auth/login';
+          window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
         }
         throw new Error('Authentication required');
       }

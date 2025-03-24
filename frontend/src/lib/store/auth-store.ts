@@ -21,7 +21,7 @@ export interface AuthState {
   clearError: () => void;
   setDirectAuthState: (token: string, isAuth: boolean) => void;
   fetchStatistics: () => Promise<void>;
-  getNotificationPreferences: () => Promise<void>;
+  getNotificationPreferences: () => Promise<NotificationPreferences>;
   updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>;
   exportUserData: () => Promise<Blob>;
   deleteAccount: () => Promise<void>;
@@ -32,7 +32,30 @@ export interface AuthState {
   _lastRefreshAttemptTimestamp: number | null;
   _refreshAttempts: number;
   _lastRefreshTimestamp: number | null;
+  initializeFromStorage: () => void;
+  setStatistics: (stats: UserStatistics) => void;
+  setNotificationPreferences: (prefs: NotificationPreferences) => void;
 }
+
+const getStoredTokens = () => {
+  if (typeof window === 'undefined') return { token: null, refreshToken: null };
+
+  // Try localStorage first
+  let token = localStorage.getItem('token');
+  let refreshToken = localStorage.getItem('refresh_token');
+
+  // If not in localStorage, try cookies
+  if (!token || !refreshToken) {
+    const cookies = document.cookie.split(';');
+    const tokenCookie = cookies.find(c => c.trim().startsWith('token='));
+    const refreshTokenCookie = cookies.find(c => c.trim().startsWith('refresh_token='));
+
+    if (tokenCookie) token = tokenCookie.split('=')[1];
+    if (refreshTokenCookie) refreshToken = refreshTokenCookie.split('=')[1];
+  }
+
+  return { token, refreshToken };
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -41,7 +64,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       refreshToken: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true,
       error: null,
       statistics: null,
       notificationPreferences: null,
@@ -50,6 +73,48 @@ export const useAuthStore = create<AuthState>()(
       _lastRefreshAttemptTimestamp: null,
       _refreshAttempts: 0,
       _lastRefreshTimestamp: null,
+
+      setStatistics: (stats: UserStatistics) => {
+        set({ statistics: stats });
+      },
+
+      setNotificationPreferences: (prefs: NotificationPreferences) => {
+        set({ notificationPreferences: prefs });
+      },
+
+      initializeFromStorage: () => {
+        const { token, refreshToken } = getStoredTokens();
+        if (token && refreshToken) {
+          set({
+            isAuthenticated: true,
+            token,
+            refreshToken,
+            isLoading: false
+          });
+
+          // Verify token validity
+          authApi.getCurrentUser()
+            .then(user => set({ user }))
+            .catch(async () => {
+              // If current user fetch fails, try to refresh token
+              const refreshed = await get().refreshAuthToken();
+              if (!refreshed) {
+                // If refresh fails, reset auth state
+                set({
+                  isAuthenticated: false,
+                  token: null,
+                  refreshToken: null,
+                  user: null,
+                  error: null,
+                  statistics: null,
+                  notificationPreferences: null
+                });
+              }
+            });
+        } else {
+          set({ isLoading: false });
+        }
+      },
 
       setDirectAuthState: (token: string, isAuth: boolean) => {
         if (typeof window !== 'undefined') {
@@ -62,76 +127,42 @@ export const useAuthStore = create<AuthState>()(
       },
 
       login: async (username: string, password: string) => {
+        set({ isLoading: true, error: null });
         try {
-          set({ isLoading: true, error: null });
-          console.log('Auth store: Starting login process');
-
-          const authResult = await authApi.login({ username, password });
-          const token = authResult.token;
-          const refreshToken = authResult.refreshToken;
+          const { token, refreshToken } = await authApi.login({ username, password });
 
           if (!token) {
-            console.error('No token received from login response');
-            throw new Error('Authentication failed - no token received');
+            throw new Error('No token received from login');
           }
 
-          // Manually set token in local storage to ensure it's available immediately
-          if (typeof window !== 'undefined') {
-            console.log('Auth store: Storing token in localStorage');
-            localStorage.setItem('token', token);
-            if (refreshToken) {
-              localStorage.setItem('refresh_token', refreshToken);
-            }
-
-            // Set token in cookie for middleware with secure parameters
-            document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
-            if (refreshToken) {
-              document.cookie = `refresh_token=${refreshToken}; path=/; max-age=86400; SameSite=Lax`;
-            }
-            console.log('Auth store: Token cookie set');
-
-            // Verify token was actually stored
-            const storedToken = localStorage.getItem('token');
-            const storedRefreshToken = localStorage.getItem('refresh_token');
-            const storedCookie = document.cookie.split(';').find(c => c.trim().startsWith('token='));
-            console.log('Auth store: Token storage verification:', {
-              localStorage: storedToken ? 'Present' : 'Missing',
-              refreshToken: storedRefreshToken ? 'Present' : 'Missing',
-              cookie: storedCookie ? 'Present' : 'Missing'
-            });
-
-            if (!storedToken || !storedCookie) {
-              console.warn('Auth store: Token storage verification failed');
-            }
+          // Store tokens in localStorage and cookies
+          localStorage.setItem('token', token.replace(/^Bearer\s+/i, ''));
+          if (refreshToken) {
+            localStorage.setItem('refresh_token', refreshToken);
           }
+
+          // Get user details
+          const user = await authApi.getCurrentUser();
 
           set({
-            token,
-            refreshToken,
             isAuthenticated: true,
-            isLoading: false,
+            token: token.replace(/^Bearer\s+/i, ''),
+            refreshToken,
+            user,
+            error: null
           });
-          console.log('Auth store: Auth state updated after login, isAuthenticated=true');
-
-          // Fetch user data
-          try {
-            console.log('Auth store: Fetching user data after login');
-            await get().fetchUser();
-            console.log('Auth store: User data fetched successfully');
-          } catch (userError) {
-            console.error('Failed to fetch user data after login:', userError);
-            // Don't throw this error, as login itself was successful
-          }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Login error:', error);
           set({
-            isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to login',
             isAuthenticated: false,
             token: null,
+            refreshToken: null,
             user: null,
+            error: error instanceof Error ? error.message : 'Failed to login'
           });
           throw error;
+        } finally {
+          set({ isLoading: false });
         }
       },
 
@@ -184,45 +215,28 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        set({ isLoading: true });
         try {
-          // First clear client-side auth state
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            statistics: null,
-            notificationPreferences: null,
-            error: null, // Clear any previous errors
-          });
-
-          // Clear tokens from localStorage
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('sessionId');
-
-            // Also clear any cookies
-            document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-          }
-
-          // Call logout API (best effort - don't block if it fails)
-          try {
-            await authApi.logout();
-          } catch (e) {
-            console.warn('Logout API call failed, but client state was cleared', e);
-            // Set error to match test expectations
-            set({ error: 'Failed to logout' });
-          }
+          await authApi.logout();
         } catch (error) {
-          console.error('Error during logout:', error);
-          // Ensure the client state is cleared even if there was an error
+          console.error('Logout error:', error);
+        } finally {
+          // Clear all auth state
+          localStorage.removeItem('token');
+          localStorage.removeItem('refresh_token');
+          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+
           set({
-            user: null,
-            token: null,
             isAuthenticated: false,
-            error: 'Failed to logout'
+            token: null,
+            refreshToken: null,
+            user: null,
+            error: null,
+            isLoading: false,
+            statistics: null,
+            notificationPreferences: null
           });
-          // Don't throw here to keep the logout function resilient
         }
       },
 
@@ -269,140 +283,29 @@ export const useAuthStore = create<AuthState>()(
 
       refreshAuthToken: async () => {
         const state = get();
-        const now = Date.now();
+        const refreshToken = state.refreshToken || localStorage.getItem('refresh_token');
 
-        // Don't attempt refresh if we're rate limited
-        if (state._retryAfterTimestamp && state._retryAfterTimestamp > now) {
-          const waitTime = Math.ceil((state._retryAfterTimestamp - now) / 1000);
-          console.log(`Rate limited for token refresh. Please try again in ${waitTime} seconds.`);
-          return false;
-        }
-
-        // If we recently refreshed successfully (in the last 10 seconds), don't try again
-        if (state._lastRefreshTimestamp && now - state._lastRefreshTimestamp < 10000) {
-          console.log('Token was refreshed recently, skipping refresh to prevent rate limiting');
-          return true; // Return true because we assume token is still valid
-        }
-
-        // Check if we have a refresh token
-        const refreshToken = state.refreshToken;
         if (!refreshToken) {
           console.error('No refresh token available');
           return false;
         }
 
         try {
-          console.log('Attempting to refresh token');
-
-          // Track refresh attempt for rate limiting
-          set({ _lastRefreshAttemptTimestamp: now });
-
-          // Prepare refresh token request
-          const payload = { refresh_token: refreshToken };
-
-          // Try primary refresh endpoint
-          let response = await fetch('/api/auth/token/refresh', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-            credentials: 'include',
-          });
-
-          // Check for rate limiting
-          if (response.status === 429) {
-            console.log('Rate limited on token refresh');
-
-            // Get retry-after header
-            const retryAfter = response.headers.get('Retry-After');
-            let retrySeconds = 60; // Default to 60 seconds if no header
-
-            if (retryAfter) {
-              retrySeconds = parseInt(retryAfter, 10) || 60;
-            } else {
-              // Implement exponential backoff if no Retry-After header
-              const attempts = state._refreshAttempts || 0;
-              const backoffMultiplier = Math.pow(2, Math.min(attempts, 6)); // Cap at 2^6 = 64
-              retrySeconds = 5 * backoffMultiplier;
-            }
-
-            const retryAfterTimestamp = now + (retrySeconds * 1000);
+          const success = await authApi.refreshAuthToken();
+          if (success) {
+            // Update stored tokens
+            const { token, refreshToken } = getStoredTokens();
             set({
-              _retryAfterTimestamp: retryAfterTimestamp,
-              _refreshAttempts: (state._refreshAttempts || 0) + 1
+              isAuthenticated: true,
+              token,
+              refreshToken,
+              error: null
             });
-
-            console.log(`Token refresh rate limited. Try again after ${retrySeconds} seconds`);
-            return false;
+            return true;
           }
-
-          // If primary endpoint fails but not due to rate limiting, try fallback endpoint
-          if (!response.ok && response.status !== 429) {
-            console.warn('Primary token refresh endpoint failed, trying fallback');
-
-            response = await fetch('/api/token/refresh', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(payload),
-              credentials: 'include',
-            });
-          }
-
-          // Process the response
-          if (response.ok) {
-            const data = await response.json();
-
-            if (data.access_token || data.token) {
-              // Use the token field that exists (backends may provide inconsistent naming)
-              const newToken = data.access_token || data.token;
-              const newRefreshToken = data.refresh_token || refreshToken;
-
-              // Update state directly
-              set({
-                token: newToken,
-                refreshToken: newRefreshToken,
-                _lastRefreshTimestamp: now,
-                _refreshAttempts: 0,
-                _retryAfterTimestamp: null,
-                isAuthenticated: true
-              });
-
-              // Update localStorage
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('token', newToken);
-                localStorage.setItem('refresh_token', newRefreshToken);
-              }
-
-              // Update cookies
-              if (typeof document !== 'undefined') {
-                const tokenValue = newToken.replace(/^Bearer\s+/i, '');
-                document.cookie = `token=${tokenValue}; path=/; max-age=3600; SameSite=Lax`;
-                document.cookie = `refresh_token=${newRefreshToken}; path=/; max-age=86400; SameSite=Lax`;
-              }
-
-              console.log('Token refreshed successfully');
-              return true;
-            } else {
-              console.error('Refresh token response missing access_token or token');
-              return false;
-            }
-          } else if (response.status === 401 || response.status === 403) {
-            // Clear auth state on unauthorized or forbidden
-            console.error('Refresh token unauthorized, clearing auth state');
-            state.logout();
-            return false;
-          } else {
-            // Handle other errors
-            console.error('Token refresh failed:', response.status);
-            set({ _refreshAttempts: (state._refreshAttempts || 0) + 1 });
-            return false;
-          }
+          return false;
         } catch (error) {
-          console.error('Error refreshing token:', error);
-          set({ _refreshAttempts: (state._refreshAttempts || 0) + 1 });
+          console.error('Token refresh failed:', error);
           return false;
         }
       },
@@ -473,35 +376,56 @@ export const useAuthStore = create<AuthState>()(
 
       fetchStatistics: async () => {
         try {
-          set({ isLoading: true, error: null });
+          set({ isLoading: true });
+          console.log('Fetching user statistics from backend...');
+
           const statistics = await authApi.getUserStatistics();
+          console.log('Statistics fetched successfully');
+
+          // Only update state if we received valid data (not defaults)
+          const hasRealData = statistics.totalCoursesEnrolled > 0 ||
+                             statistics.completedCourses > 0 ||
+                             statistics.averageScore > 0;
+
           set({
-            statistics,
+            statistics: statistics,
             isLoading: false,
+            // Only set error state if we received defaults due to an error
+            error: hasRealData ? null : 'Unable to load statistics'
           });
         } catch (error) {
-          set({
-            isLoading: false,
-            error: 'Failed to fetch user statistics',
-          });
-          throw error;
+          console.error('Failed to fetch user statistics:', error);
+          // Don't update error state to avoid UI disruption
+          set({ isLoading: false });
         }
       },
 
       getNotificationPreferences: async () => {
         try {
-          set({ isLoading: true, error: null });
+          set({ isLoading: true });
+          console.log('Fetching notification preferences from backend...');
+
           const preferences = await authApi.getNotificationPreferences();
+          console.log('Notification preferences fetched successfully');
+
           set({
             notificationPreferences: preferences,
             isLoading: false,
           });
+          return preferences;
         } catch (error) {
-          set({
-            isLoading: false,
-            error: 'Failed to fetch notification preferences',
-          });
-          throw error;
+          console.error('Failed to fetch notification preferences:', error);
+          // Don't update error state to avoid UI disruption
+          set({ isLoading: false });
+
+          // Return default preferences
+          return {
+            emailNotifications: true,
+            courseUpdates: true,
+            newMessages: true,
+            marketingEmails: false,
+            weeklyDigest: true
+          };
         }
       },
 
@@ -560,7 +484,11 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ token: state.token }),
+      partialize: (state) => ({
+        token: state.token,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated
+      })
     }
   )
 );

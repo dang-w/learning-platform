@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from '@/lib/utils';
+import authApi from '@/lib/api/auth';
 
 const profileSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -29,21 +30,31 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 // Define TabType with all possible tab values
 type TabType = 'profile' | 'password' | 'account' | 'statistics' | 'notifications' | 'export';
 
-export default function ProfilePage() {
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface ProfilePageProps {
+  // Add any props if needed
+}
+
+const ProfilePage: React.FC<ProfilePageProps> = () => {
+  const router = useRouter();
   const {
     user,
+    isAuthenticated,
+    isLoading,
+    initializeFromStorage,
     updateProfile,
     changePassword,
-    error,
+    error: storeError,
     clearError,
     statistics,
     notificationPreferences,
-    fetchStatistics,
     getNotificationPreferences,
     updateNotificationPreferences,
     exportUserData,
     deleteAccount,
-    isLoading: storeLoading
+    isLoading: storeLoading,
+    setStatistics,
+    setNotificationPreferences
   } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('profile');
@@ -53,8 +64,8 @@ export default function ProfilePage() {
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const router = useRouter();
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     register: registerProfile,
@@ -64,7 +75,7 @@ export default function ProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       email: user?.email || '',
-      fullName: user?.fullName || '',
+      fullName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
     },
   });
 
@@ -77,15 +88,61 @@ export default function ProfilePage() {
     resolver: zodResolver(passwordSchema),
   });
 
+  useEffect(() => {
+    // Initialize auth state from storage
+    initializeFromStorage();
+  }, [initializeFromStorage]);
+
+  useEffect(() => {
+    const initializeProfile = async () => {
+      if (!isAuthenticated && !isLoading) {
+        router.push('/auth/login');
+        return;
+      }
+
+      if (!isAuthenticated || !user) {
+        return;
+      }
+
+      setIsPageLoading(true);
+      setError(null);
+
+      try {
+        // Fetch statistics and preferences in parallel
+        const [stats, prefs] = await Promise.all([
+          authApi.getUserStatistics(),
+          authApi.getNotificationPreferences()
+        ]);
+
+        // Update store with fetched data
+        setStatistics(stats);
+        setNotificationPreferences(prefs);
+      } catch (err) {
+        console.error('Error loading profile data:', err);
+        setError('Failed to load profile data. Please try again.');
+      } finally {
+        setIsPageLoading(false);
+      }
+    };
+
+    initializeProfile();
+  }, [isAuthenticated, isLoading, user, router, setStatistics, setNotificationPreferences]);
+
   const onProfileSubmit = async (data: ProfileFormValues) => {
     setIsProfileLoading(true);
     setProfileSuccess(false);
     clearError();
 
     try {
+      // Split fullName into firstName and lastName
+      const nameParts = data.fullName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
       await updateProfile({
         email: data.email,
-        fullName: data.fullName,
+        firstName,
+        lastName
       });
       setProfileSuccess(true);
     } catch (error) {
@@ -140,39 +197,30 @@ export default function ProfilePage() {
     }
   };
 
-  // Add useEffect to handle initial loading
-  useEffect(() => {
-    const initializeProfile = async () => {
-      try {
-        setIsInitializing(true);
-        // Fetch initial data
-        await Promise.all([
-          fetchStatistics(),
-          getNotificationPreferences()
-        ]);
-      } catch (error) {
-        console.error('Error initializing profile:', error);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
-    if (user) {
-      initializeProfile();
-    }
-  }, [user, fetchStatistics, getNotificationPreferences]);
-
-  if (!user) {
-    router.push('/auth/login');
-    return null;
-  }
-
-  if (isInitializing || storeLoading) {
+  if (isLoading || isPageLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" data-testid="profile-loading">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="text-red-500 mb-4">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!user || !isAuthenticated) {
+    return null; // Router will handle redirect
   }
 
   const renderStatisticsTab = () => (
@@ -239,69 +287,101 @@ export default function ProfilePage() {
         <p className="mt-1 text-sm text-gray-500">Manage your notification settings.</p>
       </div>
       <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
-        <div className="space-y-4">
-          {notificationPreferences && (
-            <>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">Email Notifications</h3>
-                  <p className="text-sm text-gray-500">Receive notifications via email.</p>
-                </div>
-                <button
-                  type="button"
-                  className={cn(
-                    "relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
-                    notificationPreferences.emailNotifications ? "bg-indigo-600" : "bg-gray-200"
-                  )}
-                  role="switch"
-                  aria-checked={notificationPreferences.emailNotifications}
-                  onClick={() => updateNotificationPreferences({
-                    ...notificationPreferences,
-                    emailNotifications: !notificationPreferences.emailNotifications,
-                  })}
-                  data-testid="email-notifications-toggle"
-                >
-                  <span className="sr-only">Enable email notifications</span>
-                  <span
+        {storeLoading && (
+          <div className="flex justify-center py-6">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
+          </div>
+        )}
+        {!storeLoading &&
+          <div className="space-y-4">
+            {notificationPreferences ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700">Email Notifications</h3>
+                    <p className="text-sm text-gray-500">Receive notifications via email.</p>
+                  </div>
+                  <button
+                    type="button"
                     className={cn(
-                      "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
-                      notificationPreferences.emailNotifications ? "translate-x-5" : "translate-x-0"
+                      "relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                      notificationPreferences.emailNotifications ? "bg-indigo-600" : "bg-gray-200"
                     )}
-                  />
-                </button>
-              </div>
+                    role="switch"
+                    aria-checked={notificationPreferences.emailNotifications}
+                    onClick={() => updateNotificationPreferences({
+                      ...notificationPreferences,
+                      emailNotifications: !notificationPreferences.emailNotifications,
+                    })}
+                    data-testid="email-notifications-toggle"
+                  >
+                    <span className="sr-only">Enable email notifications</span>
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
+                        notificationPreferences.emailNotifications ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">Course Updates</h3>
-                  <p className="text-sm text-gray-500">Get notified about course updates and new content.</p>
-                </div>
-                <button
-                  type="button"
-                  className={cn(
-                    "relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
-                    notificationPreferences.courseUpdates ? "bg-indigo-600" : "bg-gray-200"
-                  )}
-                  role="switch"
-                  aria-checked={notificationPreferences.courseUpdates}
-                  onClick={() => updateNotificationPreferences({
-                    ...notificationPreferences,
-                    courseUpdates: !notificationPreferences.courseUpdates,
-                  })}
-                  data-testid="course-updates-toggle"
-                >
-                  <span className="sr-only">Enable course updates</span>
-                  <span
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700">Course Updates</h3>
+                    <p className="text-sm text-gray-500">Get notified about course updates and new content.</p>
+                  </div>
+                  <button
+                    type="button"
                     className={cn(
-                      "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
-                      notificationPreferences.courseUpdates ? "translate-x-5" : "translate-x-0"
+                      "relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                      notificationPreferences.courseUpdates ? "bg-indigo-600" : "bg-gray-200"
                     )}
-                  />
-                </button>
+                    role="switch"
+                    aria-checked={notificationPreferences.courseUpdates}
+                    onClick={() => updateNotificationPreferences({
+                      ...notificationPreferences,
+                      courseUpdates: !notificationPreferences.courseUpdates,
+                    })}
+                    data-testid="course-updates-toggle"
+                  >
+                    <span className="sr-only">Enable course updates</span>
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200",
+                        notificationPreferences.courseUpdates ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-md bg-yellow-50 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">Notification preferences unavailable</h3>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <p>Your notification preferences couldn&apos;t be loaded at this time.</p>
+                    </div>
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => getNotificationPreferences()}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        }
       </div>
     </div>
   );
@@ -470,13 +550,13 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {error && (
+                    {storeError && (
                       <div className="mt-4 rounded-md bg-red-50 p-4" data-testid="profile-error">
                         <div className="flex">
                           <div className="ml-3">
                             <h3 className="text-sm font-medium text-red-800">Update failed</h3>
                             <div className="mt-2 text-sm text-red-700">
-                              <p>{error}</p>
+                              <p>{storeError}</p>
                             </div>
                           </div>
                         </div>
@@ -688,4 +768,6 @@ export default function ProfilePage() {
       </div>
     </div>
   );
-}
+};
+
+export default ProfilePage;
