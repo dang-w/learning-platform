@@ -79,6 +79,13 @@ async def create_indexes():
         await db.learning_paths.create_index("user_id")
         await db.learning_paths.create_index("created_at")
 
+        # Notes collection indexes - Updated for better performance
+        await db.notes.create_index([("user_id", 1), ("updated_at", -1)])  # For listing notes
+        await db.notes.create_index([("user_id", 1), ("tags", 1)])  # For tag filtering
+        await db.notes.create_index("created_at")
+        await db.notes.create_index("updated_at")
+        await db.notes.create_index([("title", "text"), ("content", "text")])  # For future text search
+
         logger.info("All database indexes created successfully")
     except Exception as e:
         logger.error(f"Error creating indexes: {str(e)}")

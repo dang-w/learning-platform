@@ -223,20 +223,19 @@ def test_token_refresh(client, monkeypatch):
 
         return MockResponse()
 
-    # Apply the mock
-    monkeypatch.setattr("routers.auth.verify_refresh_token", lambda token: {"sub": "testuser", "type": "refresh"})
+    # Apply the mock at the module level
+    with patch("routers.auth.verify_refresh_token", return_value={"sub": "testuser", "type": "refresh"}):
+        # Test refreshing token
+        response = client.post(
+            "/api/auth/token/refresh",
+            json={"refresh_token": "valid_refresh_token"}
+        )
 
-    # Test refreshing token
-    response = client.post(
-        "/api/auth/token/refresh",
-        json={"refresh_token": "valid_refresh_token"}
-    )
-
-    assert response.status_code == 200
-    token_data = response.json()
-    assert "access_token" in token_data
-    assert "refresh_token" in token_data
-    assert token_data["token_type"] == "bearer"
+        assert response.status_code == 200
+        token_data = response.json()
+        assert "access_token" in token_data
+        assert "refresh_token" in token_data
+        assert token_data["token_type"] == "bearer"
 
 def test_token_refresh_invalid_token(client):
     """Test token refresh with invalid token."""

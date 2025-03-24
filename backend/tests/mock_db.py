@@ -7,6 +7,7 @@ from typing import Dict, List, Any, Optional
 from bson import ObjectId
 import logging
 from datetime import datetime
+import asyncio
 
 # Import standardized error handlers
 from utils.error_handlers import DatabaseError, ResourceNotFoundError
@@ -20,232 +21,156 @@ class MockCollection:
         self.name = name
         self.data = []
         self.indexes = {}
+        self._event_loop = None
         logger.info(f"Created mock collection: {name}")
 
+    def _get_event_loop(self):
+        """Get the current event loop or create a new one."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop
+
     async def create_index(self, key, unique: bool = False) -> str:
-        """Create an index on the collection.
-
-        Args:
-            key: Either a string for single field index or list of tuples for compound index
-            unique: Whether the index should enforce uniqueness
-        """
+        """Create an index on the collection."""
+        self._event_loop = self._get_event_loop()
         logger.info(f"Creating index on {self.name} for key: {key}, unique: {unique}")
-
-        # Convert the key to a string representation for storage
-        if isinstance(key, list):
-            # Handle compound indexes
-            index_key = "_".join(f"{k}_{v}" for k, v in key)
-        else:
-            # Handle single field indexes
-            index_key = str(key)
-
+        index_key = str(key)
         self.indexes[index_key] = {"unique": unique}
-        return f"{index_key}_1"
+        return index_key
 
     async def find_one(self, query: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Find a single document in the collection."""
+        """Find a single document."""
+        self._event_loop = self._get_event_loop()
         logger.info(f"Finding one in {self.name} with query: {query}")
 
-        # Handle _id queries specially
+        # Convert ObjectId to string for comparison
         if "_id" in query and isinstance(query["_id"], ObjectId):
-            for doc in self.data:
-                if "_id" in doc and doc["_id"] == query["_id"]:
-                    return doc
-            return None
+            query["_id"] = str(query["_id"])
 
-        # Handle other queries
         for doc in self.data:
             matches = True
             for key, value in query.items():
-                if key not in doc or doc[key] != value:
+                if isinstance(value, ObjectId):
+                    if str(value) != str(doc.get(key)):
+                        matches = False
+                        break
+                elif doc.get(key) != value:
                     matches = False
                     break
             if matches:
                 return doc
-
         return None
 
-    def find(self, query: Dict[str, Any] = None) -> 'MockCursor':
-        """Find documents in the collection.
-
-        Args:
-            query: Query filter for documents. If None, returns all documents.
-
-        Returns:
-            MockCursor: Cursor object for the query results.
-        """
+    def find(self, query: Dict[str, Any] = None) -> "MockCursor":
+        """Find documents matching query."""
+        self._event_loop = self._get_event_loop()
         if query is None:
             query = {}
 
-        logger.info(f"Finding in {self.name} with query: {query}")
+        # Convert ObjectId to string for comparison
+        if "_id" in query and isinstance(query["_id"], ObjectId):
+            query["_id"] = str(query["_id"])
 
-        results = []
+        filtered_data = []
         for doc in self.data:
             matches = True
             for key, value in query.items():
-                if key not in doc or doc[key] != value:
+                if isinstance(value, ObjectId):
+                    if str(value) != str(doc.get(key)):
+                        matches = False
+                        break
+                elif doc.get(key) != value:
                     matches = False
                     break
             if matches:
-                results.append(doc)
+                filtered_data.append(doc)
 
-        return MockCursor(results)
+        return MockCursor(filtered_data, self)
 
     async def insert_one(self, document: Dict[str, Any]) -> Any:
-        """Insert a document into the collection."""
-        logger.info(f"Inserting one in {self.name}: {document}")
+        """Insert a single document."""
+        self._event_loop = self._get_event_loop()
 
-        # Check for unique constraints
-        if self.name == "users" and "username" in document:
-            existing = await self.find_one({"username": document["username"]})
-            if existing:
-                raise DatabaseError("Duplicate username")
-
-        # Add _id if not present
+        # Ensure document has an _id
         if "_id" not in document:
             document["_id"] = ObjectId()
 
-        # Add standard fields for user documents
-        if self.name == "users":
-            # Ensure all required fields are present
-            if "disabled" not in document:
-                document["disabled"] = False
+        # Check unique indexes
+        for index_key, index_info in self.indexes.items():
+            if index_info.get("unique"):
+                field = index_key.split("_")[0]  # Get the field name from the index key
+                if field in document:
+                    for existing_doc in self.data:
+                        if existing_doc.get(field) == document[field]:
+                            raise DatabaseError(f"Duplicate key error for unique index: {field}")
 
-            if "is_active" not in document:
-                document["is_active"] = True
-
-            if "resources" not in document:
-                document["resources"] = {
-                    "articles": [],
-                    "videos": [],
-                    "courses": [],
-                    "books": []
-                }
-
-            if "study_sessions" not in document:
-                document["study_sessions"] = []
-
-            if "review_sessions" not in document:
-                document["review_sessions"] = []
-
-            if "learning_paths" not in document:
-                document["learning_paths"] = []
-
-            if "reviews" not in document:
-                document["reviews"] = []
-
-            if "concepts" not in document:
-                document["concepts"] = []
-
-            if "goals" not in document:
-                document["goals"] = []
-
-        # Create a copy of the document to avoid modifying the original
-        doc_copy = document.copy()
-        self.data.append(doc_copy)
-
-        class InsertOneResult:
-            def __init__(self, inserted_id):
-                self.inserted_id = inserted_id
-
-        return InsertOneResult(doc_copy["_id"])
+        self.data.append(document)
+        return type("InsertOneResult", (), {"inserted_id": document["_id"]})
 
     async def update_one(self, query: Dict[str, Any], update: Dict[str, Any]) -> Any:
-        """Update a document in the collection."""
-        logger.info(f"Updating one in {self.name} with query: {query} and update: {update}")
+        """Update a single document."""
+        self._event_loop = self._get_event_loop()
 
-        # Find the document to update
-        for i, doc in enumerate(self.data):
+        # Convert ObjectId to string for comparison
+        if "_id" in query and isinstance(query["_id"], ObjectId):
+            query["_id"] = str(query["_id"])
+
+        modified_count = 0
+        for doc in self.data:
             matches = True
             for key, value in query.items():
-                if key not in doc or doc[key] != value:
+                if isinstance(value, ObjectId):
+                    if str(value) != str(doc.get(key)):
+                        matches = False
+                        break
+                elif doc.get(key) != value:
                     matches = False
                     break
-
             if matches:
-                # Handle $set operator
                 if "$set" in update:
-                    for key, value in update["$set"].items():
-                        self.data[i][key] = value
+                    doc.update(update["$set"])
+                else:
+                    doc.update(update)
+                modified_count = 1
+                break
 
-                # Handle $unset operator
-                if "$unset" in update:
-                    for key in update["$unset"]:
-                        if key in self.data[i]:
-                            del self.data[i][key]
-
-                # Handle $push operator
-                if "$push" in update:
-                    for key, value in update["$push"].items():
-                        # Create nested objects if they don't exist
-                        parts = key.split('.')
-                        current = self.data[i]
-
-                        # Navigate to the correct nested object
-                        for j, part in enumerate(parts[:-1]):
-                            if part not in current:
-                                current[part] = {} if j < len(parts) - 2 else []
-                            current = current[part]
-
-                        # Add the value to the array
-                        last_part = parts[-1]
-                        if last_part not in current:
-                            current[last_part] = []
-
-                        if isinstance(current[last_part], list):
-                            current[last_part].append(value)
-                        else:
-                            # If it's not a list, make it a list with the value
-                            current[last_part] = [value]
-
-                # Handle direct updates (no operators)
-                for key, value in update.items():
-                    if not key.startswith("$"):
-                        self.data[i][key] = value
-
-                class UpdateResult:
-                    def __init__(self, matched_count, modified_count):
-                        self.matched_count = matched_count
-                        self.modified_count = modified_count
-
-                return UpdateResult(1, 1)
-
-        # No document found to update
-        class UpdateResult:
-            def __init__(self, matched_count, modified_count):
-                self.matched_count = matched_count
-                self.modified_count = modified_count
-
-        return UpdateResult(0, 0)
+        return type("UpdateResult", (), {"modified_count": modified_count})
 
     async def delete_one(self, query: Dict[str, Any]) -> Any:
-        """Delete a document from the collection."""
+        """Delete a single document."""
+        self._event_loop = self._get_event_loop()
         logger.info(f"Deleting one in {self.name} with query: {query}")
+
+        # Convert ObjectId to string for comparison
+        if "_id" in query and isinstance(query["_id"], ObjectId):
+            query["_id"] = str(query["_id"])
 
         for i, doc in enumerate(self.data):
             matches = True
             for key, value in query.items():
-                if key not in doc or doc[key] != value:
+                if isinstance(value, ObjectId):
+                    if str(value) != str(doc.get(key)):
+                        matches = False
+                        break
+                elif doc.get(key) != value:
                     matches = False
                     break
-
             if matches:
-                self.data.pop(i)
-                class DeleteResult:
-                    def __init__(self, deleted_count):
-                        self.deleted_count = deleted_count
-
-                return DeleteResult(1)
-
-        class DeleteResult:
-            def __init__(self, deleted_count):
-                self.deleted_count = deleted_count
-
-        return DeleteResult(0)
+                del self.data[i]
+                return {"deleted_count": 1}
+        return {"deleted_count": 0}
 
     async def delete_many(self, query: Dict[str, Any]) -> Any:
-        """Delete multiple documents from the collection."""
+        """Delete multiple documents."""
+        self._event_loop = self._get_event_loop()
         logger.info(f"Deleting many in {self.name} with query: {query}")
+
+        # Convert ObjectId to string for comparison
+        if "_id" in query and isinstance(query["_id"], ObjectId):
+            query["_id"] = str(query["_id"])
 
         deleted_count = 0
         i = 0
@@ -253,31 +178,37 @@ class MockCollection:
             doc = self.data[i]
             matches = True
             for key, value in query.items():
-                if key not in doc or doc[key] != value:
+                if isinstance(value, ObjectId):
+                    if str(value) != str(doc.get(key)):
+                        matches = False
+                        break
+                elif doc.get(key) != value:
                     matches = False
                     break
-
             if matches:
-                self.data.pop(i)
+                del self.data[i]
                 deleted_count += 1
             else:
                 i += 1
-
-        class DeleteResult:
-            def __init__(self, deleted_count):
-                self.deleted_count = deleted_count
-
-        return DeleteResult(deleted_count)
+        return {"deleted_count": deleted_count}
 
     async def count_documents(self, query: Dict[str, Any]) -> int:
-        """Count documents in the collection."""
-        logger.info(f"Counting documents in {self.name} with query: {query}")
+        """Count documents matching query."""
+        self._event_loop = self._get_event_loop()
+
+        # Convert ObjectId to string for comparison
+        if "_id" in query and isinstance(query["_id"], ObjectId):
+            query["_id"] = str(query["_id"])
 
         count = 0
         for doc in self.data:
             matches = True
             for key, value in query.items():
-                if key not in doc or doc[key] != value:
+                if isinstance(value, ObjectId):
+                    if str(value) != str(doc.get(key)):
+                        matches = False
+                        break
+                elif doc.get(key) != value:
                     matches = False
                     break
             if matches:
@@ -286,30 +217,75 @@ class MockCollection:
         return count
 
 class MockCursor:
-    """Mock cursor for query results."""
+    """Mock cursor for testing."""
 
-    def __init__(self, results: List[Dict[str, Any]]):
-        self.results = results
+    def __init__(self, data: List[Dict[str, Any]], collection: 'MockCollection'):
+        self.data = data
+        self.collection = collection
+        self._sort_field = None
+        self._sort_direction = None
+        self._skip_count = 0
+        self._limit_count = None
+        self._event_loop = None
 
-    async def to_list(self, length: int = None) -> List[Dict[str, Any]]:
-        """Convert cursor to a list of documents.
+    def _get_event_loop(self):
+        """Get the current event loop or create a new one."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop
 
-        Args:
-            length: Maximum number of documents to return. If None, returns all documents.
+    def sort(self, field: str, direction: int = 1):
+        """Sort the cursor results."""
+        self._sort_field = field
+        self._sort_direction = direction
+        return self
 
-        Returns:
-            List of documents.
-        """
-        if length is None:
-            return self.results
-        return self.results[:length]
+    def skip(self, count: int):
+        """Skip the first n results."""
+        self._skip_count = count
+        return self
+
+    def limit(self, count: int):
+        """Limit the number of results."""
+        self._limit_count = count
+        return self
+
+    async def to_list(self, length: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Convert cursor to list."""
+        self._event_loop = self._get_event_loop()
+
+        # Apply sorting if specified
+        if self._sort_field:
+            self.data.sort(
+                key=lambda x: x.get(self._sort_field, ""),
+                reverse=self._sort_direction == -1
+            )
+
+        # Apply skip and limit
+        start = self._skip_count
+        end = None if self._limit_count is None else start + self._limit_count
+
+        return self.data[start:end]
 
 class MockDatabase:
     """Mock database for testing."""
 
     def __init__(self):
         self.collections = {}
+        self._event_loop = None
         logger.info("Created mock database")
+
+    def _get_event_loop(self):
+        """Get the current event loop or create a new one."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop
 
     def __getattr__(self, name: str) -> MockCollection:
         """Get a collection by name."""

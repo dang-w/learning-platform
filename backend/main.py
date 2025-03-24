@@ -30,9 +30,6 @@ from auth import (
     SECRET_KEY, ALGORITHM, create_refresh_token, verify_refresh_token
 )
 
-# Import RefreshTokenRequest from auth router
-from routers.auth import RefreshTokenRequest
-
 # Import database connection
 from database import db, verify_db_connection
 
@@ -53,13 +50,20 @@ from utils.monitoring import (
 )
 
 # Import routers directly
-from routers import users, auth
-from routers import resources, progress, learning_path, reviews
-from routers import sessions, lessons
-from routers.users import normalize_user_data
+from routers.auth import router as auth_router
+from routers.users import router as users_router
+from routers.resources import router as resources_router
+from routers.progress import router as progress_router
+from routers.learning_path import router as learning_path_router
+from routers.reviews import router as reviews_router
+from routers.sessions import router as sessions_router
+from routers.lessons import router as lessons_router
+from routers.url_extractor import router as url_extractor_router
+from routers.notes import router as notes_router
 
-# Import and include URL extractor router
-from routers import url_extractor
+# Import RefreshTokenRequest from auth router
+from routers.auth import RefreshTokenRequest
+from routers.users import normalize_user_data
 
 # Load environment variables
 load_dotenv()
@@ -86,29 +90,18 @@ app.add_middleware(
 )
 
 # Mount routers
-app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
-
-# Create additional auth routes for backward compatibility
-@app.post("/auth/token/refresh", response_model=Token)
-async def legacy_refresh_token(
-    refresh_data: RefreshTokenRequest,
-    _: None = Depends(rate_limit_dependency(limit=5, window=300, key_prefix="auth"))
-):
-    """Backward compatibility endpoint for token refresh"""
-    logger.info("Legacy token refresh endpoint accessed, redirecting to API endpoint")
-    # Forward to the main refresh endpoint
-    return await auth.refresh_access_token(Request, refresh_data, _)
-
-app.include_router(users.router, prefix="/api/users", tags=["users"])
-app.include_router(resources.router, prefix="/api/resources", tags=["resources"])
-app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
-app.include_router(learning_path.router, prefix="/api/learning-path", tags=["learning_path"])
-app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
-app.include_router(lessons.router, prefix="/api/lessons", tags=["lessons"])
-app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
+app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
+app.include_router(users_router, prefix="/api/users", tags=["users"])
+app.include_router(resources_router, prefix="/api/resources", tags=["resources"])
+app.include_router(progress_router, prefix="/api/progress", tags=["progress"])
+app.include_router(learning_path_router, prefix="/api/learning-path", tags=["learning_path"])
+app.include_router(reviews_router, prefix="/api/reviews", tags=["reviews"])
+app.include_router(lessons_router, prefix="/api/lessons", tags=["lessons"])
+app.include_router(sessions_router, prefix="/api/sessions", tags=["sessions"])
+app.include_router(notes_router, prefix="/api/notes", tags=["notes"])
 
 # Import and include URL extractor router
-app.include_router(url_extractor.router, prefix="/api/url-extractor", tags=["url_extractor"])
+app.include_router(url_extractor_router, prefix="/api/url-extractor", tags=["url_extractor"])
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
@@ -306,6 +299,25 @@ if os.getenv("ENVIRONMENT", "development").lower() == "development":
             return {"success": success, "message": f"Rate limit reset for {key_prefix}"}
         else:
             return {"success": False, "message": "Request object required"}
+
+# Add request tracking middleware
+@app.middleware("http")
+async def add_request_tracking(request: Request, call_next):
+    """Add request tracking headers and logging."""
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+
+    # Add timing
+    start_time = datetime.now(timezone.utc)
+
+    response = await call_next(request)
+
+    # Add headers
+    response.headers["X-Request-ID"] = request_id
+    process_time = (datetime.now(timezone.utc) - start_time).total_seconds()
+    response.headers["X-Process-Time"] = str(process_time)
+
+    return response
 
 # Run the application
 if __name__ == "__main__":

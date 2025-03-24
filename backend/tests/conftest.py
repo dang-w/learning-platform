@@ -35,9 +35,19 @@ logger = logging.getLogger(__name__)
 # Add the parent directory to the path so we can import main
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import the app and auth modules
+# Import the app and auth modules - directly import router modules to avoid circular issues
 from main import app
 from auth import get_current_user, get_current_active_user, oauth2_scheme, create_access_token, jwt, SECRET_KEY, ALGORITHM
+from routers.auth import router as auth_router
+from routers.users import router as users_router
+from routers.resources import router as resources_router
+from routers.progress import router as progress_router
+from routers.learning_path import router as learning_path_router
+from routers.reviews import router as reviews_router
+from routers.sessions import router as sessions_router
+from routers.lessons import router as lessons_router
+from routers.url_extractor import router as url_extractor_router
+from routers.notes import router as notes_router
 
 # Import the mock database instead of the real one
 from tests.mock_db import db, create_test_user
@@ -52,6 +62,9 @@ def event_loop():
 
     # Set it as the default event loop
     asyncio.set_event_loop(loop)
+
+    # Apply nest_asyncio to allow nested event loops
+    nest_asyncio.apply(loop)
 
     # Yield the loop for use in tests
     yield loop
@@ -163,11 +176,20 @@ def client(setup_test_user):
     app.dependency_overrides.clear()
 
 # Async client fixture for testing
+@pytest.fixture(scope="function")
+def event_loop():
+    """Create an event loop for each test."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    nest_asyncio.apply(loop)
+    yield loop
+    loop.close()
+
 @pytest_asyncio.fixture
-async def async_client(setup_test_user):
+async def async_client(setup_test_user, event_loop):
     """Create an async test client with authentication overrides."""
     # Create an async client
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(app=app, base_url="http://test", follow_redirects=True) as ac:
         # Override the dependencies for authentication
         if setup_test_user:
             # For authenticated routes
