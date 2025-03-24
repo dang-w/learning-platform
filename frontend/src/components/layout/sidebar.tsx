@@ -74,6 +74,7 @@ export default function Sidebar() {
                           : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
                       onClick={() => setIsMobileMenuOpen(false)}
+                      aria-current={isActive ? 'page' : undefined}
                     >
                       <item.icon
                         className={`${
@@ -111,6 +112,7 @@ export default function Sidebar() {
                         ? 'bg-indigo-50 text-indigo-600'
                         : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                     } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                    aria-current={isActive ? 'page' : undefined}
                   >
                     <item.icon
                       className={`${

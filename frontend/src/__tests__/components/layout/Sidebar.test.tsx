@@ -11,9 +11,14 @@ jest.mock('next/navigation', () => ({
 
 // Mock next/link
 jest.mock('next/link', () => {
-  return function NextLink({ children, href, onClick }: { children: React.ReactNode; href: string; onClick?: () => void }) {
+  return function NextLink({ children, href, onClick, 'aria-current': ariaCurrent }: {
+    children: React.ReactNode;
+    href: string;
+    onClick?: () => void;
+    'aria-current'?: 'page' | 'step' | 'location' | 'date' | 'time' | boolean;
+  }) {
     return (
-      <a href={href} onClick={onClick}>
+      <a href={href} onClick={onClick} aria-current={ariaCurrent}>
         {children}
       </a>
     );
@@ -93,11 +98,30 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('button', { name: /close sidebar/i })).not.toBeInTheDocument();
   });
 
-  it.skip('applies active styles to the current route', () => {
+  it('applies active styles to the current route', () => {
+    // Mock the pathname to '/dashboard'
     (usePathname as jest.Mock).mockReturnValue('/dashboard');
+
     render(<Sidebar />);
 
-    // This test is skipped because the active styles are difficult to test reliably
-    // The component applies styles correctly, but the test environment doesn't render them as expected
+    // Find all navigation links
+    const navLinks = screen.getAllByRole('link');
+
+    // Find the Dashboard link and check for active class or aria attributes
+    const dashboardLink = navLinks.find(link => link.textContent?.includes('Dashboard'));
+    expect(dashboardLink).toHaveAttribute('aria-current', 'page');
+
+    // Change the pathname to '/resources' to test another route
+    (usePathname as jest.Mock).mockReturnValue('/resources');
+
+    // Re-render with the new pathname
+    render(<Sidebar />);
+
+    // Find the Resources link and check for active class
+    const resourcesLinks = screen.getAllByText('Resources');
+    const activeResourceLink = resourcesLinks.find(el =>
+      el.closest('a')?.getAttribute('aria-current') === 'page'
+    );
+    expect(activeResourceLink).toBeInTheDocument();
   });
 });

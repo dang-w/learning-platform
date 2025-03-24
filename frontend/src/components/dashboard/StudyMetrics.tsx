@@ -210,7 +210,13 @@ export function StudyMetrics() {
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+            <div
+              className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"
+              role="status"
+              aria-label="Loading"
+            >
+              <span className="sr-only">Loading...</span>
+            </div>
           </div>
         ) : (
           <div className="space-y-8">
