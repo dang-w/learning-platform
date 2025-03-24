@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 from passlib.context import CryptContext
+from resources.ai_ml_resources import get_formatted_resources
+from resources.learning_paths import get_formatted_learning_path
+from resources.knowledge_concepts import get_formatted_concepts
 
 # Load environment variables
 load_dotenv()
@@ -207,33 +210,8 @@ async def create_sample_concepts():
         print("✅ Sample concepts already exist")
         return
 
-    # Sample concepts
-    concepts = [
-        {
-            "id": "1",
-            "title": "Supervised Learning",
-            "content": "Supervised learning is a type of machine learning where the model is trained on labeled data.",
-            "topics": ["machine learning", "supervised learning"],
-            "reviews": [],
-            "next_review": datetime.now().strftime("%Y-%m-%d")
-        },
-        {
-            "id": "2",
-            "title": "Neural Networks",
-            "content": "Neural networks are computing systems inspired by the biological neural networks in animal brains.",
-            "topics": ["deep learning", "neural networks"],
-            "reviews": [],
-            "next_review": datetime.now().strftime("%Y-%m-%d")
-        },
-        {
-            "id": "3",
-            "title": "Backpropagation",
-            "content": "Backpropagation is an algorithm used to train neural networks by adjusting weights based on the error rate.",
-            "topics": ["deep learning", "neural networks", "algorithms"],
-            "reviews": [],
-            "next_review": datetime.now().strftime("%Y-%m-%d")
-        }
-    ]
+    # Get formatted concepts from the resources module
+    concepts = get_formatted_concepts()
 
     # Update sample user with concepts
     await db.users.update_one(
@@ -259,100 +237,66 @@ async def create_sample_learning_path():
         print("✅ Sample learning path data already exists")
         return
 
-    # Sample milestones
-    milestones = [
-        {
-            "id": "1",
-            "title": "Complete Python Basics",
-            "description": "Learn the fundamentals of Python programming",
-            "target_date": (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d"),
-            "verification_method": "Complete a Python project",
-            "resources": ["https://example.com/python-basics"],
-            "completed": False,
-            "completion_date": None,
-            "notes": ""
-        },
-        {
-            "id": "2",
-            "title": "Understand Machine Learning Fundamentals",
-            "description": "Learn the core concepts of machine learning",
-            "target_date": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d"),
-            "verification_method": "Build a simple ML model",
-            "resources": ["https://example.com/ml-fundamentals"],
-            "completed": False,
-            "completion_date": None,
-            "notes": ""
-        }
-    ]
-
-    # Sample goals
-    goals = [
-        {
-            "id": "1",
-            "title": "Learn TensorFlow",
-            "description": "Become proficient in using TensorFlow for deep learning",
-            "target_date": (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d"),
-            "priority": 1,
-            "category": "technical",
-            "completed": False,
-            "completion_date": None,
-            "notes": ""
-        },
-        {
-            "id": "2",
-            "title": "Complete a Data Science Project",
-            "description": "Apply ML skills to a real-world data science project",
-            "target_date": (datetime.now() + timedelta(days=90)).strftime("%Y-%m-%d"),
-            "priority": 2,
-            "category": "project",
-            "completed": False,
-            "completion_date": None,
-            "notes": ""
-        }
-    ]
-
-    # Sample roadmap
-    roadmap = {
-        "id": "1",
-        "title": "Machine Learning Engineer Roadmap",
-        "description": "A comprehensive roadmap to become a machine learning engineer",
-        "phases": [
-            {
-                "title": "Phase 1: Programming Fundamentals",
-                "description": "Learn the basics of programming with Python",
-                "resources": ["https://example.com/python-basics"]
-            },
-            {
-                "title": "Phase 2: Data Science Basics",
-                "description": "Learn data manipulation, analysis, and visualization",
-                "resources": ["https://example.com/data-science-basics"]
-            },
-            {
-                "title": "Phase 3: Machine Learning",
-                "description": "Learn machine learning algorithms and techniques",
-                "resources": ["https://example.com/machine-learning"]
-            },
-            {
-                "title": "Phase 4: Deep Learning",
-                "description": "Learn deep learning frameworks and applications",
-                "resources": ["https://example.com/deep-learning"]
-            }
-        ],
-        "created_at": datetime.now().strftime("%Y-%m-%d"),
-        "updated_at": datetime.now().strftime("%Y-%m-%d")
-    }
+    # Get formatted learning path from the resources module
+    learning_path = get_formatted_learning_path()
 
     # Update sample user with learning path data
     await db.users.update_one(
         {"username": "sample_user"},
         {"$set": {
-            "learning_path.milestones": milestones,
-            "learning_path.goals": goals,
-            "learning_path.roadmap": roadmap
+            "learning_path": learning_path
         }}
     )
 
     print("✅ Created sample learning path data")
+
+async def create_ai_ml_resources():
+    """Integrate AI/ML resources from the official resource list."""
+    print("🔍 Creating AI/ML resources from resource list...")
+
+    # Get sample user
+    sample_user = await db.users.find_one({"username": "sample_user"})
+
+    if not sample_user:
+        print("❌ Sample user not found")
+        return
+
+    # Check for existing AI/ML resources
+    existing_resources_count = len(sample_user["resources"]["articles"]) + len(sample_user["resources"]["videos"]) + len(sample_user["resources"].get("courses", [])) + len(sample_user["resources"].get("books", []))
+
+    # Only add if we have less than 10 resources total (to avoid duplicating when run multiple times)
+    if existing_resources_count >= 10:
+        print("✅ Sufficient AI/ML resources already exist")
+        return
+
+    # Initialize resources arrays if they don't exist
+    if "courses" not in sample_user["resources"]:
+        await db.users.update_one(
+            {"username": "sample_user"},
+            {"$set": {"resources.courses": []}}
+        )
+
+    if "books" not in sample_user["resources"]:
+        await db.users.update_one(
+            {"username": "sample_user"},
+            {"$set": {"resources.books": []}}
+        )
+
+    # Get formatted resources from the resources module
+    formatted_resources = get_formatted_resources()
+
+    # Update user with new resources
+    await db.users.update_one(
+        {"username": "sample_user"},
+        {"$push": {
+            "resources.courses": {"$each": formatted_resources["courses"]},
+            "resources.books": {"$each": formatted_resources["books"]},
+            "resources.articles": {"$each": formatted_resources["articles"]},
+            "resources.videos": {"$each": formatted_resources["videos"]}
+        }}
+    )
+
+    print("✅ Created AI/ML resources from resource list")
 
 async def main():
     print("🔍 Initializing AI/ML Learning Platform database...")
@@ -367,6 +311,7 @@ async def main():
         await create_sample_metrics()
         await create_sample_concepts()
         await create_sample_learning_path()
+        await create_ai_ml_resources()
 
         print("\n✅ Database initialization completed successfully!")
 
