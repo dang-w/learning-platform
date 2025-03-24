@@ -1,10 +1,10 @@
-import apiClient from './client';
-import authApi from './auth';
 import resourcesApi from './resources';
-import progressApi from './progress';
-import reviewsApi from './reviews';
-import learningPathApi from './learning-path';
+import authApi from './auth';
 import knowledgeApi from './knowledge';
+import learningPathApi from './learning-path';
+import progressApi from './progress';
+import notesApi from './notes';
+import reviewsApi from './reviews';
 
 // URL metadata extraction API
 export const extractUrlMetadata = async (url: string) => {
@@ -29,11 +29,11 @@ export const extractUrlMetadata = async (url: string) => {
 };
 
 export {
-  apiClient,
-  authApi,
   resourcesApi,
-  progressApi,
-  reviewsApi,
-  learningPathApi,
+  authApi,
   knowledgeApi,
+  learningPathApi,
+  progressApi,
+  notesApi,
+  reviewsApi
 };
