@@ -1,0 +1,134 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 2,
+    "passes": 1,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-22T09:42:03.688Z",
+    "end": "2025-03-22T09:42:55.768Z",
+    "duration": 52080,
+    "testsRegistered": 2,
+    "passPercent": 50,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "c4347f85-bd6a-44aa-9116-00c3402d641f",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "file": "e2e-testing/cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "c7057aa6-b236-45d7-af2e-512390494954",
+          "title": "Knowledge Management - Spaced Repetition E2E Flow",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should navigate to the Knowledge section if available",
+              "fullTitle": "Knowledge Management - Spaced Repetition E2E Flow should navigate to the Knowledge section if available",
+              "timedOut": null,
+              "duration": 3488,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge-spaced-repetition.cy.ts/homepage-check.png\"\n    ]\n  ]\n}",
+              "code": "// Use our authentication bypass\n(0, auth_test_utils_1.setupCompleteAuthBypass)();\n// Clear cookies and local storage\ncy.clearCookies();\ncy.clearLocalStorage();\n// Visit the base page first to check what's available\ncy.visit('/', {\n    failOnStatusCode: false,\n    timeout: 10000\n});\n// Take a screenshot of the homepage\ncy.screenshot('homepage-check');\n// Log the page content for debugging\ncy.get('body').then(function ($body) {\n    cy.log(\"Home page content: \".concat($body.text().substring(0, 200), \"...\"));\n});\n// Check if the Knowledge section link exists on the page\ncy.get('body').then(function ($body) {\n    var hasKnowledgeLink = $body.find('a[href*=\"knowledge\"], a:contains(\"Knowledge\")').length > 0;\n    if (hasKnowledgeLink) {\n        // Knowledge section exists, navigate to it\n        cy.contains('Knowledge').click();\n        cy.url().should('include', '/knowledge');\n        // Save the URL for later tests\n        cy.url().then(function (url) {\n            cy.task('setTestData', { knowledgeUrl: url });\n        });\n        // Check for spaced repetition features\n        cy.get('body').then(function ($knowledgePage) {\n            var hasReviewSection = $knowledgePage.find('a[href*=\"review\"], button:contains(\"Review\")').length > 0;\n            if (hasReviewSection) {\n                // Navigate to review section if available\n                cy.contains('Review').click();\n                cy.url().should('include', '/review');\n            }\n            else {\n                cy.log('Review section not found in Knowledge area');\n            }\n        });\n    }\n    else {\n        // Test pages might be available instead\n        cy.visit('/test-pages', { failOnStatusCode: false });\n        cy.get('body').then(function ($testPages) {\n            var hasSpacedRepetitionTest = $testPages.find('a[href*=\"knowledge-spaced-repetition\"]').length > 0;\n            if (hasSpacedRepetitionTest) {\n                // Navigate to the test page\n                cy.contains('knowledge-spaced-repetition').click();\n                // Verify basic elements on the page\n                cy.get('h1, h2, h3').should('be.visible');\n                // Check for tabs navigation\n                cy.get('button').then(function ($buttons) {\n                    if ($buttons.length > 0) {\n                        // Try clicking the first tab\n                        cy.get('button').first().click();\n                    }\n                });\n            }\n            else {\n                cy.log('Knowledge spaced repetition test page not found');\n            }\n        });\n    }\n});",
+              "err": {},
+              "uuid": "8c187feb-8f33-4645-910d-a7b5bc8602f0",
+              "parentUUID": "c7057aa6-b236-45d7-af2e-512390494954",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should explore knowledge management features",
+              "fullTitle": "Knowledge Management - Spaced Repetition E2E Flow should explore knowledge management features",
+              "timedOut": null,
+              "duration": 16260,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge-spaced-repetition.cy.ts/Knowledge Management - Spaced Repetition E2E Flow -- should explore knowledge management features (failed).png\"\n    ],\n    [\n      \"/knowledge-spaced-repetition.cy.ts/Knowledge Management - Spaced Repetition E2E Flow -- should explore knowledge management features (failed) (attempt 2).png\"\n    ],\n    [\n      \"/knowledge-spaced-repetition.cy.ts/Knowledge Management - Spaced Repetition E2E Flow -- should explore knowledge management features (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Use our authentication bypass\n(0, auth_test_utils_1.setupCompleteAuthBypass)();\n// Clear cookies and local storage\ncy.clearCookies();\ncy.clearLocalStorage();\n// Navigate directly to the Knowledge section\ncy.visit('/knowledge', { failOnStatusCode: false });\n// We should be in the Knowledge section\ncy.url().should('include', '/knowledge');\n// Check if there are any statistics elements\ncy.get('body').then(function ($knowledgePage) {\n    // Look for cards, metrics or statistics indicators\n    var hasStatistics = $knowledgePage.find('.card, .metric, [data-testid*=\"stat\"]').length > 0;\n    if (hasStatistics) {\n        cy.log('Found statistics in the Knowledge section');\n        cy.get('.card, .metric, [data-testid*=\"stat\"]').first().should('be.visible');\n    }\n    // Check if there are any filtering options\n    var hasFilters = $knowledgePage.find('select, [role=\"combobox\"], input[type=\"search\"]').length > 0;\n    if (hasFilters) {\n        cy.log('Found filtering options in the Knowledge section');\n        // Try interacting with the first filter element\n        if ($knowledgePage.find('select').length > 0) {\n            cy.get('select').first().select(1, { force: true });\n        }\n        else if ($knowledgePage.find('[role=\"combobox\"]').length > 0) {\n            cy.get('[role=\"combobox\"]').first().click({ force: true });\n            cy.get('[role=\"option\"]').first().click({ force: true });\n        }\n        else if ($knowledgePage.find('input[type=\"search\"]').length > 0) {\n            cy.get('input[type=\"search\"]').first().type('test', { force: true });\n        }\n    }\n    // Take a screenshot of the knowledge page\n    cy.screenshot('knowledge-page-features');\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 15000ms: expected 'http://localhost:3000/auth/login?callbackUrl=%2Fknowledge' to include '/knowledge'",
+                "estack": "AssertionError: Timed out retrying after 15000ms: expected 'http://localhost:3000/auth/login?callbackUrl=%2Fknowledge' to include '/knowledge'\n    at Context.eval (webpack:///./cypress/e2e/knowledge-spaced-repetition.cy.ts:82:0)",
+                "diff": null
+              },
+              "uuid": "9a1d0465-2a2e-4657-a1d1-c890752d7ee8",
+              "parentUUID": "c7057aa6-b236-45d7-af2e-512390494954",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "8c187feb-8f33-4645-910d-a7b5bc8602f0"
+          ],
+          "failures": [
+            "9a1d0465-2a2e-4657-a1d1-c890752d7ee8"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 19748,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

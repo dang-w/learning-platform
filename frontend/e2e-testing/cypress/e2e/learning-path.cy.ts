@@ -3,12 +3,12 @@
  * Using resilient testing patterns for better test stability
  */
 import { learningPathPage } from '../support/page-objects';
-import { setupAuthenticatedTestWithData } from '../support/resilientSeedData';
+import { setupCompleteAuthBypass } from '../support/auth-test-utils';
 
 describe('Learning Path Management', () => {
   beforeEach(() => {
-    // Setup authenticated test with data seeding
-    setupAuthenticatedTestWithData();
+    // Setup auth with complete bypass and data seeding
+    setupCompleteAuthBypass('test-user-cypress');
 
     // Navigate to learning path page
     learningPathPage.visitLearningPath();

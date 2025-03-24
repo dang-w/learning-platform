@@ -37,7 +37,7 @@ echo -e "${GREEN}Starting Cypress run...${NC}"
 echo "=========================================================="
 
 npx cypress run \
-  --config-file e2e-testing/cypress.config.ts \
+  --config-file e2e-testing/cypress.config.mts \
   --spec "$SPEC_PATTERN"
 
 # Capture the exit code

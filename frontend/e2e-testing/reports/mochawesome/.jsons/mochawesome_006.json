@@ -1,0 +1,110 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 1,
+    "pending": 0,
+    "failures": 0,
+    "start": "2025-03-22T09:26:25.983Z",
+    "end": "2025-03-22T09:26:28.309Z",
+    "duration": 2326,
+    "testsRegistered": 1,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "4fce228e-3aa0-4fc3-8736-237807c4f8b4",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "file": "e2e-testing/cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "13c88a21-4d3d-42b2-aad9-8d348b1b73a8",
+          "title": "Knowledge Management - Spaced Repetition",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should have basic HTML elements",
+              "fullTitle": "Knowledge Management - Spaced Repetition should have basic HTML elements",
+              "timedOut": null,
+              "duration": 2246,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge-spaced-repetition.cy.ts/spaced-repetition-initial-page.png\"\n    ]\n  ]\n}",
+              "code": "// Check for basic elements\ncy.get('html').should('exist');\ncy.get('body').should('exist');\n// Log body content for debugging\ncy.get('body').then(function ($body) {\n    var bodyText = $body.text();\n    cy.log(\"Body content length: \".concat(bodyText.length));\n    cy.log(\"Body content sample: \".concat(bodyText.substring(0, 200), \"...\"));\n});\n// Check for any heading\ncy.get('h1, h2, h3').then(function ($headings) {\n    cy.log(\"Found \".concat($headings.length, \" headings\"));\n    if ($headings.length > 0) {\n        cy.log(\"First heading text: \".concat($headings.first().text()));\n    }\n});\n// Look for any buttons\ncy.get('button').then(function ($buttons) {\n    cy.log(\"Found \".concat($buttons.length, \" buttons\"));\n    if ($buttons.length > 0) {\n        $buttons.each(function (index, button) {\n            cy.log(\"Button \".concat(index, \" text: \").concat(Cypress.$(button).text()));\n        });\n    }\n});",
+              "err": {},
+              "uuid": "47368acf-1d28-48a7-afce-01829f2aa0f6",
+              "parentUUID": "13c88a21-4d3d-42b2-aad9-8d348b1b73a8",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "47368acf-1d28-48a7-afce-01829f2aa0f6"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 2246,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

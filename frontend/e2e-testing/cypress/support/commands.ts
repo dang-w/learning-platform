@@ -346,9 +346,7 @@ Cypress.Commands.add('visitProtectedRoute', (route: string) => {
   });
 
   // Check if we've landed on the intended route
-  cy.url().should('include', route, { timeout: 15000 }).then((url) => {
-    cy.log(`Successfully navigated to ${url}`);
-  });
+  cy.url().should('include', route, { timeout: 15000 });
 
   // Handle possible redirects to login pages
   cy.url().then((currentUrl) => {

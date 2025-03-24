@@ -1,0 +1,167 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 4,
+    "passes": 4,
+    "pending": 0,
+    "failures": 0,
+    "start": "2025-03-24T13:24:53.083Z",
+    "end": "2025-03-24T13:25:03.987Z",
+    "duration": 10904,
+    "testsRegistered": 4,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "ab3bf022-389a-4516-87ba-4d6e8e736497",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/knowledge.cy.ts",
+      "file": "e2e-testing/cypress/e2e/knowledge.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "d3c906ad-7e5a-4a6c-a599-595a313de295",
+          "title": "Knowledge Management E2E Tests",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display concepts list and navigation",
+              "fullTitle": "Knowledge Management E2E Tests should display concepts list and navigation",
+              "timedOut": null,
+              "duration": 2286,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge.cy.ts/Knowledge Management E2E Tests-should display concepts list and navigation-concepts-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Verify concepts page is loaded\npage_objects_1.conceptsPage.isConceptsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Concepts page not loaded properly, skipping test');\n        page_objects_1.conceptsPage.takeScreenshot('concepts-not-loaded');\n        return;\n    }\n    // Take a screenshot of the concepts page\n    page_objects_1.conceptsPage.takeScreenshot('concepts-list');\n    // Check for concept count\n    page_objects_1.conceptsPage.getConceptCount().then(function (count) {\n        cy.log(\"Found \".concat(count, \" concepts\"));\n    });\n    // Check if search functionality is available\n    cy.get('body').then(function ($body) {\n        if ($body.find('[data-testid=\"search-concepts-input\"]').length > 0) {\n            page_objects_1.conceptsPage.searchConcepts('test');\n            page_objects_1.conceptsPage.takeScreenshot('search-results');\n        }\n        else {\n            cy.log('Search functionality not found on the page');\n        }\n    });\n    // Check for other navigation options\n    cy.get('body').then(function ($body) {\n        // Check for review navigation if available\n        if ($body.find('[data-testid=\"nav-knowledge-review\"]').length > 0) {\n            page_objects_1.conceptsPage.navigateToReview();\n            page_objects_1.conceptsPage.takeScreenshot('review-section');\n            cy.go('back');\n        }\n        // Check for statistics navigation if available\n        if ($body.find('[data-testid=\"nav-knowledge-stats\"]').length > 0) {\n            page_objects_1.conceptsPage.navigateToStatistics();\n            page_objects_1.conceptsPage.takeScreenshot('stats-section');\n            cy.go('back');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "1d236905-a6e2-4a65-a2a0-c8e39aa9907a",
+              "parentUUID": "d3c906ad-7e5a-4a6c-a599-595a313de295",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should create, view, edit, and delete a concept",
+              "fullTitle": "Knowledge Management E2E Tests should create, view, edit, and delete a concept",
+              "timedOut": null,
+              "duration": 2285,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge.cy.ts/Knowledge Management E2E Tests-should create, view, edit, and delete a concept-concepts-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if concepts page loaded properly\npage_objects_1.conceptsPage.isConceptsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Concepts page not loaded properly, skipping test');\n        page_objects_1.conceptsPage.takeScreenshot('concepts-not-loaded');\n        return;\n    }\n    // Check if the add concept button is available\n    page_objects_1.conceptsPage.isAddConceptButtonAvailable().then(function (isAvailable) {\n        if (!isAvailable) {\n            cy.log('Add concept button not available, skipping test');\n            return;\n        }\n        // Click add concept button\n        page_objects_1.conceptsPage.clickAddConcept();\n        // Wait for the form to load\n        page_objects_1.conceptsPage.isConceptFormLoaded().then(function (isFormLoaded) {\n            if (!isFormLoaded) {\n                cy.log('Concept form not loaded properly, skipping test');\n                return;\n            }\n            // Create unique title to identify the concept\n            var conceptTitle = \"Test Concept \".concat(Date.now());\n            // Fill and submit the form\n            page_objects_1.conceptsPage.fillConceptForm({\n                title: conceptTitle,\n                content: '# Test Concept\\n\\nThis is a test concept created by Cypress.',\n                difficulty: 'intermediate',\n                topics: ['testing', 'cypress']\n            });\n            page_objects_1.conceptsPage.submitConceptForm();\n            // Verify success notification\n            page_objects_1.conceptsPage.verifySuccessNotification().then(function (hasSuccess) {\n                if (hasSuccess) {\n                    cy.log('Concept created successfully');\n                }\n                else {\n                    cy.log('No success notification displayed after creating concept');\n                }\n            });\n            // Verify the concept exists in the list\n            page_objects_1.conceptsPage.verifyConceptExists(conceptTitle).then(function (exists) {\n                cy.wrap(exists).should('be.true');\n                // Click on the concept to view details\n                page_objects_1.conceptsPage.clickConcept(conceptTitle);\n                // Check if the concept detail view is visible\n                page_objects_1.conceptsPage.isConceptDetailVisible().then(function (isDetailVisible) {\n                    if (!isDetailVisible) {\n                        cy.log('Concept detail view not visible, skipping detail check');\n                        return;\n                    }\n                    // Verify concept details\n                    page_objects_1.conceptsPage.verifyConceptDetails({\n                        title: conceptTitle,\n                        content: 'This is a test concept created by Cypress.'\n                    });\n                    // Edit the concept if edit button is available\n                    page_objects_1.conceptsPage.isEditButtonAvailable().then(function (isEditAvailable) {\n                        if (!isEditAvailable) {\n                            cy.log('Edit button not available, skipping edit test');\n                            return;\n                        }\n                        // Edit the concept\n                        page_objects_1.conceptsPage.clickEditButton();\n                        var updatedTitle = \"Updated Concept \".concat(Date.now());\n                        page_objects_1.conceptsPage.updateConceptTitle(updatedTitle);\n                        page_objects_1.conceptsPage.updateConceptContent('# Updated Concept\\n\\nThis concept was updated by Cypress.');\n                        page_objects_1.conceptsPage.saveConceptChanges();\n                        // Verify success notification for update\n                        page_objects_1.conceptsPage.verifySuccessNotification().then(function (hasUpdateSuccess) {\n                            if (hasUpdateSuccess) {\n                                cy.log('Concept updated successfully');\n                            }\n                            else {\n                                cy.log('No success notification displayed after updating concept');\n                            }\n                        });\n                        // Delete the concept if delete button is available\n                        page_objects_1.conceptsPage.isDeleteButtonAvailable().then(function (isDeleteAvailable) {\n                            if (!isDeleteAvailable) {\n                                cy.log('Delete button not available, skipping delete test');\n                                return;\n                            }\n                            // Delete the concept\n                            page_objects_1.conceptsPage.clickDeleteButton();\n                            page_objects_1.conceptsPage.confirmDeletion();\n                            // Verify success notification for deletion\n                            page_objects_1.conceptsPage.verifySuccessNotification().then(function (hasDeleteSuccess) {\n                                if (hasDeleteSuccess) {\n                                    cy.log('Concept deleted successfully');\n                                }\n                                else {\n                                    cy.log('No success notification displayed after deleting concept');\n                                }\n                            });\n                            // Verify the concept is no longer in the list\n                            page_objects_1.conceptsPage.verifyConceptExists(updatedTitle).then(function (stillExists) {\n                                cy.wrap(stillExists).should('be.false');\n                            });\n                        });\n                    });\n                });\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "f342c2c8-be01-4216-a026-f468fe94c5d0",
+              "parentUUID": "d3c906ad-7e5a-4a6c-a599-595a313de295",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should use filtering and sorting options if available",
+              "fullTitle": "Knowledge Management E2E Tests should use filtering and sorting options if available",
+              "timedOut": null,
+              "duration": 2657,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge.cy.ts/Knowledge Management E2E Tests-should use filtering and sorting options if available-concepts-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if concepts page loaded properly\npage_objects_1.conceptsPage.isConceptsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Concepts page not loaded properly, skipping test');\n        page_objects_1.conceptsPage.takeScreenshot('concepts-not-loaded');\n        return;\n    }\n    // Check for topic filter\n    page_objects_1.conceptsPage.isTopicFilterAvailable().then(function (hasTopicFilter) {\n        if (hasTopicFilter) {\n            page_objects_1.conceptsPage.filterByTopic('testing');\n            page_objects_1.conceptsPage.takeScreenshot('topic-filter');\n        }\n        else {\n            cy.log('Topic filter not available');\n        }\n    });\n    // Check for difficulty filter\n    page_objects_1.conceptsPage.isDifficultyFilterAvailable().then(function (hasDifficultyFilter) {\n        if (hasDifficultyFilter) {\n            page_objects_1.conceptsPage.filterByDifficulty('beginner');\n            page_objects_1.conceptsPage.takeScreenshot('difficulty-filter');\n        }\n        else {\n            cy.log('Difficulty filter not available');\n        }\n    });\n    // Check for status filter\n    page_objects_1.conceptsPage.isStatusFilterAvailable().then(function (hasStatusFilter) {\n        if (hasStatusFilter) {\n            page_objects_1.conceptsPage.filterByStatus('active');\n            page_objects_1.conceptsPage.takeScreenshot('status-filter');\n        }\n        else {\n            cy.log('Status filter not available');\n        }\n    });\n    // Clear filters if available\n    page_objects_1.conceptsPage.isClearFiltersAvailable().then(function (hasClearFilters) {\n        if (hasClearFilters) {\n            page_objects_1.conceptsPage.clearFilters();\n            page_objects_1.conceptsPage.takeScreenshot('cleared-filters');\n        }\n        else {\n            cy.log('Clear filters button not available');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "a6754a33-ca5f-4d1c-9d08-88af218ef687",
+              "parentUUID": "d3c906ad-7e5a-4a6c-a599-595a313de295",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should access spaced repetition features if available",
+              "fullTitle": "Knowledge Management E2E Tests should access spaced repetition features if available",
+              "timedOut": null,
+              "duration": 2691,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge.cy.ts/Knowledge Management E2E Tests-should access spaced repetition features if available-concepts-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if concepts page loaded properly\npage_objects_1.conceptsPage.isConceptsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Concepts page not loaded properly, skipping test');\n        page_objects_1.conceptsPage.takeScreenshot('concepts-not-loaded');\n        return;\n    }\n    // Check if review button is available\n    page_objects_1.conceptsPage.isReviewButtonAvailable().then(function (hasReviewButton) {\n        if (!hasReviewButton) {\n            cy.log('Review functionality not available, skipping test');\n            return;\n        }\n        // Navigate to review\n        page_objects_1.conceptsPage.clickReviewButton();\n        // Check if there are concepts to review\n        page_objects_1.conceptsPage.hasConceptsToReview().then(function (hasConceptsToReview) {\n            if (!hasConceptsToReview) {\n                cy.log('No concepts available for review, skipping test');\n                return;\n            }\n            // Complete a review session\n            page_objects_1.conceptsPage.completeReviewSession();\n            // Verify review completion\n            page_objects_1.conceptsPage.verifyReviewCompletion().then(function (isComplete) {\n                if (isComplete) {\n                    cy.log('Review session completed successfully');\n                }\n                else {\n                    cy.log('Review session completion cannot be verified');\n                }\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "1db50319-20ff-4616-a518-31928ce18c05",
+              "parentUUID": "d3c906ad-7e5a-4a6c-a599-595a313de295",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "1d236905-a6e2-4a65-a2a0-c8e39aa9907a",
+            "f342c2c8-be01-4216-a026-f468fe94c5d0",
+            "a6754a33-ca5f-4d1c-9d08-88af218ef687",
+            "1db50319-20ff-4616-a518-31928ce18c05"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 9919,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

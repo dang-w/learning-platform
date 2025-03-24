@@ -1,0 +1,172 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-22T09:29:40.776Z",
+    "end": "2025-03-22T09:29:43.619Z",
+    "duration": 2843,
+    "testsRegistered": 4,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 3,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "64f65899-3bfa-439a-8087-4a1e2f5ac64c",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "file": "e2e-testing/cypress/e2e/knowledge-spaced-repetition.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "4a69447c-26a6-4183-8641-2d3ab87e2da7",
+          "title": "Knowledge Management - Spaced Repetition",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display concepts due for review by default",
+              "fullTitle": "Knowledge Management - Spaced Repetition should display concepts due for review by default",
+              "timedOut": null,
+              "duration": 842,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/knowledge-spaced-repetition.cy.ts/Knowledge Management - Spaced Repetition -- should display concepts due for review by default (failed).png\"\n    ],\n    [\n      \"/knowledge-spaced-repetition.cy.ts/Knowledge Management - Spaced Repetition -- should display concepts due for review by default (failed) (attempt 2).png\"\n    ],\n    [\n      \"/knowledge-spaced-repetition.cy.ts/Knowledge Management - Spaced Repetition -- should display concepts due for review by default -- before each hook (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Verify we're on the review tab by default\ncy.get('[data-testid=\"concepts-container\"]').should('be.visible');\ncy.get('[data-testid=\"review-dashboard\"]').should('be.visible');\n// Check that the concepts list is displayed\ncy.get('[data-testid=\"concepts-list\"]').should('be.visible');\n// Verify the start review button is present\ncy.get('[data-testid=\"start-review-button\"]').should('be.visible');",
+              "err": {
+                "message": "CypressError: `cy.visit()` failed trying to load:\n\nhttp://localhost:3000/test-pages/knowledge-spaced-repetition\n\nThe response we received from your web server was:\n\n  > 404: Not Found\n\nThis was considered a failure because the status code was not `2xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Knowledge Management - Spac...`",
+                "estack": "CypressError: `cy.visit()` failed trying to load:\n\nhttp://localhost:3000/test-pages/knowledge-spaced-repetition\n\nThe response we received from your web server was:\n\n  > 404: Not Found\n\nThis was considered a failure because the status code was not `2xx`.\n\nIf you do not want status codes to cause failures pass the option: `failOnStatusCode: false`\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Knowledge Management - Spac...`\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:132351:76)\n    at visitFailedByErr (http://localhost:3000/__cypress/runner/cypress_runner.js:131757:12)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:132334:13)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1667:18)\n    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)\n    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)\n    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)\n    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)\nFrom Your Spec Code:\n    at Context.eval (webpack:///./cypress/e2e/knowledge-spaced-repetition.cy.ts:12:0)",
+                "diff": null
+              },
+              "uuid": "06363706-cdab-4dec-a256-f9b9c6228f16",
+              "parentUUID": "4a69447c-26a6-4183-8641-2d3ab87e2da7",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow reviewing a concept",
+              "fullTitle": "Knowledge Management - Spaced Repetition should allow reviewing a concept",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Start a review session\ncy.get('[data-testid=\"start-review-button\"]').click();\n// Verify the review session is displayed\ncy.get('[data-testid=\"review-session\"]').should('be.visible');\n// Verify the concept details are shown\ncy.get('[data-testid=\"concept-title\"]').should('be.visible');\ncy.get('[data-testid=\"concept-content\"]').should('be.visible');\n// Rate the concept recall\ncy.get('[data-testid=\"recall-rating-3\"]').click();\n// Verify the review completion page\ncy.get('[data-testid=\"review-complete\"]').should('be.visible');\n// Return to dashboard\ncy.get('[data-testid=\"return-to-dashboard-button\"]').click();\n// Verify we're back on the dashboard\ncy.get('[data-testid=\"review-dashboard\"]').should('be.visible');",
+              "err": {},
+              "uuid": "0c629f67-bdc1-4dff-8ddc-3a9d30e7d8bb",
+              "parentUUID": "4a69447c-26a6-4183-8641-2d3ab87e2da7",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should show statistics when navigating to statistics tab",
+              "fullTitle": "Knowledge Management - Spaced Repetition should show statistics when navigating to statistics tab",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Navigate to statistics tab\ncy.get('[data-testid=\"nav-knowledge-stats\"]').click();\n// Verify the statistics dashboard is displayed\ncy.get('[data-testid=\"knowledge-statistics\"]').should('be.visible');",
+              "err": {},
+              "uuid": "716a2f9c-8156-4254-a4b3-b5e03e5c6c92",
+              "parentUUID": "4a69447c-26a6-4183-8641-2d3ab87e2da7",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow navigating to concepts tab",
+              "fullTitle": "Knowledge Management - Spaced Repetition should allow navigating to concepts tab",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Navigate to concepts tab\ncy.get('[data-testid=\"nav-concepts\"]').click();\n// Verify the concepts list is displayed\ncy.get('[data-testid=\"concepts-list\"]').should('be.visible');\n// Check we can filter concepts\ncy.get('[data-testid=\"filter-review-status\"]').select('due');",
+              "err": {},
+              "uuid": "fea137ad-6ed1-498d-84d1-df88924822ba",
+              "parentUUID": "4a69447c-26a6-4183-8641-2d3ab87e2da7",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "06363706-cdab-4dec-a256-f9b9c6228f16"
+          ],
+          "pending": [],
+          "skipped": [
+            "0c629f67-bdc1-4dff-8ddc-3a9d30e7d8bb",
+            "716a2f9c-8156-4254-a4b3-b5e03e5c6c92",
+            "fea137ad-6ed1-498d-84d1-df88924822ba"
+          ],
+          "duration": 842,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

@@ -1,0 +1,222 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 6,
+    "passes": 2,
+    "pending": 0,
+    "failures": 4,
+    "start": "2025-03-24T12:02:30.130Z",
+    "end": "2025-03-24T12:06:16.473Z",
+    "duration": 226343,
+    "testsRegistered": 6,
+    "passPercent": 33.33333333333333,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "f06f0860-96b4-4a17-9ebd-614d2e5d6b11",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "file": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "84826bbe-f0d9-42ad-816c-67592509c892",
+          "title": "User Profile",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display user profile information",
+              "fullTitle": "User Profile should display user profile information",
+              "timedOut": null,
+              "duration": 2456,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.get('input[name=\"email\"]').should('have.value', 'test@example.com');\ncy.get('input[name=\"fullName\"]').should('have.value', 'Test User');",
+              "err": {},
+              "uuid": "ad66fac0-90a6-4c18-be9c-c0f9aeeea9da",
+              "parentUUID": "84826bbe-f0d9-42ad-816c-67592509c892",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow updating profile information",
+              "fullTitle": "User Profile should allow updating profile information",
+              "timedOut": null,
+              "duration": 17805,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should allow updating profile information (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should allow updating profile information (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should allow updating profile information (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "cy.get('input[name=\"email\"]').clear().type('new@example.com');\ncy.get('input[name=\"fullName\"]').clear().type('New Name');\ncy.get('form').first().submit();\ncy.get('[data-testid=\"success-message\"]').should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid=\"success-message\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid=\"success-message\"]`, but never found it.\n    at Context.eval (webpack:///./cypress/e2e/profile.cy.ts:110:0)",
+                "diff": null
+              },
+              "uuid": "bf2bebb2-486e-49f0-8eb6-ae741dd03069",
+              "parentUUID": "84826bbe-f0d9-42ad-816c-67592509c892",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display account statistics",
+              "fullTitle": "User Profile should display account statistics",
+              "timedOut": null,
+              "duration": 1570,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.get('button').contains('Statistics').click();\ncy.wait('@getStatistics');\ncy.get('[data-testid=\"account-statistics\"]').should('be.visible');\ncy.get('[data-testid=\"account-statistics\"]').within(function () {\n    cy.contains('Total Courses Enrolled').should('be.visible');\n    cy.contains('Completed Courses').should('be.visible');\n    cy.contains('Average Score').should('be.visible');\n});",
+              "err": {},
+              "uuid": "02febcdf-0d19-41b5-86f6-3f8bc8bfa6f9",
+              "parentUUID": "84826bbe-f0d9-42ad-816c-67592509c892",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle notification preferences",
+              "fullTitle": "User Profile should handle notification preferences",
+              "timedOut": null,
+              "duration": 22134,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle notification preferences (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "cy.get('button').contains('Notifications').click();\ncy.wait('@getPreferences');\ncy.get('[data-testid=\"notification-preferences\"]').should('be.visible');\ncy.get('[data-testid=\"email-notifications\"]').click();\ncy.get('[data-testid=\"success-message\"]').should('be.visible');",
+              "err": {
+                "message": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getPreferences`. No request ever occurred.\n\nhttps://on.cypress.io/wait",
+                "estack": "CypressError: Timed out retrying after 20000ms: `cy.wait()` timed out waiting `20000ms` for the 1st request to the route: `getPreferences`. No request ever occurred.\n\nhttps://on.cypress.io/wait\n    at cypressErr (http://localhost:3000/__cypress/runner/cypress_runner.js:75176:18)\n    at Object.errByPath (http://localhost:3000/__cypress/runner/cypress_runner.js:75230:10)\n    at checkForXhr (http://localhost:3000/__cypress/runner/cypress_runner.js:136105:84)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:136131:28)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at whenStable (http://localhost:3000/__cypress/runner/cypress_runner.js:144517:68)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:144458:14)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)\n    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)\n    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)\n    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1671:18)\n    at Promise._fulfill (http://localhost:3000/__cypress/runner/cypress_runner.js:1615:18)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:5420:46)",
+                "diff": null
+              },
+              "uuid": "9b1f0987-a10f-43fa-9fe9-9be2d4447027",
+              "parentUUID": "84826bbe-f0d9-42ad-816c-67592509c892",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle data export",
+              "fullTitle": "User Profile should handle data export",
+              "timedOut": null,
+              "duration": 17062,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle data export (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "cy.get('button').contains('Export').click();\ncy.get('[data-testid=\"export-button\"]').should('contain', 'Export My Data');\ncy.get('[data-testid=\"export-button\"]').click();\ncy.wait('@exportData');\ncy.get('[data-testid=\"export-button\"]').should('contain', 'Exporting...');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid=\"export-button\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid=\"export-button\"]`, but never found it.\n    at Context.eval (webpack:///./cypress/e2e/profile.cy.ts:131:0)",
+                "diff": null
+              },
+              "uuid": "4d1ad964-71bb-44ed-8db0-bafa5f72b6aa",
+              "parentUUID": "84826bbe-f0d9-42ad-816c-67592509c892",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle account deletion flow",
+              "fullTitle": "User Profile should handle account deletion flow",
+              "timedOut": null,
+              "duration": 17073,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should handle account deletion flow (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "cy.get('button').contains('Account').click();\ncy.get('[data-testid=\"delete-account-button\"]').click();\ncy.get('[data-testid=\"confirm-delete\"]').click();\ncy.wait('@deleteAccount');\ncy.url().should('include', '/auth/login');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid=\"confirm-delete\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid=\"confirm-delete\"]`, but never found it.\n    at Context.eval (webpack:///./cypress/e2e/profile.cy.ts:139:0)",
+                "diff": null
+              },
+              "uuid": "813b9b1b-d8d3-4aa0-916f-888adcec99e0",
+              "parentUUID": "84826bbe-f0d9-42ad-816c-67592509c892",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "ad66fac0-90a6-4c18-be9c-c0f9aeeea9da",
+            "02febcdf-0d19-41b5-86f6-3f8bc8bfa6f9"
+          ],
+          "failures": [
+            "bf2bebb2-486e-49f0-8eb6-ae741dd03069",
+            "9b1f0987-a10f-43fa-9fe9-9be2d4447027",
+            "4d1ad964-71bb-44ed-8db0-bafa5f72b6aa",
+            "813b9b1b-d8d3-4aa0-916f-888adcec99e0"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 78100,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

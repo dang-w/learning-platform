@@ -1,0 +1,210 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 6,
+    "passes": 5,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-24T12:49:23.648Z",
+    "end": "2025-03-24T12:50:07.308Z",
+    "duration": 43660,
+    "testsRegistered": 6,
+    "passPercent": 83.33333333333334,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "7e09cdce-3758-4e6b-9fa7-90f1255f9bfe",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "file": "e2e-testing/cypress/e2e/profile.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "b4c92f87-7dca-4973-b2bf-573597a45e68",
+          "title": "User Profile",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display user profile information",
+              "fullTitle": "User Profile should display user profile information",
+              "timedOut": null,
+              "duration": 1259,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "cy.get('input[id=\"email\"]').should('have.value', testUser.email);\ncy.get('input[id=\"fullName\"]').should('have.value', \"\".concat(testUser.firstName, \" \").concat(testUser.lastName));",
+              "err": {},
+              "uuid": "a1b309b1-0715-41e6-b889-10096fc02db6",
+              "parentUUID": "b4c92f87-7dca-4973-b2bf-573597a45e68",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow updating profile information",
+              "fullTitle": "User Profile should allow updating profile information",
+              "timedOut": null,
+              "duration": 12267,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/profile.cy.ts/User Profile -- should allow updating profile information (failed).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should allow updating profile information (failed) (attempt 2).png\"\n    ],\n    [\n      \"/profile.cy.ts/User Profile -- should allow updating profile information (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Fill out the form\ncy.get('input[id=\"email\"]').clear().type('new@example.com');\ncy.get('input[id=\"fullName\"]').clear().type('New Name');\n// Submit the form\ncy.get('[data-testid=\"save-profile-button\"]').click();\n// Check for success message\ncy.get('[data-testid=\"profile-success\"]', { timeout: 10000 }).should('be.visible');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"profile-success\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"profile-success\"]`, but never found it.\n    at Context.eval (webpack:///./cypress/e2e/profile.cy.ts:89:68)",
+                "diff": null
+              },
+              "uuid": "f415bdde-7b99-489f-bc62-a97559924afb",
+              "parentUUID": "b4c92f87-7dca-4973-b2bf-573597a45e68",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display account statistics",
+              "fullTitle": "User Profile should display account statistics",
+              "timedOut": null,
+              "duration": 1280,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on statistics tab\ncy.get('[data-testid=\"statistics-tab\"]').click();\n// Verify statistics are displayed\ncy.get('[data-testid=\"account-statistics\"]', { timeout: 10000 }).should('be.visible');\n// Verify statistics content\ncy.contains('Total Courses Enrolled').should('be.visible');\ncy.contains('Completed Courses').should('be.visible');\ncy.contains('Average Score').should('be.visible');",
+              "err": {},
+              "uuid": "16d48762-4fc6-44bb-a819-60f197f5c262",
+              "parentUUID": "b4c92f87-7dca-4973-b2bf-573597a45e68",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle notification preferences",
+              "fullTitle": "User Profile should handle notification preferences",
+              "timedOut": null,
+              "duration": 1453,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on notifications tab\ncy.get('[data-testid=\"notifications-tab\"]').click();\n// Verify notification settings are displayed\ncy.get('[data-testid=\"notifications-settings\"]', { timeout: 10000 }).should('be.visible');\n// Toggle email notifications\ncy.get('[data-testid=\"email-notifications-toggle\"]').click();\n// Due to no specific success element in the component, we'll just verify the toggle was clicked\n// The UI should update the toggle state\ncy.get('[data-testid=\"email-notifications-toggle\"]').should('be.visible');",
+              "err": {},
+              "uuid": "a56d8c97-9fcf-4808-af15-9e7bbaff6188",
+              "parentUUID": "b4c92f87-7dca-4973-b2bf-573597a45e68",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle data export",
+              "fullTitle": "User Profile should handle data export",
+              "timedOut": null,
+              "duration": 1151,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on export tab\ncy.get('[data-testid=\"export-tab\"]').click();\n// Verify export section is displayed\ncy.get('[data-testid=\"data-export\"]', { timeout: 10000 }).should('be.visible');\n// Click export button\ncy.get('[data-testid=\"export-data-button\"]').click();\n// Verify the button text remains as \"Export My Data\" (we're not actually testing the download)\ncy.get('[data-testid=\"export-data-button\"]').contains('Export My Data');",
+              "err": {},
+              "uuid": "76a807d1-d8b8-408c-9086-48048b85c5d2",
+              "parentUUID": "b4c92f87-7dca-4973-b2bf-573597a45e68",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle account deletion flow",
+              "fullTitle": "User Profile should handle account deletion flow",
+              "timedOut": null,
+              "duration": 1522,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Click on account tab\ncy.get('[data-testid=\"account-tab\"]').click();\n// Verify delete account section is displayed\ncy.get('[data-testid=\"delete-account-section\"]', { timeout: 10000 }).should('be.visible');\n// Click delete account button\ncy.get('[data-testid=\"delete-account-button\"]').click();\n// Verify confirmation dialog appears\ncy.get('[data-testid=\"delete-account-confirmation\"]').should('be.visible');\n// Confirm deletion\ncy.get('[data-testid=\"confirm-delete-button\"]').click();\n// Verify redirection to login page\ncy.url().should('include', '/auth/login');",
+              "err": {},
+              "uuid": "5509056b-33a6-4756-b0e9-7174e5ebc36e",
+              "parentUUID": "b4c92f87-7dca-4973-b2bf-573597a45e68",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "a1b309b1-0715-41e6-b889-10096fc02db6",
+            "16d48762-4fc6-44bb-a819-60f197f5c262",
+            "a56d8c97-9fcf-4808-af15-9e7bbaff6188",
+            "76a807d1-d8b8-408c-9086-48048b85c5d2",
+            "5509056b-33a6-4756-b0e9-7174e5ebc36e"
+          ],
+          "failures": [
+            "f415bdde-7b99-489f-bc62-a97559924afb"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 18932,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}
