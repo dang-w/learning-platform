@@ -1,0 +1,210 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  frontend-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Run TypeScript type checking
+        run: |
+          cd frontend
+          npm run typecheck
+
+  backend-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 mypy
+
+      - name: Run flake8
+        run: |
+          cd backend
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Check imports
+        run: |
+          cd backend
+          python check_imports.py
+
+  consistency-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic
+          cd frontend
+          npm install -g typescript ts-node
+
+      - name: Create consistency checker script
+        run: |
+          cat > consistency_checker.py << 'EOF'
+          import json
+          import os
+          import sys
+          import subprocess
+
+          def check_frontend_types_vs_backend_models():
+              # Extract backend model structures
+              backend_models = {}
+              backend_dirs = ["backend/routers", "backend/app"]
+
+              for dir_path in backend_dirs:
+                  if not os.path.exists(dir_path):
+                      continue
+
+                  for file in os.listdir(dir_path):
+                      if file.endswith(".py") and not file.startswith("__"):
+                          file_path = os.path.join(dir_path, file)
+                          with open(file_path, "r") as f:
+                              content = f.read()
+
+                          # Look for class or model definitions
+                          if "class" in content and ("BaseModel" in content or "pydantic" in content):
+                              backend_models[file] = file_path
+
+              # Extract frontend type definitions
+              frontend_types = {}
+              frontend_types_dir = "frontend/src/types"
+
+              if os.path.exists(frontend_types_dir):
+                  for file in os.listdir(frontend_types_dir):
+                      if file.endswith(".ts"):
+                          file_path = os.path.join(frontend_types_dir, file)
+                          with open(file_path, "r") as f:
+                              content = f.read()
+
+                          frontend_types[file] = file_path
+
+              # Compare and report inconsistencies
+              inconsistencies = []
+
+              # Simple heuristic check for matching names
+              backend_names = set()
+              for file_path in backend_models.values():
+                  with open(file_path, "r") as f:
+                      content = f.read()
+
+                  # Extract class names
+                  for line in content.split("\n"):
+                      if line.strip().startswith("class ") and "(" in line:
+                          class_name = line.split("class ")[1].split("(")[0].strip()
+                          backend_names.add(class_name)
+
+              frontend_names = set()
+              for file_path in frontend_types.values():
+                  with open(file_path, "r") as f:
+                      content = f.read()
+
+                  # Extract interface/type names
+                  for line in content.split("\n"):
+                      if "interface " in line:
+                          interface_name = line.split("interface ")[1].split("{")[0].strip()
+                          frontend_names.add(interface_name)
+                      elif "type " in line and " = " in line:
+                          type_name = line.split("type ")[1].split(" = ")[0].strip()
+                          frontend_names.add(type_name)
+
+              # Report findings
+              print("=== Backend Models ===")
+              print(f"Found {len(backend_models)} files with potential models")
+              for name in sorted(backend_names):
+                  print(f"- {name}")
+
+              print("\n=== Frontend Types ===")
+              print(f"Found {len(frontend_types)} type definition files")
+              for name in sorted(frontend_names):
+                  print(f"- {name}")
+
+              # Check for potentially missing types/models
+              print("\n=== Consistency Report ===")
+
+              # Convert names to lowercase for fuzzy matching
+              backend_lower = {name.lower(): name for name in backend_names}
+              frontend_lower = {name.lower(): name for name in frontend_names}
+
+              backend_keys = set(backend_lower.keys())
+              frontend_keys = set(frontend_lower.keys())
+
+              # Check for core entities that exist in both places
+              shared_entities = []
+              for b_name in backend_keys:
+                  for f_name in frontend_keys:
+                      # Check if one is contained in the other
+                      if b_name in f_name or f_name in b_name:
+                          shared_entities.append((backend_lower[b_name], frontend_lower[f_name]))
+                          break
+
+              print(f"Found {len(shared_entities)} potentially matched entities between backend and frontend")
+              for backend_name, frontend_name in shared_entities:
+                  print(f"- Backend: {backend_name} <-> Frontend: {frontend_name}")
+
+              # Exit with success
+              return True
+
+          if __name__ == "__main__":
+              success = check_frontend_types_vs_backend_models()
+              sys.exit(0 if success else 1)
+          EOF
+
+      - name: Run consistency checker
+        run: python consistency_checker.py
