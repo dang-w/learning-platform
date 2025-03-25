@@ -1,0 +1,167 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 4,
+    "passes": 4,
+    "pending": 0,
+    "failures": 0,
+    "start": "2025-03-25T12:48:09.285Z",
+    "end": "2025-03-25T12:48:18.066Z",
+    "duration": 8781,
+    "testsRegistered": 4,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "ea95d417-0010-47f8-8b11-bac9eb614000",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "file": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "da989071-6243-4a3e-8d2b-92008a6f0ea6",
+          "title": "Notes Management E2E Tests",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should support complete notes workflow",
+              "fullTitle": "Notes Management E2E Tests should support complete notes workflow",
+              "timedOut": null,
+              "duration": 2765,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/notes-notes-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Check if add note button is available\n    notesPage.isAddNoteButtonAvailable().then(function (isAvailable) {\n        if (!isAvailable) {\n            cy.log('Add note button not available, skipping test');\n            return;\n        }\n        // Create a new note\n        notesPage.clickAddNote();\n        var noteTitle = \"Test Note \".concat(Date.now());\n        notesPage.fillNoteForm({\n            title: noteTitle,\n            content: 'This is a test note created by Cypress',\n            tags: ['test', 'cypress']\n        });\n        notesPage.submitNoteForm();\n        cy.wait('@createNote');\n        notesPage.verifySuccessNotification();\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.true');\n        });\n        // Filter by tag\n        notesPage.filterByTag('test');\n        cy.wait('@getNotes');\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.true');\n        });\n        // Search for note\n        notesPage.searchNotes(noteTitle);\n        cy.wait('@getNotes');\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.true');\n        });\n        // Delete note\n        notesPage.deleteNote(noteTitle);\n        cy.wait('@deleteNote');\n        notesPage.verifySuccessNotification();\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.false');\n        });\n    });\n});",
+              "err": {},
+              "uuid": "cbb5d759-489c-418f-9bb8-ec78167f166a",
+              "parentUUID": "da989071-6243-4a3e-8d2b-92008a6f0ea6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle error states gracefully",
+              "fullTitle": "Notes Management E2E Tests should handle error states gracefully",
+              "timedOut": null,
+              "duration": 1925,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/notes-notes-not-loaded (1).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Test empty form submission\n    notesPage.clickAddNote();\n    notesPage.submitNoteForm();\n    cy.get('[data-testid=\"form-error\"]').should('be.visible');\n    // Test duplicate title error\n    cy.intercept('POST', '/api/users/notes', {\n        statusCode: 409,\n        body: { error: 'Note with this title already exists' }\n    }).as('createDuplicateNote');\n    notesPage.fillNoteForm({\n        title: 'Duplicate Note',\n        content: 'This should fail'\n    });\n    notesPage.submitNoteForm();\n    cy.wait('@createDuplicateNote');\n    notesPage.verifyErrorNotification();\n});",
+              "err": {},
+              "uuid": "ced76f58-a5f1-4074-a766-d6b762132a82",
+              "parentUUID": "da989071-6243-4a3e-8d2b-92008a6f0ea6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should support note organization",
+              "fullTitle": "Notes Management E2E Tests should support note organization",
+              "timedOut": null,
+              "duration": 1915,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/notes-notes-not-loaded (2).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Create multiple notes with different tags\n    var notes = [\n        { title: \"Note A \".concat(Date.now()), content: 'Content A', tags: ['work', 'important'] },\n        { title: \"Note B \".concat(Date.now()), content: 'Content B', tags: ['personal'] },\n        { title: \"Note C \".concat(Date.now()), content: 'Content C', tags: ['work'] }\n    ];\n    notes.forEach(function (note) {\n        notesPage.clickAddNote();\n        notesPage.fillNoteForm(note);\n        notesPage.submitNoteForm();\n        cy.wait('@createNote');\n        notesPage.verifySuccessNotification();\n    });\n    // Test tag filtering\n    notesPage.filterByTag('work');\n    cy.wait('@getNotes');\n    notesPage.noteExists(notes[0].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    notesPage.noteExists(notes[1].title).then(function (exists) {\n        cy.wrap(exists).should('be.false');\n    });\n    notesPage.noteExists(notes[2].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    // Test search functionality\n    notesPage.searchNotes('Content B');\n    cy.wait('@getNotes');\n    notesPage.noteExists(notes[1].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    notesPage.noteExists(notes[0].title).then(function (exists) {\n        cy.wrap(exists).should('be.false');\n    });\n});",
+              "err": {},
+              "uuid": "fb9a1a4d-2e8e-4a47-ab90-0eba3e25fc7d",
+              "parentUUID": "da989071-6243-4a3e-8d2b-92008a6f0ea6",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle network errors gracefully",
+              "fullTitle": "Notes Management E2E Tests should handle network errors gracefully",
+              "timedOut": null,
+              "duration": 1937,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/notes-notes-not-loaded (3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Test API failure\n    cy.intercept('POST', '/api/users/notes', {\n        statusCode: 500,\n        body: { error: 'Internal server error' }\n    }).as('createNoteError');\n    notesPage.clickAddNote();\n    notesPage.fillNoteForm({\n        title: 'Network Error Test',\n        content: 'This should fail'\n    });\n    notesPage.submitNoteForm();\n    cy.wait('@createNoteError');\n    notesPage.verifyErrorNotification();\n});",
+              "err": {},
+              "uuid": "10f27679-70f1-4666-97ee-0d5ffb72b1c0",
+              "parentUUID": "da989071-6243-4a3e-8d2b-92008a6f0ea6",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "cbb5d759-489c-418f-9bb8-ec78167f166a",
+            "ced76f58-a5f1-4074-a766-d6b762132a82",
+            "fb9a1a4d-2e8e-4a47-ab90-0eba3e25fc7d",
+            "10f27679-70f1-4666-97ee-0d5ffb72b1c0"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 8542,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

@@ -1,0 +1,186 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 5,
+    "passes": 5,
+    "pending": 0,
+    "failures": 0,
+    "start": "2025-03-25T11:26:37.721Z",
+    "end": "2025-03-25T11:26:47.721Z",
+    "duration": 10000,
+    "testsRegistered": 5,
+    "passPercent": 100,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "791d7a54-bc03-4106-bf0b-6b7cac53e753",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/analytics.cy.ts",
+      "file": "e2e-testing/cypress/e2e/analytics.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "199a3d8e-fe7f-46c4-aa2a-128d6ea4cb95",
+          "title": "Progress Analytics",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display analytics overview",
+              "fullTitle": "Progress Analytics should display analytics overview",
+              "timedOut": null,
+              "duration": 1857,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/analytics.cy.ts/Progress Analytics-should display analytics overview-analytics-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics page not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-not-loaded');\n        return;\n    }\n    // Take screenshot for documentation\n    page_objects_1.analyticsPage.takeScreenshot('analytics-overview');\n    // Verify overview charts are visible\n    page_objects_1.analyticsPage.verifyOverviewChartVisible().then(function (isVisible) {\n        expect(isVisible).to.be.true;\n    });\n    page_objects_1.analyticsPage.verifyUsageChartVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Usage chart not visible, could be a feature in development');\n        }\n    });\n    page_objects_1.analyticsPage.verifyProgressChartVisible().then(function (isVisible) {\n        if (!isVisible) {\n            cy.log('Progress chart not visible, could be a feature in development');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "27bbd4b9-d2de-4064-8b4c-33f01943368c",
+              "parentUUID": "199a3d8e-fe7f-46c4-aa2a-128d6ea4cb95",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow filtering analytics by date range",
+              "fullTitle": "Progress Analytics should allow filtering analytics by date range",
+              "timedOut": null,
+              "duration": 1807,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/analytics.cy.ts/Progress Analytics-should allow filtering analytics by date range-analytics-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics page not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-not-loaded');\n        return;\n    }\n    // Set custom date range\n    var endDate = new Date().toISOString().split('T')[0];\n    var startDate = new Date();\n    startDate.setMonth(startDate.getMonth() - 3);\n    var formattedStartDate = startDate.toISOString().split('T')[0];\n    // Set date range using page object\n    page_objects_1.analyticsPage.setDateRange(formattedStartDate, endDate);\n    // Take screenshot after filter applied\n    page_objects_1.analyticsPage.takeScreenshot('analytics-filtered');\n    // Verify charts are updated after filtering\n    page_objects_1.analyticsPage.verifyOverviewChartVisible().then(function (isVisible) {\n        expect(isVisible).to.be.true;\n    });\n    // Reset filters\n    page_objects_1.analyticsPage.resetFilters();\n    page_objects_1.analyticsPage.takeScreenshot('analytics-filters-reset');\n});",
+              "err": {},
+              "uuid": "9ed92d6b-3166-4121-871c-adbd57de43aa",
+              "parentUUID": "199a3d8e-fe7f-46c4-aa2a-128d6ea4cb95",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should display various analytics tabs",
+              "fullTitle": "Progress Analytics should display various analytics tabs",
+              "timedOut": null,
+              "duration": 2058,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/analytics.cy.ts/Progress Analytics-should display various analytics tabs-analytics-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics page not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-not-loaded');\n        return;\n    }\n    // Switch to resources tab\n    page_objects_1.analyticsPage.switchToTab('resources');\n    page_objects_1.analyticsPage.verifyResourceStatsVisible().then(function (isVisible) {\n        if (isVisible) {\n            page_objects_1.analyticsPage.takeScreenshot('resources-analytics');\n        }\n        else {\n            cy.log('Resource stats not visible, could be a feature in development');\n        }\n    });\n    // Switch to concepts tab\n    page_objects_1.analyticsPage.switchToTab('concepts');\n    page_objects_1.analyticsPage.verifyConceptStatsVisible().then(function (isVisible) {\n        if (isVisible) {\n            page_objects_1.analyticsPage.takeScreenshot('concepts-analytics');\n        }\n        else {\n            cy.log('Concept stats not visible, could be a feature in development');\n        }\n    });\n    // Switch back to overview tab\n    page_objects_1.analyticsPage.switchToTab('overview');\n    page_objects_1.analyticsPage.verifyOverviewChartVisible().then(function (isVisible) {\n        expect(isVisible).to.be.true;\n    });\n});",
+              "err": {},
+              "uuid": "9f5c7c5e-c11c-4895-9333-caa6d2601aca",
+              "parentUUID": "199a3d8e-fe7f-46c4-aa2a-128d6ea4cb95",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow exporting analytics data",
+              "fullTitle": "Progress Analytics should allow exporting analytics data",
+              "timedOut": null,
+              "duration": 1763,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/analytics.cy.ts/Progress Analytics-should allow exporting analytics data-analytics-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics page not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-not-loaded');\n        return;\n    }\n    // Try exporting as CSV if available\n    cy.get('body').then(function ($body) {\n        var hasExportButton = $body.find('[data-testid=\"export-button\"]').length > 0;\n        if (hasExportButton) {\n            page_objects_1.analyticsPage.exportAsCSV();\n            page_objects_1.analyticsPage.takeScreenshot('export-csv-attempted');\n        }\n        else {\n            cy.log('Export functionality not available');\n            page_objects_1.analyticsPage.takeScreenshot('export-not-available');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "009eca12-4b40-4d26-9fe8-ec87942bd283",
+              "parentUUID": "199a3d8e-fe7f-46c4-aa2a-128d6ea4cb95",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should capture all analytics charts for documentation",
+              "fullTitle": "Progress Analytics should capture all analytics charts for documentation",
+              "timedOut": null,
+              "duration": 2183,
+              "state": "passed",
+              "speed": "fast",
+              "pass": true,
+              "fail": false,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/analytics.cy.ts/Progress Analytics-should capture all analytics charts for documentation-analytics-not-loaded.png\"\n    ]\n  ]\n}",
+              "code": "// Check if analytics page loaded properly\npage_objects_1.analyticsPage.isAnalyticsPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Analytics page not loaded properly, skipping test');\n        page_objects_1.analyticsPage.takeScreenshot('analytics-not-loaded');\n        return;\n    }\n    // Capture all charts\n    page_objects_1.analyticsPage.captureAllCharts();\n    // Return to dashboard to verify navigation\n    page_objects_1.dashboardPage.visitDashboard();\n    page_objects_1.dashboardPage.isDashboardLoaded().then(function (isDashboardLoaded) {\n        expect(isDashboardLoaded).to.be.true;\n        page_objects_1.dashboardPage.takeScreenshot('return-to-dashboard');\n    });\n});",
+              "err": {},
+              "uuid": "58deb8fa-fab9-4e61-9f6b-4d6a0cf6b52a",
+              "parentUUID": "199a3d8e-fe7f-46c4-aa2a-128d6ea4cb95",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [
+            "27bbd4b9-d2de-4064-8b4c-33f01943368c",
+            "9ed92d6b-3166-4121-871c-adbd57de43aa",
+            "9f5c7c5e-c11c-4895-9333-caa6d2601aca",
+            "009eca12-4b40-4d26-9fe8-ec87942bd283",
+            "58deb8fa-fab9-4e61-9f6b-4d6a0cf6b52a"
+          ],
+          "failures": [],
+          "pending": [],
+          "skipped": [],
+          "duration": 9668,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

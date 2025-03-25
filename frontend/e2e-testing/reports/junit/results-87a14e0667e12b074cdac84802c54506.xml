@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="159.674" tests="3" failures="3">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:42:17" tests="0" file="e2e-testing/cypress/e2e/notes.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Notes Management E2E Tests" timestamp="2025-03-25T11:42:17" tests="3" time="159.634" failures="3">
+    <testcase name="Notes Management E2E Tests should support complete notes workflow" time="18.174" classname="should support complete notes workflow">
+      <failure message="Timed out retrying after 15000ms: Expected to find element: `[data-testid=&quot;success-notification&quot;]`, but never found it." type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid="success-notification"]`, but never found it.
+    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:74:0)]]></failure>
+    </testcase>
+    <testcase name="Notes Management E2E Tests should handle error states gracefully" time="16.735" classname="should handle error states gracefully">
+      <failure message="Timed out retrying after 15000ms: Expected to find element: `[data-testid=&quot;form-error&quot;]`, but never found it." type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid="form-error"]`, but never found it.
+    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:91:0)]]></failure>
+    </testcase>
+    <testcase name="Notes Management E2E Tests should support note organization" time="17.759" classname="should support note organization">
+      <failure message="Timed out retrying after 15000ms: Expected to find element: `[data-testid=&quot;success-notification&quot;]`, but never found it." type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid="success-notification"]`, but never found it.
+    at eval (webpack:///./cypress/e2e/notes.cy.ts:119:0)
+at Array.forEach (<anonymous>)
+    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:115:0)]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>

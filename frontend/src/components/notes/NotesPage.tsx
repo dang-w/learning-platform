@@ -25,11 +25,33 @@ const NotesPage: React.FC = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [localSearchTerm, setLocalSearchTerm] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Load notes on component mount
   useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
+
+  // Clear success message after 3 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  // Clear form error after 3 seconds
+  useEffect(() => {
+    if (formError) {
+      const timer = setTimeout(() => {
+        setFormError(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [formError]);
 
   // Extract all unique tags from notes
   useEffect(() => {
@@ -77,14 +99,29 @@ const NotesPage: React.FC = () => {
   // Handle save (both for new notes and updates)
   const handleSaveNote = async (formData: NoteCreateInput | NoteUpdateInput) => {
     try {
+      console.log('Form data:', formData);
+
+      if (!formData?.title?.trim() || !formData?.content?.trim()) {
+        console.log('Form validation failed');
+        setFormError('Title and content are required');
+        return;
+      }
+
       if (isCreatingNew) {
+        console.log('Creating new note');
         await createNote(formData as NoteCreateInput);
+        console.log('Note created');
+        setSuccessMessage('Note created successfully');
         setIsCreatingNew(false);
       } else if (selectedNote) {
+        console.log('Updating note');
         await updateNote(selectedNote.id, formData as NoteUpdateInput);
+        console.log('Note updated');
+        setSuccessMessage('Note updated successfully');
       }
     } catch (err) {
       console.error('Error saving note:', err);
+      setFormError('Failed to save note');
     }
   };
 
@@ -111,18 +148,31 @@ const NotesPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8" data-testid="notes-page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Notes</h1>
           <button
             onClick={handleNewNote}
             className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            data-testid="add-note-button"
           >
             <BsPlus size={20} className="mr-1" />
             New Note
           </button>
         </div>
+
+        {/* Notifications */}
+        {successMessage && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md" data-testid="success-notification">
+            <p className="text-green-700">{successMessage}</p>
+          </div>
+        )}
+        {formError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md" data-testid="form-error">
+            <p className="text-red-700">{formError}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left sidebar with search and list */}
@@ -138,6 +188,7 @@ const NotesPage: React.FC = () => {
                 onChange={handleSearchChange}
                 placeholder="Search notes..."
                 className="pl-10 pr-10 py-2 w-full border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                data-testid="notes-search-input"
               />
               {localSearchTerm && (
                 <button
@@ -167,6 +218,7 @@ const NotesPage: React.FC = () => {
                           ? 'bg-indigo-600 text-white'
                           : 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
                       }`}
+                      data-testid={`tag-option-${tag}`}
                     >
                       {tag}
                     </button>
@@ -215,6 +267,7 @@ const NotesPage: React.FC = () => {
                 <button
                   onClick={handleNewNote}
                   className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                  data-testid="add-note-button-empty"
                 >
                   <BsPlus size={20} className="mr-1" />
                   Create New Note
@@ -226,7 +279,7 @@ const NotesPage: React.FC = () => {
 
         {/* Error display */}
         {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md" data-testid="error-notification">
             <p className="text-red-700">Error: {error}</p>
           </div>
         )}

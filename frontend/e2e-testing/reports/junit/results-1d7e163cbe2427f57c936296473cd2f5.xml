@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="7.980" tests="3" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:23:01" tests="0" file="e2e-testing/cypress/e2e/knowledge-test-page.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Knowledge Page" timestamp="2025-03-25T11:23:01" tests="3" time="7.945" failures="0">
+    <testcase name="Knowledge Page should display the knowledge page with basic navigation elements" time="1.819" classname="should display the knowledge page with basic navigation elements">
+    </testcase>
+    <testcase name="Knowledge Page should allow interaction with knowledge content if available" time="3.454" classname="should allow interaction with knowledge content if available">
+    </testcase>
+    <testcase name="Knowledge Page should navigate between different sections if navigation exists" time="2.204" classname="should navigate between different sections if navigation exists">
+    </testcase>
+  </testsuite>
+</testsuites>

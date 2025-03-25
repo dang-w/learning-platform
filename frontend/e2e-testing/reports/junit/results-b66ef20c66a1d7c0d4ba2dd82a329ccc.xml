@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="31.049" tests="5" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:26:50" tests="0" file="e2e-testing/cypress/e2e/auth.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Authentication Flow" timestamp="2025-03-25T11:26:50" tests="5" time="31.014" failures="0">
+    <testcase name="Authentication Flow should show validation errors for invalid registration" time="4.122" classname="should show validation errors for invalid registration">
+    </testcase>
+    <testcase name="Authentication Flow should allow a user to register and login" time="11.412" classname="should allow a user to register and login">
+    </testcase>
+    <testcase name="Authentication Flow should allow login with existing user" time="7.451" classname="should allow login with existing user">
+    </testcase>
+    <testcase name="Authentication Flow should validate incorrect login credentials" time="4.368" classname="should validate incorrect login credentials">
+    </testcase>
+    <testcase name="Authentication Flow should allow logout" time="3.349" classname="should allow logout">
+    </testcase>
+  </testsuite>
+</testsuites>

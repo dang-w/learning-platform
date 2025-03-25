@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="26.436" tests="7" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:24:20" tests="0" file="e2e-testing/cypress/e2e/resources.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Resources Management E2E Tests" timestamp="2025-03-25T11:24:20" tests="7" time="26.405" failures="0">
+    <testcase name="Resources Management E2E Tests should display resources list and search functionality" time="2.058" classname="should display resources list and search functionality">
+    </testcase>
+    <testcase name="Resources Management E2E Tests should create a new resource with manual entry" time="3.322" classname="should create a new resource with manual entry">
+    </testcase>
+    <testcase name="Resources Management E2E Tests should create a resource using URL metadata extraction if available" time="3.460" classname="should create a resource using URL metadata extraction if available">
+    </testcase>
+    <testcase name="Resources Management E2E Tests should edit an existing resource" time="3.084" classname="should edit an existing resource">
+    </testcase>
+    <testcase name="Resources Management E2E Tests should mark a resource as completed" time="4.668" classname="should mark a resource as completed">
+    </testcase>
+    <testcase name="Resources Management E2E Tests should delete a resource" time="4.821" classname="should delete a resource">
+    </testcase>
+    <testcase name="Resources Management E2E Tests should use filtering options if available" time="3.121" classname="should use filtering options if available">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="16.777" tests="8" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:23:40" tests="0" file="e2e-testing/cypress/e2e/learning-path.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Learning Path Management" timestamp="2025-03-25T11:23:40" tests="8" time="16.744" failures="0">
+    <testcase name="Learning Path Management should display learning path overview" time="2.027" classname="should display learning path overview">
+    </testcase>
+    <testcase name="Learning Path Management should allow creating a new goal" time="1.988" classname="should allow creating a new goal">
+    </testcase>
+    <testcase name="Learning Path Management should allow editing an existing goal" time="2.011" classname="should allow editing an existing goal">
+    </testcase>
+    <testcase name="Learning Path Management should allow marking a goal as completed" time="2.038" classname="should allow marking a goal as completed">
+    </testcase>
+    <testcase name="Learning Path Management should allow creating a new milestone" time="1.961" classname="should allow creating a new milestone">
+    </testcase>
+    <testcase name="Learning Path Management should allow editing the roadmap" time="2.012" classname="should allow editing the roadmap">
+    </testcase>
+    <testcase name="Learning Path Management should display learning path progress" time="1.925" classname="should display learning path progress">
+    </testcase>
+    <testcase name="Learning Path Management should allow deleting a goal" time="1.994" classname="should allow deleting a goal">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,183 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 4,
+    "passes": 0,
+    "pending": 0,
+    "failures": 4,
+    "start": "2025-03-25T12:33:27.930Z",
+    "end": "2025-03-25T12:35:44.704Z",
+    "duration": 136774,
+    "testsRegistered": 4,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 0,
+    "hasSkipped": false
+  },
+  "results": [
+    {
+      "uuid": "3ff44d64-a954-4a02-940d-6a690dec009a",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "file": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "01f1f30a-d26e-4080-9fb4-6b435a34bff7",
+          "title": "Notes Management E2E Tests",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should support complete notes workflow",
+              "fullTitle": "Notes Management E2E Tests should support complete notes workflow",
+              "timedOut": null,
+              "duration": 11333,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow (failed).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow (failed) (attempt 2).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Check if add note button is available\n    notesPage.isAddNoteButtonAvailable().then(function (isAvailable) {\n        if (!isAvailable) {\n            cy.log('Add note button not available, skipping test');\n            return;\n        }\n        // Create a new note\n        notesPage.clickAddNote();\n        var noteTitle = \"Test Note \".concat(Date.now());\n        notesPage.fillNoteForm({\n            title: noteTitle,\n            content: 'This is a test note created by Cypress',\n            tags: ['test', 'cypress']\n        });\n        notesPage.submitNoteForm();\n        notesPage.verifySuccessNotification();\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.true');\n        });\n        // Filter by tag\n        notesPage.filterByTag('test');\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.true');\n        });\n        // Search for note\n        notesPage.searchNotes(noteTitle);\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.true');\n        });\n        // Delete note\n        notesPage.deleteNote(noteTitle);\n        notesPage.verifySuccessNotification();\n        notesPage.noteExists(noteTitle).then(function (exists) {\n            cy.wrap(exists).should('be.false');\n        });\n    });\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.\n    at __webpack_modules__../cypress/support/page-objects/NotesPage.ts.NotesPage.clickAddNote (webpack:///./cypress/support/page-objects/NotesPage.ts:103:58)\n    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:53:0)\n    at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:118349:20)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:118360:66)\n    at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:118611:21)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138862:19)",
+                "diff": null
+              },
+              "uuid": "cb924d34-fa95-4a69-9f36-b1a6bbcc9ef6",
+              "parentUUID": "01f1f30a-d26e-4080-9fb4-6b435a34bff7",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle error states gracefully",
+              "fullTitle": "Notes Management E2E Tests should handle error states gracefully",
+              "timedOut": null,
+              "duration": 11301,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should handle error states gracefully (failed).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should handle error states gracefully (failed) (attempt 2).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should handle error states gracefully (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Test empty form submission\n    notesPage.clickAddNote();\n    notesPage.submitNoteForm();\n    cy.get('[data-testid=\"form-error\"]').should('be.visible');\n    // Test duplicate title error\n    cy.intercept('POST', '/api/users/notes', {\n        statusCode: 409,\n        body: { error: 'Note with this title already exists' }\n    }).as('createDuplicateNote');\n    notesPage.fillNoteForm({\n        title: 'Duplicate Note',\n        content: 'This should fail'\n    });\n    notesPage.submitNoteForm();\n    cy.wait('@createDuplicateNote');\n    notesPage.verifyErrorNotification();\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.\n    at __webpack_modules__../cypress/support/page-objects/NotesPage.ts.NotesPage.clickAddNote (webpack:///./cypress/support/page-objects/NotesPage.ts:103:58)\n    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:93:0)\n    at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:118349:20)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:118360:66)\n    at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:118611:21)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138862:19)",
+                "diff": null
+              },
+              "uuid": "1692bf09-9dd5-4896-9fbd-92f7abd414d5",
+              "parentUUID": "01f1f30a-d26e-4080-9fb4-6b435a34bff7",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should support note organization",
+              "fullTitle": "Notes Management E2E Tests should support note organization",
+              "timedOut": null,
+              "duration": 11396,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support note organization (failed).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support note organization (failed) (attempt 2).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support note organization (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Create multiple notes with different tags\n    var notes = [\n        { title: \"Note A \".concat(Date.now()), content: 'Content A', tags: ['work', 'important'] },\n        { title: \"Note B \".concat(Date.now()), content: 'Content B', tags: ['personal'] },\n        { title: \"Note C \".concat(Date.now()), content: 'Content C', tags: ['work'] }\n    ];\n    notes.forEach(function (note) {\n        notesPage.clickAddNote();\n        notesPage.fillNoteForm(note);\n        notesPage.submitNoteForm();\n        notesPage.verifySuccessNotification();\n    });\n    // Test tag filtering\n    notesPage.filterByTag('work');\n    notesPage.noteExists(notes[0].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    notesPage.noteExists(notes[1].title).then(function (exists) {\n        cy.wrap(exists).should('be.false');\n    });\n    notesPage.noteExists(notes[2].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    // Test search functionality\n    notesPage.searchNotes('Content B');\n    notesPage.noteExists(notes[1].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    notesPage.noteExists(notes[0].title).then(function (exists) {\n        cy.wrap(exists).should('be.false');\n    });\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.\n    at __webpack_modules__../cypress/support/page-objects/NotesPage.ts.NotesPage.clickAddNote (webpack:///./cypress/support/page-objects/NotesPage.ts:103:58)\n    at eval (webpack:///./cypress/e2e/notes.cy.ts:125:0)\nat Array.forEach (<anonymous>)\n    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:124:0)\n    at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:118349:20)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:118360:66)\n    at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:118611:21)",
+                "diff": null
+              },
+              "uuid": "5e959f29-d42e-4e50-8868-2a174ea65674",
+              "parentUUID": "01f1f30a-d26e-4080-9fb4-6b435a34bff7",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle network errors gracefully",
+              "fullTitle": "Notes Management E2E Tests should handle network errors gracefully",
+              "timedOut": null,
+              "duration": 11415,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should handle network errors gracefully (failed).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should handle network errors gracefully (failed) (attempt 2).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should handle network errors gracefully (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Test API failure\n    cy.intercept('POST', '/api/users/notes', {\n        statusCode: 500,\n        body: { error: 'Internal server error' }\n    }).as('createNoteError');\n    notesPage.clickAddNote();\n    notesPage.fillNoteForm({\n        title: 'Network Error Test',\n        content: 'This should fail'\n    });\n    notesPage.submitNoteForm();\n    cy.wait('@createNoteError');\n    notesPage.verifyErrorNotification();\n});",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"note-form\"]`, but never found it.\n    at __webpack_modules__../cypress/support/page-objects/NotesPage.ts.NotesPage.clickAddNote (webpack:///./cypress/support/page-objects/NotesPage.ts:103:58)\n    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:164:0)\n    at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:118349:20)\n    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)\n    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)\n    at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:118360:66)\n    at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:118611:21)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138862:19)",
+                "diff": null
+              },
+              "uuid": "08d7aea5-9113-498c-8c3a-c3433e856873",
+              "parentUUID": "01f1f30a-d26e-4080-9fb4-6b435a34bff7",
+              "isHook": false,
+              "skipped": false
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "cb924d34-fa95-4a69-9f36-b1a6bbcc9ef6",
+            "1692bf09-9dd5-4896-9fbd-92f7abd414d5",
+            "5e959f29-d42e-4e50-8868-2a174ea65674",
+            "08d7aea5-9113-498c-8c3a-c3433e856873"
+          ],
+          "pending": [],
+          "skipped": [],
+          "duration": 45445,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

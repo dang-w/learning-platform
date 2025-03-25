@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="9.355" tests="5" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:21:35" tests="0" file="e2e-testing/cypress/e2e/analytics.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Progress Analytics" timestamp="2025-03-25T11:21:35" tests="5" time="9.318" failures="0">
+    <testcase name="Progress Analytics should display analytics overview" time="1.929" classname="should display analytics overview">
+    </testcase>
+    <testcase name="Progress Analytics should allow filtering analytics by date range" time="1.757" classname="should allow filtering analytics by date range">
+    </testcase>
+    <testcase name="Progress Analytics should display various analytics tabs" time="1.882" classname="should display various analytics tabs">
+    </testcase>
+    <testcase name="Progress Analytics should allow exporting analytics data" time="1.775" classname="should allow exporting analytics data">
+    </testcase>
+    <testcase name="Progress Analytics should capture all analytics charts for documentation" time="1.725" classname="should capture all analytics charts for documentation">
+    </testcase>
+  </testsuite>
+</testsuites>

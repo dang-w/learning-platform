@@ -85,6 +85,7 @@ const NotesList: React.FC<NotesListProps> = ({
       {notes.map((note) => (
         <div
           key={note.id}
+          data-testid="note-item"
           className={`
             p-4 rounded-lg cursor-pointer transition-all border
             ${
@@ -100,7 +101,7 @@ const NotesList: React.FC<NotesListProps> = ({
               {note.title}
             </h3>
             <div className="flex space-x-2 ml-2">
-            <button
+              <button
                 onClick={(e) => handleEditClick(e, note.id)}
                 className="text-gray-500 hover:text-indigo-500 p-1 rounded-full hover:bg-indigo-50"
                 aria-label="Edit note"
@@ -111,6 +112,7 @@ const NotesList: React.FC<NotesListProps> = ({
                 onClick={(e) => handleDeleteClick(e, note.id)}
                 className="text-gray-500 hover:text-red-500 p-1 rounded-full hover:bg-red-50"
                 aria-label="Delete note"
+                data-testid="delete-note-button"
               >
                 <BsTrash size={16} />
               </button>
@@ -123,12 +125,12 @@ const NotesList: React.FC<NotesListProps> = ({
           </p>
 
           {/* Tags */}
-          {note.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
+          {note.tags && note.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
               {note.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-800"
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
                 >
                   {tag}
                 </span>
@@ -141,23 +143,24 @@ const NotesList: React.FC<NotesListProps> = ({
 
           {/* Delete confirmation */}
           {confirmDelete === note.id && (
-            <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
-              <p className="text-sm text-red-700 font-medium mb-2">
-                Are you sure you want to delete this note?
-              </p>
-              <div className="flex space-x-2">
-                <button
-                  onClick={(e) => handleConfirmDelete(e, note.id)}
-                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={handleCancelDelete}
-                  className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
+            <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">Are you sure you want to delete this note?</p>
+                <div className="space-x-2">
+                  <button
+                    onClick={(e) => handleConfirmDelete(e, note.id)}
+                    className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                    data-testid="confirm-delete-button"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={handleCancelDelete}
+                    className="px-3 py-1 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           )}

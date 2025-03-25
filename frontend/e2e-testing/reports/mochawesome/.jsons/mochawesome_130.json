@@ -1,0 +1,153 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-25T11:34:45.612Z",
+    "end": "2025-03-25T11:35:20.570Z",
+    "duration": 34958,
+    "testsRegistered": 3,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 2,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "3096e3e1-60a6-4aa4-bc0a-924ca5a7ee8c",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "file": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "7e3731e2-cb8e-4a96-9379-d33791b5ffef",
+          "title": "Notes Management E2E Tests",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should support complete notes workflow",
+              "fullTitle": "Notes Management E2E Tests should support complete notes workflow",
+              "timedOut": null,
+              "duration": 11671,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow (failed).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow (failed) (attempt 2).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow -- before each hook (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Create a new note\nnotesPage.clickAddNote();\nvar noteTitle = \"Test Note \".concat(Date.now());\nnotesPage.fillNoteForm({\n    title: noteTitle,\n    content: 'This is a test note created by Cypress',\n    tags: ['test', 'cypress']\n});\nnotesPage.submitNoteForm();\n// Verify note was created\ncy.get('[data-testid=\"success-notification\"]').should('exist');\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(noteTitle, \"\\\")\")).should('exist');\n// Filter by tag\nnotesPage.filterByTag('test');\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(noteTitle, \"\\\")\")).should('exist');\n// Search for note\nnotesPage.searchNotes(noteTitle);\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(noteTitle, \"\\\")\")).should('exist');\n// Delete note\nnotesPage.deleteNote(noteTitle);\ncy.get('[data-testid=\"success-notification\"]').should('exist');\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(noteTitle, \"\\\")\")).should('not.exist');",
+              "err": {
+                "message": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"notes-page\"]`, but never found it.\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Notes Management E2E Tests`",
+                "estack": "AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid=\"notes-page\"]`, but never found it.\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Notes Management E2E Tests`\n    at Object.visitNotes (webpack:///./cypress/e2e/notes.cy.ts:21:63)\n    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:61:0)",
+                "diff": null
+              },
+              "uuid": "f4504011-2650-4fdc-8f73-0f8f9caa4c46",
+              "parentUUID": "7e3731e2-cb8e-4a96-9379-d33791b5ffef",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle error states gracefully",
+              "fullTitle": "Notes Management E2E Tests should handle error states gracefully",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Test empty form submission\nnotesPage.clickAddNote();\nnotesPage.submitNoteForm();\ncy.get('[data-testid=\"form-error\"]').should('exist');\n// Test duplicate title\nvar noteTitle = \"Duplicate Note \".concat(Date.now());\nnotesPage.fillNoteForm({\n    title: noteTitle,\n    content: 'First note'\n});\nnotesPage.submitNoteForm();\n// Try to create another note with the same title\nnotesPage.clickAddNote();\nnotesPage.fillNoteForm({\n    title: noteTitle,\n    content: 'Second note'\n});\nnotesPage.submitNoteForm();\ncy.get('[data-testid=\"error-notification\"]').should('exist');",
+              "err": {},
+              "uuid": "eff3262f-446e-40dd-a277-1d8ca562e04c",
+              "parentUUID": "7e3731e2-cb8e-4a96-9379-d33791b5ffef",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should support note organization",
+              "fullTitle": "Notes Management E2E Tests should support note organization",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Create multiple notes with different tags\nvar notes = [\n    { title: \"Note A \".concat(Date.now()), content: 'Content A', tags: ['work', 'important'] },\n    { title: \"Note B \".concat(Date.now()), content: 'Content B', tags: ['personal'] },\n    { title: \"Note C \".concat(Date.now()), content: 'Content C', tags: ['work'] }\n];\nnotes.forEach(function (note) {\n    notesPage.clickAddNote();\n    notesPage.fillNoteForm(note);\n    notesPage.submitNoteForm();\n    cy.get('[data-testid=\"success-notification\"]').should('exist');\n});\n// Test tag filtering\nnotesPage.filterByTag('work');\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(notes[0].title, \"\\\")\")).should('exist');\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(notes[1].title, \"\\\")\")).should('not.exist');\n// Test search functionality\nnotesPage.searchNotes('Content B');\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(notes[1].title, \"\\\")\")).should('exist');\ncy.get(\"[data-testid=\\\"note-item\\\"]:contains(\\\"\".concat(notes[0].title, \"\\\")\")).should('not.exist');",
+              "err": {},
+              "uuid": "d80c7aea-724d-425f-89fb-4c2f2f32428a",
+              "parentUUID": "7e3731e2-cb8e-4a96-9379-d33791b5ffef",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "f4504011-2650-4fdc-8f73-0f8f9caa4c46"
+          ],
+          "pending": [],
+          "skipped": [
+            "eff3262f-446e-40dd-a277-1d8ca562e04c",
+            "d80c7aea-724d-425f-89fb-4c2f2f32428a"
+          ],
+          "duration": 11671,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}

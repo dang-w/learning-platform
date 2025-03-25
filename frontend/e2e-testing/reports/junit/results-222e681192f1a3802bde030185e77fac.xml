@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="29.721" tests="9" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:22:19" tests="0" file="e2e-testing/cypress/e2e/dashboard.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Dashboard" timestamp="2025-03-25T11:22:19" tests="9" time="29.689" failures="0">
+    <testcase name="Dashboard should display dashboard overview with all sections" time="1.938" classname="should display dashboard overview with all sections">
+    </testcase>
+    <testcase name="Dashboard should display user-specific greeting if available" time="2.971" classname="should display user-specific greeting if available">
+    </testcase>
+    <testcase name="Dashboard should allow quick navigation to main sections" time="2.917" classname="should allow quick navigation to main sections">
+    </testcase>
+    <testcase name="Dashboard should display recent activity feed if available" time="2.813" classname="should display recent activity feed if available">
+    </testcase>
+    <testcase name="Dashboard should display quick stats with correct data if available" time="4.652" classname="should display quick stats with correct data if available">
+    </testcase>
+    <testcase name="Dashboard should display upcoming reviews if available" time="3.003" classname="should display upcoming reviews if available">
+    </testcase>
+    <testcase name="Dashboard should display learning progress if available" time="4.907" classname="should display learning progress if available">
+    </testcase>
+    <testcase name="Dashboard should display recent resources if available" time="2.974" classname="should display recent resources if available">
+    </testcase>
+    <testcase name="Dashboard should allow searching if implemented" time="2.893" classname="should allow searching if implemented">
+    </testcase>
+  </testsuite>
+</testsuites>

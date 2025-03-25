@@ -1,0 +1,153 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-25T11:23:58.802Z",
+    "end": "2025-03-25T11:24:08.213Z",
+    "duration": 9411,
+    "testsRegistered": 3,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 2,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "42b5da44-1ef1-4c87-8376-302fd936e785",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "file": "e2e-testing/cypress/e2e/notes.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "ea0e222a-0027-4ef6-939b-cbf3fcf558a4",
+          "title": "Notes Management E2E Tests",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should support complete notes workflow",
+              "fullTitle": "Notes Management E2E Tests should support complete notes workflow",
+              "timedOut": null,
+              "duration": 1557,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow (failed).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow (failed) (attempt 2).png\"\n    ],\n    [\n      \"/notes.cy.ts/Notes Management E2E Tests -- should support complete notes workflow -- before each hook (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Create a new note\n    notesPage.clickAddNote();\n    var noteTitle = \"Test Note \".concat(Date.now());\n    notesPage.fillNoteForm({\n        title: noteTitle,\n        content: 'This is a test note created by Cypress',\n        tags: ['test', 'cypress']\n    });\n    notesPage.submitNoteForm();\n    // Verify note was created\n    notesPage.verifySuccessNotification().then(function (hasSuccess) {\n        if (hasSuccess) {\n            cy.log('Note created successfully');\n        }\n        else {\n            cy.log('No success notification displayed after creating note');\n        }\n    });\n    // Verify note exists in the list\n    notesPage.noteExists(noteTitle).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    // Filter by tag\n    notesPage.filterByTag('test');\n    notesPage.noteExists(noteTitle).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    // Search for note\n    notesPage.searchNotes(noteTitle);\n    notesPage.noteExists(noteTitle).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    // Delete note\n    notesPage.deleteNote(noteTitle);\n    notesPage.verifySuccessNotification().then(function (hasSuccess) {\n        if (hasSuccess) {\n            cy.log('Note deleted successfully');\n        }\n        else {\n            cy.log('No success notification displayed after deleting note');\n        }\n    });\n});",
+              "err": {
+                "message": "CypressError: The following error originated from your test code, not from Cypress.\n\n  > Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.get()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nWhen Cypress detects uncaught errors originating from your test code it will automatically fail the current test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Notes Management E2E Tests`",
+                "estack": "CypressError: The following error originated from your test code, not from Cypress.\n\n  > Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.get()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nWhen Cypress detects uncaught errors originating from your test code it will automatically fail the current test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Notes Management E2E Tests`\n    at cy.<computed> [as log] (http://localhost:3000/__cypress/runner/cypress_runner.js:138922:64)\n    at $Cy.eval (webpack:///./cypress/e2e/notes.cy.ts:88:0)\n    at listener (http://localhost:3000/__cypress/runner/cypress_runner.js:140914:19)\n    at arrayMap (http://localhost:3000/__cypress/runner/cypress_runner.js:18631:23)\n    at map (http://localhost:3000/__cypress/runner/cypress_runner.js:27600:14)\n    at $Cy.emitMap (http://localhost:3000/__cypress/runner/cypress_runner.js:140916:14)\n    at parent.<computed> [as emitMap] (http://localhost:3000/__cypress/runner/cypress_runner.js:140879:32)\n    at $Cypress.action (http://localhost:3000/__cypress/runner/cypress_runner.js:41667:21)\n    at $Cy.onUncaughtException (http://localhost:3000/__cypress/runner/cypress_runner.js:139049:38)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:139225:28)\nFrom Your Spec Code:\n    at Object.visitNotes (webpack:///./cypress/e2e/notes.cy.ts:22:63)\n    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:85:0)\nFrom Your Spec Code:\n    at Object.visitNotes (webpack:///./cypress/e2e/notes.cy.ts:22:63)\n    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:85:0)",
+                "diff": null
+              },
+              "uuid": "2451d59d-1666-419d-bf19-90afe3ae641a",
+              "parentUUID": "ea0e222a-0027-4ef6-939b-cbf3fcf558a4",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should handle error states gracefully",
+              "fullTitle": "Notes Management E2E Tests should handle error states gracefully",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Test empty form submission\n    notesPage.clickAddNote();\n    notesPage.submitNoteForm();\n    cy.get('[data-testid=\"form-error\"]').should('exist');\n    // Test duplicate title\n    var noteTitle = \"Duplicate Note \".concat(Date.now());\n    notesPage.fillNoteForm({\n        title: noteTitle,\n        content: 'First note'\n    });\n    notesPage.submitNoteForm();\n    // Try to create another note with the same title\n    notesPage.clickAddNote();\n    notesPage.fillNoteForm({\n        title: noteTitle,\n        content: 'Second note'\n    });\n    notesPage.submitNoteForm();\n    cy.get('[data-testid=\"error-notification\"]').should('exist');\n});",
+              "err": {},
+              "uuid": "a23d4031-5e3f-4996-b602-ee2ac36a32e2",
+              "parentUUID": "ea0e222a-0027-4ef6-939b-cbf3fcf558a4",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should support note organization",
+              "fullTitle": "Notes Management E2E Tests should support note organization",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if notes page loaded properly\nnotesPage.isNotesPageLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Notes page not loaded properly, skipping test');\n        notesPage.takeScreenshot('notes-not-loaded');\n        return;\n    }\n    // Create multiple notes with different tags\n    var notes = [\n        { title: \"Note A \".concat(Date.now()), content: 'Content A', tags: ['work', 'important'] },\n        { title: \"Note B \".concat(Date.now()), content: 'Content B', tags: ['personal'] },\n        { title: \"Note C \".concat(Date.now()), content: 'Content C', tags: ['work'] }\n    ];\n    notes.forEach(function (note) {\n        notesPage.clickAddNote();\n        notesPage.fillNoteForm(note);\n        notesPage.submitNoteForm();\n    });\n    // Test tag filtering\n    notesPage.filterByTag('work');\n    notesPage.noteExists(notes[0].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    notesPage.noteExists(notes[1].title).then(function (exists) {\n        cy.wrap(exists).should('be.false');\n    });\n    // Test search functionality\n    notesPage.searchNotes('Content B');\n    notesPage.noteExists(notes[1].title).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n    notesPage.noteExists(notes[0].title).then(function (exists) {\n        cy.wrap(exists).should('be.false');\n    });\n});",
+              "err": {},
+              "uuid": "5dcac4df-c359-4be0-b642-a6913fa4ec52",
+              "parentUUID": "ea0e222a-0027-4ef6-939b-cbf3fcf558a4",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "2451d59d-1666-419d-bf19-90afe3ae641a"
+          ],
+          "pending": [],
+          "skipped": [
+            "a23d4031-5e3f-4996-b602-ee2ac36a32e2",
+            "5dcac4df-c359-4be0-b642-a6913fa4ec52"
+          ],
+          "duration": 1557,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}
