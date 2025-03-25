@@ -33,24 +33,18 @@ jest.mock('@/components/learning-path', () => ({
 }));
 
 // Mock the UI components
-jest.mock('@/components/ui/layout/tabs', () => ({
-  Tabs: ({ items, defaultIndex, onChange }: { items: { label: string; content: React.ReactNode }[]; defaultIndex: number; onChange: (index: number) => void }) => (
-    <div data-testid="tabs">
-      <div data-testid="tabs-header">
-        {items.map((item, index) => (
-          <button
-            key={index}
-            data-testid={`tab-${index}`}
-            onClick={() => onChange(index)}
-            role="tab"
-            aria-selected={defaultIndex === index}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-      <div data-testid="tab-content">{items[defaultIndex].content}</div>
-    </div>
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  TabsList: ({ children }: { children: React.ReactNode }) => (
+    <div role="tablist">{children}</div>
+  ),
+  TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <button role="tab" data-value={value} aria-controls={`${value}-panel`}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div role="tabpanel" id={`${value}-panel`} aria-label={value} data-value={value}>{children}</div>
   ),
 }));
 
@@ -124,8 +118,14 @@ describe('LearningPathPage', () => {
       expect(screen.getByText('Milestones')).toBeInTheDocument();
     });
 
-    // Check that the first tab (Goals) is selected by default
-    expect(screen.getByTestId('tab-content')).toHaveTextContent('Goals: 2');
+    // Check that all tab panels are rendered with correct content
+    const goalsPanel = screen.getByRole('tabpanel', { name: /goals/i });
+    const roadmapPanel = screen.getByRole('tabpanel', { name: /roadmap/i });
+    const milestonesPanel = screen.getByRole('tabpanel', { name: /milestones/i });
+
+    expect(goalsPanel).toHaveTextContent('Goals: 2');
+    expect(roadmapPanel).toHaveTextContent('Roadmap: 3 milestones, 2 goals');
+    expect(milestonesPanel).toHaveTextContent('Milestones: 3');
   });
 
   it('renders the progress tracker', async () => {

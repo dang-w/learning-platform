@@ -1,17 +1,24 @@
 import { AxiosError } from 'axios';
 import apiClient from './client';
-import { Note, NoteCreateInput, NoteUpdateInput } from '@/types/notes';
+import { Note, NoteCreateInput, NoteUpdateInput, NotePagination } from '@/types/notes';
 import { ApiErrorResponse } from '@/types/api';
 
 const notesApi = {
   /**
    * Get all notes for the current user
    * @param tag Optional tag to filter notes by
+   * @param skip Number of notes to skip for pagination
+   * @param limit Maximum number of notes to return
    */
-  getNotes: async (tag?: string): Promise<Note[]> => {
+  getNotes: async (tag?: string, skip: number = 0, limit: number = 20): Promise<NotePagination> => {
     try {
-      const url = tag ? `/api/users/notes?tag=${encodeURIComponent(tag)}` : '/api/users/notes';
-      const response = await apiClient.get<Note[]>(url);
+      const params = new URLSearchParams();
+      if (tag) params.append('tag', tag);
+      params.append('skip', skip.toString());
+      params.append('limit', limit.toString());
+
+      const url = `/api/users/notes?${params.toString()}`;
+      const response = await apiClient.get<NotePagination>(url);
       return response.data;
     } catch (error) {
       console.error('Get notes API error:', error);

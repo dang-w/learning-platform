@@ -5,3 +5,6 @@ export * from './forms';
 export * from './feedback';
 export * from './data-display';
 export * from './layout';
+
+// Export the loading indicator
+export { default as LoadingIndicator } from './loaders/LoadingIndicator';

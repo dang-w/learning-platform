@@ -9,6 +9,13 @@ export interface Note {
   updated_at: string;
 }
 
+export interface NotePagination {
+  items: Note[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 export interface NoteCreateInput {
   title: string;
   content: string;
@@ -41,7 +48,9 @@ export interface NotesListProps {
   onSelectNote: (note: Note) => void;
   selectedNoteId?: string;
   onDeleteNote: (id: string) => void;
+  onEditNote: (id: string) => void;
   isLoading: boolean;
+  error: string | null;
 }
 
 export interface NoteEditorProps {

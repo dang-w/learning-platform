@@ -14,6 +14,21 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
 
+// Mock fetch globally
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({
+      totalCoursesEnrolled: 5,
+      completedCourses: 3,
+      averageScore: 85,
+      emailNotifications: true,
+      courseUpdates: true,
+      marketingEmails: false
+    })
+  })
+) as jest.Mock;
+
 describe('ProfilePage', () => {
   const mockRouter = {
     push: jest.fn()
@@ -53,6 +68,19 @@ describe('ProfilePage', () => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useAuthStore as unknown as jest.Mock).mockReturnValue(mockAuthStore);
+    (global.fetch as jest.Mock).mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          totalCoursesEnrolled: 5,
+          completedCourses: 3,
+          averageScore: 85,
+          emailNotifications: true,
+          courseUpdates: true,
+          marketingEmails: false
+        })
+      })
+    );
   });
 
   it('renders the profile page with user data', async () => {

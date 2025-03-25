@@ -29,8 +29,8 @@ export const useNotesStore = create<NotesState & {
   fetchNotes: async (tag?: string) => {
     try {
       set({ isLoading: true, error: null });
-      const notes = await notesApi.getNotes(tag);
-      set({ notes, filteredNotes: notes, isLoading: false });
+      const response = await notesApi.getNotes(tag);
+      set({ notes: response.items, filteredNotes: response.items, isLoading: false });
       get().filterNotes();
     } catch (error) {
       set({
