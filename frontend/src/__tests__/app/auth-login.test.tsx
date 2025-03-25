@@ -26,6 +26,18 @@ beforeAll(() => {
     writable: true,
     value: ''
   });
+
+  // Setup fetch mock
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        token: 'mock-token',
+        refresh_token: 'mock-refresh-token',
+        user: { id: 1, username: 'testuser' }
+      })
+    })
+  ) as jest.Mock;
 });
 
 // Mock the auth store and router BEFORE imports

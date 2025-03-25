@@ -11,6 +11,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   LightBulbIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -18,6 +19,7 @@ const navigation = [
   { name: 'Resources', href: '/resources', icon: BookOpenIcon, testId: 'nav-resources' },
   { name: 'Learning Path', href: '/learning-path', icon: AcademicCapIcon, testId: 'nav-learning-path' },
   { name: 'Knowledge', href: '/knowledge', icon: LightBulbIcon, testId: 'nav-knowledge' },
+  { name: 'Notes', href: '/notes', icon: DocumentTextIcon, testId: 'nav-notes' },
   { name: 'Progress', href: '/progress', icon: ChartBarIcon, testId: 'nav-analytics' },
 ];
 

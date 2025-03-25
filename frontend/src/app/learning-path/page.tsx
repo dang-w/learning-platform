@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { learningPathApi } from '@/lib/api';
-import { Tabs } from '@/components/ui/layout/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   GoalsList,
   Roadmap,
@@ -13,7 +13,7 @@ import {
 import { Spinner } from '@/components/ui/feedback';
 
 export default function LearningPathPage() {
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState('goals');
 
   const { data: learningPath, isLoading } = useQuery({
     queryKey: ['learning-path'],
@@ -27,26 +27,6 @@ export default function LearningPathPage() {
       </div>
     );
   }
-
-  const tabItems = [
-    {
-      label: 'Goals',
-      content: <GoalsList goals={learningPath?.goals || []} />,
-    },
-    {
-      label: 'Roadmap',
-      content: (
-        <Roadmap
-          milestones={learningPath?.milestones || []}
-          goals={learningPath?.goals || []}
-        />
-      ),
-    },
-    {
-      label: 'Milestones',
-      content: <MilestonesList milestones={learningPath?.milestones || []} />,
-    },
-  ];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -65,12 +45,40 @@ export default function LearningPathPage() {
         </div>
       </div>
 
-      <Tabs
-        items={tabItems}
-        defaultIndex={activeTab}
-        onChange={setActiveTab}
-        variant="underline"
-      />
+      <Tabs defaultValue="goals" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start border-b border-gray-200 bg-transparent p-0">
+          <TabsTrigger
+            value="goals"
+            className="border-b-2 border-transparent px-4 py-2 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent"
+          >
+            Goals
+          </TabsTrigger>
+          <TabsTrigger
+            value="roadmap"
+            className="border-b-2 border-transparent px-4 py-2 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent"
+          >
+            Roadmap
+          </TabsTrigger>
+          <TabsTrigger
+            value="milestones"
+            className="border-b-2 border-transparent px-4 py-2 data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent"
+          >
+            Milestones
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="goals">
+          <GoalsList goals={learningPath?.goals || []} />
+        </TabsContent>
+        <TabsContent value="roadmap">
+          <Roadmap
+            milestones={learningPath?.milestones || []}
+            goals={learningPath?.goals || []}
+          />
+        </TabsContent>
+        <TabsContent value="milestones">
+          <MilestonesList milestones={learningPath?.milestones || []} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

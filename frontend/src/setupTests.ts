@@ -109,4 +109,40 @@ global.IntersectionObserver = class IntersectionObserver {
   }
 } as unknown as typeof IntersectionObserver;
 
+// Mock fetch globally
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({
+      token: 'mock-token',
+      refresh_token: 'mock-refresh-token',
+      user: { id: 1, username: 'testuser' },
+      // Include other common response data
+      totalCoursesEnrolled: 5,
+      completedCourses: 3,
+      averageScore: 85,
+      emailNotifications: true,
+      courseUpdates: true,
+      marketingEmails: false
+    })
+  })
+) as jest.Mock;
+
+// Mock localStorage
+Object.defineProperty(window, 'localStorage', {
+  value: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn()
+  },
+  writable: true
+});
+
+// Mock document.cookie
+Object.defineProperty(document, 'cookie', {
+  writable: true,
+  value: ''
+});
+
 // Add any additional global mocks or setup required for tests

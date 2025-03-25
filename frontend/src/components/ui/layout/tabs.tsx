@@ -3,6 +3,7 @@ import { Tab } from '@headlessui/react';
 import { cn } from '@/lib/utils/cn';
 
 export interface TabItem {
+  id?: string;
   label: string;
   content: ReactNode;
   disabled?: boolean;
@@ -11,7 +12,9 @@ export interface TabItem {
 export interface TabsProps {
   items: TabItem[];
   defaultIndex?: number;
+  selectedIndex?: number;
   onChange?: (index: number) => void;
+  onTabChange?: (id: string) => void;
   variant?: 'default' | 'pills' | 'underline';
   className?: string;
 }
@@ -19,15 +22,22 @@ export interface TabsProps {
 export function Tabs({
   items,
   defaultIndex = 0,
+  selectedIndex: controlledIndex,
   onChange,
+  onTabChange,
   variant = 'default',
   className,
 }: TabsProps) {
-  const [selectedIndex, setSelectedIndex] = useState(defaultIndex);
+  const [internalIndex, setInternalIndex] = useState(defaultIndex);
+  const selectedIndex = controlledIndex ?? internalIndex;
 
   const handleChange = (index: number) => {
-    setSelectedIndex(index);
+    setInternalIndex(index);
     onChange?.(index);
+    const selectedItem = items[index];
+    if (selectedItem.id && onTabChange) {
+      onTabChange(selectedItem.id);
+    }
   };
 
   const variantClasses = {
@@ -63,7 +73,7 @@ export function Tabs({
         <Tab.List className={variantClasses[variant].list}>
           {items.map((item, index) => (
             <Tab
-              key={index}
+              key={item.id || index}
               disabled={item.disabled}
               className={({ selected }) =>
                 cn(
@@ -82,7 +92,7 @@ export function Tabs({
         <Tab.Panels className="mt-2">
           {items.map((item, index) => (
             <Tab.Panel
-              key={index}
+              key={item.id || index}
               className={cn(
                 'rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
               )}

@@ -34,6 +34,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   Bars3Icon: () => <div data-testid="bars-icon" />,
   XMarkIcon: () => <div data-testid="x-icon" />,
   LightBulbIcon: () => <div data-testid="lightbulb-icon" />,
+  DocumentTextIcon: () => <div data-testid="document-icon" />,
 }));
 
 describe('Sidebar', () => {
@@ -48,6 +49,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Resources')).toBeInTheDocument();
     expect(screen.getByText('Learning Path')).toBeInTheDocument();
     expect(screen.getByText('Knowledge')).toBeInTheDocument();
+    expect(screen.getByText('Notes')).toBeInTheDocument();
     expect(screen.getByText('Progress')).toBeInTheDocument();
   });
 

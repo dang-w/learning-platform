@@ -20,14 +20,25 @@ Object.defineProperty(document, 'cookie', {
   value: '',
 });
 
+// Mock localStorage
+const mockLocalStorage = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn()
+};
+
+Object.defineProperty(window, 'localStorage', {
+  value: mockLocalStorage
+});
+
 // Mock fetch globally
-const mockFetch = jest.fn() as jest.MockedFunction<typeof global.fetch>;
-global.fetch = mockFetch;
+global.fetch = jest.fn() as jest.MockedFunction<typeof global.fetch>;
 
 describe('Auth Store', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    localStorage.clear();
+    mockLocalStorage.clear();
     document.cookie = '';
     useAuthStore.getState().reset();
   });
@@ -36,10 +47,13 @@ describe('Auth Store', () => {
     it('should handle refresh token failure', async () => {
       // Setup
       const mockRefreshToken = 'test-refresh-token';
-      localStorage.setItem('refresh_token', mockRefreshToken);
+      mockLocalStorage.getItem.mockImplementation((key) => {
+        if (key === 'refresh_token') return mockRefreshToken;
+        return null;
+      });
 
       // Mock fetch to fail
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       const { result } = renderHook(() => useAuthStore());
 
@@ -61,16 +75,37 @@ describe('Auth Store', () => {
       const mockNewToken = 'new-token';
       const mockNewRefreshToken = 'new-refresh-token';
 
-      localStorage.setItem('refresh_token', mockRefreshToken);
+      mockLocalStorage.getItem.mockImplementation((key) => {
+        if (key === 'refresh_token') return mockRefreshToken;
+        return null;
+      });
 
       // Mock successful refresh
-      mockFetch.mockResolvedValueOnce({
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
           token: mockNewToken,
           refresh_token: mockNewRefreshToken
         })
-      } as Response);
+      });
+
+      // Mock localStorage setItem to update stored tokens
+      mockLocalStorage.setItem.mockImplementation((key, value) => {
+        if (key === 'token') {
+          mockLocalStorage.getItem.mockImplementation((k) => {
+            if (k === 'token') return value;
+            if (k === 'refresh_token') return mockNewRefreshToken;
+            return null;
+          });
+        }
+        if (key === 'refresh_token') {
+          mockLocalStorage.getItem.mockImplementation((k) => {
+            if (k === 'token') return mockNewToken;
+            if (k === 'refresh_token') return value;
+            return null;
+          });
+        }
+      });
 
       const { result } = renderHook(() => useAuthStore());
 
