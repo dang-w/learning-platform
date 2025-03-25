@@ -5,12 +5,18 @@
  * It addresses authentication issues mentioned in the PROJECT_ANALYSIS.md document.
  */
 
+import { Note, NotePagination } from '../../../src/types/notes';
+
 // Default test user
-export const DEFAULT_TEST_USER = {
-  username: 'cypress-test-user',
-  password: 'CypressTest123!',
-  email: 'cypress-test-user@example.com',
-  fullName: 'Cypress Test User'
+const DEFAULT_TEST_USER = {
+  id: 'test-user-id',
+  username: 'test-user',
+  email: 'test@example.com',
+  firstName: 'Test',
+  lastName: 'User',
+  role: 'user',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 };
 
 /**
@@ -47,125 +53,86 @@ declare global {
 /**
  * Setup complete authentication bypass that doesn't rely on backend
  * This approach ensures tests can continue even if authentication API is down
+ * @param username Optional username to use for the mock user
  */
-export const setupCompleteAuthBypass = (username = DEFAULT_TEST_USER.username) => {
-  // Log operation
-  cy.log(`Setting up complete auth bypass for user: ${username}`);
+export const setupCompleteAuthBypass = (username?: string) => {
+  // Mock user data
+  const mockUser = username ? {
+    ...DEFAULT_TEST_USER,
+    username,
+    email: `${username}@example.com`
+  } : DEFAULT_TEST_USER;
 
-  // Generate JWT token
-  const token = createMockJwt(username);
-  const refreshToken = createMockJwt(username, 30); // 30 day expiry for refresh token
+  // Create a valid JWT token
+  const token = createMockJwt(mockUser.username);
 
-  // Create window function to intercept auth checks
-  cy.window().then(win => {
-    // Set required local storage items
+  // Mock notes data
+  const mockNotes: NotePagination = {
+    items: [],
+    total: 0,
+    skip: 0,
+    limit: 20
+  };
+
+  // Mock API responses
+  cy.intercept('GET', '/api/users/me', {
+    statusCode: 200,
+    body: mockUser
+  }).as('getUser');
+
+  // Intercept auth check endpoint
+  cy.intercept('GET', '/api/auth/check', {
+    statusCode: 200,
+    body: { isValid: true, user: mockUser }
+  }).as('authCheck');
+
+  // Intercept notes endpoints
+  cy.intercept('GET', '/api/users/notes*', {
+    statusCode: 200,
+    body: mockNotes
+  }).as('getNotes');
+
+  cy.intercept('POST', '/api/users/notes', (req) => {
+    const note: Note = {
+      id: `note-${Date.now()}`,
+      ...req.body,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    req.reply({
+      statusCode: 201,
+      body: note
+    });
+  }).as('createNote');
+
+  cy.intercept('PUT', '/api/users/notes/*', (req) => {
+    const note: Note = {
+      ...req.body,
+      id: req.url.split('/').pop() || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    req.reply({
+      statusCode: 200,
+      body: note
+    });
+  }).as('updateNote');
+
+  cy.intercept('DELETE', '/api/users/notes/*', {
+    statusCode: 204
+  }).as('deleteNote');
+
+  // Set auth token in localStorage before any navigation
+  cy.window().then((win) => {
+    // Set both token variations to ensure compatibility
     win.localStorage.setItem('token', token);
-    win.localStorage.setItem('refreshToken', refreshToken);
-    win.localStorage.setItem('user', JSON.stringify({
-      id: 'mock-user-id',
-      username,
-      email: `${username}@example.com`,
-      fullName: username,
-      role: 'user'
-    }));
-    win.localStorage.setItem('cypress_test_auth_bypass', 'true');
-
-    // Optional: Create a global auth bypass flag for the app to detect
+    win.localStorage.setItem('auth_token', token);
+    win.localStorage.setItem('user', JSON.stringify(mockUser));
     win.CYPRESS_AUTH_BYPASS = true;
   });
 
-  // Set cookies for additional bypass paths
-  cy.setCookie('token', token);
-  cy.setCookie('cypress_auth_bypass', 'true');
-
-  // Intercept auth-related API requests
-  cy.intercept('GET', '**/api/users/me', {
-    statusCode: 200,
-    body: {
-      id: 'mock-user-id',
-      username,
-      email: `${username}@example.com`,
-      fullName: username,
-      role: 'user',
-      preferences: {
-        theme: 'light',
-        notifications: true
-      }
-    }
-  }).as('getUserProfile');
-
-  // Handle token refresh requests properly
-  cy.intercept('POST', '**/api/auth/refresh', {
-    statusCode: 200,
-    body: {
-      access_token: createMockJwt(username), // New access token
-      refresh_token: refreshToken // Keep same refresh token
-    }
-  }).as('refreshToken');
-
-  // Handle token refresh requests at the /token/refresh endpoint too
-  cy.intercept('POST', '**/token/refresh', {
-    statusCode: 200,
-    body: {
-      access_token: createMockJwt(username), // New access token
-      refresh_token: refreshToken // Keep same refresh token
-    }
-  }).as('tokenRefresh');
-
-  // Mock statistics endpoint
-  cy.intercept('GET', '**/api/users/statistics', {
-    statusCode: 200,
-    body: {
-      totalCoursesEnrolled: 5,
-      completedCourses: 3,
-      averageScore: 85,
-      totalTimeSpent: 24
-    }
-  }).as('getUserStatistics');
-
-  // Mock notification preferences endpoint
-  cy.intercept('GET', '**/api/users/notification-preferences', {
-    statusCode: 200,
-    body: {
-      emailNotifications: true,
-      courseUpdates: true,
-      marketingEmails: false
-    }
-  }).as('getNotificationPreferences');
-
-  // Mock notification preferences update endpoint
-  cy.intercept('PUT', '**/api/users/notification-preferences', {
-    statusCode: 200,
-    body: {
-      emailNotifications: true,
-      courseUpdates: true,
-      marketingEmails: false
-    }
-  }).as('updateNotificationPreferences');
-
-  // Mock data export endpoint
-  cy.intercept('GET', '**/api/users/export', {
-    statusCode: 200,
-    body: {
-      user: {
-        id: 'mock-user-id',
-        username,
-        email: `${username}@example.com`,
-        fullName: username
-      },
-      data: {
-        courses: [],
-        progress: {},
-        preferences: {}
-      }
-    }
-  }).as('exportUserData');
-
-  // Force reload to apply all bypasses
-  cy.reload();
-
-  // Wait to ensure everything is applied
-  cy.wait(300);
+  // Wait for auth to be set up
+  cy.wait(100); // Small delay to ensure localStorage is set
 };
 
 /**
@@ -176,7 +143,7 @@ export const disableAuthBypass = () => {
 
   cy.window().then(win => {
     win.localStorage.removeItem('token');
-    win.localStorage.removeItem('refreshToken');
+    win.localStorage.removeItem('auth_token');
     win.localStorage.removeItem('user');
     win.localStorage.removeItem('cypress_test_auth_bypass');
     delete win.CYPRESS_AUTH_BYPASS;
@@ -207,8 +174,8 @@ export const visitWithAuth = (route: string) => {
  */
 export const initAuthTestUtils = () => {
   // Add custom command for the auth bypass
-  Cypress.Commands.add('useAuthBypass', (username: string = DEFAULT_TEST_USER.username) => {
-    setupCompleteAuthBypass(username);
+  Cypress.Commands.add('useAuthBypass', () => {
+    setupCompleteAuthBypass();
   });
 
   // Add custom command for visiting with auth
@@ -227,9 +194,9 @@ declare global {
     interface Chainable {
       /**
        * Setup complete authentication bypass that doesn't rely on backend
-       * @example cy.useAuthBypass('testuser')
+       * @example cy.useAuthBypass()
        */
-      useAuthBypass(username?: string): Chainable<void>;
+      useAuthBypass(): Chainable<void>;
 
       /**
        * Visit a page with authentication bypass

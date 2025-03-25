@@ -75,8 +75,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with:', { title, content, tags });
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      console.log('Form validation failed');
+      return;
+    }
 
     const formData: NoteCreateInput | NoteUpdateInput = {
       title: title.trim(),
@@ -84,11 +88,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       tags
     };
 
+    console.log('Calling onSave with:', formData);
     onSave(formData);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" data-testid="note-form">
       <div>
         <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
           Title
@@ -96,12 +101,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         <input
           type="text"
           id="title"
+          name="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={`w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${
             errors.title ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Note title"
+          data-testid="note-title-input"
         />
         {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
       </div>
@@ -112,13 +119,15 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         </label>
         <textarea
           id="content"
+          name="content"
+          rows={12}
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          rows={12}
           className={`w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${
             errors.content ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder="Add your note content here..."
+          data-testid="note-content-input"
         />
         {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content}</p>}
       </div>
@@ -136,6 +145,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             onKeyDown={handleTagKeyPress}
             className="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="Add tags..."
+            data-testid="note-tags-input"
           />
           <button
             type="button"
@@ -178,6 +188,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         <button
           type="submit"
           className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          data-testid="save-note-button"
         >
           {isNew ? 'Create Note' : 'Save Changes'}
         </button>

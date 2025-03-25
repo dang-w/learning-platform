@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="34.960" tests="3" failures="1">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:34:45" tests="0" file="e2e-testing/cypress/e2e/notes.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Notes Management E2E Tests" timestamp="2025-03-25T11:34:45" tests="3" time="34.915" failures="1">
+    <testcase name="Notes Management E2E Tests &quot;before each&quot; hook for &quot;should support complete notes workflow&quot;" time="11.480" classname="&quot;before each&quot; hook for &quot;should support complete notes workflow&quot;">
+      <failure message="Timed out retrying after 10000ms: Expected to find element: `[data-testid=&quot;notes-page&quot;]`, but never found it.
+
+Because this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Notes Management E2E Tests`" type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid="notes-page"]`, but never found it.
+
+Because this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Notes Management E2E Tests`
+    at Object.visitNotes (webpack:///./cypress/e2e/notes.cy.ts:21:63)
+    at Context.eval (webpack:///./cypress/e2e/notes.cy.ts:61:0)]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>

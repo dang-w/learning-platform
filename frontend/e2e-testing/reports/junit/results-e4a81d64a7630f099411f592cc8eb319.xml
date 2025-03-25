@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="8.238" tests="6" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T11:24:10" tests="0" file="e2e-testing/cypress/e2e/profile.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="User Profile" timestamp="2025-03-25T11:24:10" tests="6" time="8.203" failures="0">
+    <testcase name="User Profile should display user profile information" time="1.108" classname="should display user profile information">
+    </testcase>
+    <testcase name="User Profile should allow updating profile information" time="1.859" classname="should allow updating profile information">
+    </testcase>
+    <testcase name="User Profile should display account statistics" time="1.081" classname="should display account statistics">
+    </testcase>
+    <testcase name="User Profile should handle notification preferences" time="1.136" classname="should handle notification preferences">
+    </testcase>
+    <testcase name="User Profile should handle data export" time="1.153" classname="should handle data export">
+    </testcase>
+    <testcase name="User Profile should handle account deletion flow" time="1.602" classname="should handle account deletion flow">
+    </testcase>
+  </testsuite>
+</testsuites>

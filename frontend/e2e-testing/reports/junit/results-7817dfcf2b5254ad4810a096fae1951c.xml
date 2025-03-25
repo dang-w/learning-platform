@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="8.781" tests="4" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-25T12:48:09" tests="0" file="e2e-testing/cypress/e2e/notes.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Notes Management E2E Tests" timestamp="2025-03-25T12:48:09" tests="4" time="8.737" failures="0">
+    <testcase name="Notes Management E2E Tests should support complete notes workflow" time="2.765" classname="should support complete notes workflow">
+    </testcase>
+    <testcase name="Notes Management E2E Tests should handle error states gracefully" time="1.925" classname="should handle error states gracefully">
+    </testcase>
+    <testcase name="Notes Management E2E Tests should support note organization" time="1.915" classname="should support note organization">
+    </testcase>
+    <testcase name="Notes Management E2E Tests should handle network errors gracefully" time="1.937" classname="should handle network errors gracefully">
+    </testcase>
+  </testsuite>
+</testsuites>
