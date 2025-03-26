@@ -3,6 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
+import { tokenService } from '@/lib/services/token-service';
+import { AuthContext } from '@/lib/auth/hooks';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -21,14 +24,15 @@ const protectedRoutes = [
 export function AuthProvider({ children }: AuthProviderProps) {
   const {
     isAuthenticated,
-    token,
-    fetchUser,
-    refreshAuthToken,
+    isLoading: storeLoading,
+    initializeFromStorage,
     logout,
-    setDirectAuthState
+    user,
+    error,
+    refreshAuthToken
   } = useAuthStore();
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,86 +44,84 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Flag to determine if we're on an auth page
   const isOnAuthPage = pathname.includes('/auth/');
 
-  // Skip loading indicator for auth-related pages
+  // Initialize auth state
   useEffect(() => {
-    if (isOnAuthPage) {
-      setIsLoading(false);
-    }
-  }, [isOnAuthPage]);
+    let mounted = true;
 
-  useEffect(() => {
-    // Skip token refresh if already set or on auth pages
-    const isAuthPage = pathname.includes('/auth/');
-
-    if (isAuthenticated && token && !isAuthPage) {
-      console.log('AuthProvider: Already authenticated with token, skipping setup');
-      setIsLoading(false);
-      return;
-    }
-
-    const checkAndSetTokens = async () => {
+    const initialize = async () => {
       try {
-        // Check localStorage first
-        const storedToken = localStorage.getItem('token');
+        // Skip initialization if already done
+        if (isInitialized) {
+          console.log('AuthProvider: Already initialized');
+          return;
+        }
 
-        if (storedToken) {
-          console.log('AuthProvider: Token found in localStorage, verifying...');
+        // Skip initialization on auth pages
+        if (isOnAuthPage) {
+          console.log('AuthProvider: Skipping initialization on auth page');
+          setIsInitialized(true);
+          return;
+        }
 
-          // Set token in state if not already set
-          if (!token) {
-            console.log('AuthProvider: Setting token in auth state from localStorage');
-            setDirectAuthState(storedToken, true);
+        console.log('AuthProvider: Starting initialization');
+        const token = tokenService.getToken();
+        console.log('AuthProvider: Token status:', token ? 'present' : 'absent');
+
+        if (token && !tokenService.isTokenExpired()) {
+          console.log('AuthProvider: Valid token found, initializing auth store');
+          await initializeFromStorage();
+        } else if (token) {
+          console.log('AuthProvider: Found expired token, attempting refresh');
+          const refreshed = await refreshAuthToken();
+          if (!refreshed) {
+            console.log('AuthProvider: Token refresh failed, clearing auth state');
+            tokenService.clearTokens();
+            logout();
           }
+        } else {
+          console.log('AuthProvider: No token found, starting fresh');
+          tokenService.clearTokens();
+        }
 
-          // Verify token by fetching user data
-          try {
-            console.log('AuthProvider: Verifying token by fetching user data');
-            await fetchUser();
-            console.log('AuthProvider: User data fetched successfully, token is valid');
-          } catch (error) {
-            console.error('AuthProvider: Token verification failed, attempting refresh', error);
-
-            // If token verification fails, try to refresh
-            try {
-              console.log('AuthProvider: Attempting token refresh');
-              const refreshed = await refreshAuthToken();
-
-              if (refreshed) {
-                console.log('AuthProvider: Token refresh successful');
-                await fetchUser();
-              } else {
-                console.warn('AuthProvider: Token refresh failed, clearing auth state');
-                logout();
-              }
-            } catch (refreshError) {
-              console.error('AuthProvider: Token refresh failed, clearing auth state', refreshError);
-              logout();
-            }
-          }
-        } else if (!isAuthPage) {
-          console.warn('AuthProvider: No token found in localStorage and not on auth page');
+        if (mounted) {
+          console.log('AuthProvider: Initialization complete');
+          setIsInitialized(true);
         }
       } catch (error) {
-        console.error('AuthProvider: Error during token setup:', error);
-      } finally {
-        setIsLoading(false);
+        console.error('AuthProvider: Error during initialization:', error);
+        if (mounted) {
+          tokenService.clearTokens();
+          setIsInitialized(true);
+        }
       }
     };
 
-    // Run token check
-    if (!isAuthPage) {
-      checkAndSetTokens();
-    } else {
-      setIsLoading(false);
-    }
-  }, [pathname, token, isAuthenticated, fetchUser, refreshAuthToken, logout, setDirectAuthState]);
+    initialize();
 
+    // Set up token change listener
+    const unsubscribe = tokenService.onTokenChange((token) => {
+      console.log('AuthProvider: Token changed:', token ? 'present' : 'absent');
+      if (!token && !isOnAuthPage) {
+        logout();
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [isInitialized, isOnAuthPage, initializeFromStorage, logout, refreshAuthToken]);
+
+  // Handle route protection
   useEffect(() => {
-    if (isLoading) return;
+    if (!isInitialized) {
+      console.log('AuthProvider: Waiting for initialization before handling routes');
+      return;
+    }
 
     // If login is being processed manually via form, don't interfere with redirects
     if (pathname?.includes('/auth/login?callbackUrl=')) {
-      console.log('Login with callback in progress, skipping automatic redirects');
+      console.log('AuthProvider: Login with callback in progress, skipping redirects');
       return;
     }
 
@@ -131,26 +133,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const isAuthRoute = authRoutes.some(route => pathname?.startsWith(route));
 
     if (isProtectedRoute && !isAuthenticated) {
-      console.log('Protected route detected, redirecting to login');
+      console.log('AuthProvider: Protected route detected, redirecting to login');
       router.push(`/auth/login?callbackUrl=${encodeURIComponent(pathname || '')}`);
     } else if (isAuthRoute && isAuthenticated && !pathname?.includes('?callbackUrl=')) {
-      console.log('Auth route with authenticated user, redirecting to:', targetUrl);
-
-      // Add a small delay to avoid race conditions with other redirects
-      setTimeout(() => {
-        router.push(targetUrl);
-      }, 100);
+      console.log('AuthProvider: Auth route with authenticated user, redirecting to:', targetUrl);
+      router.push(targetUrl);
     }
-  }, [isAuthenticated, pathname, router, isLoading, callbackUrl, authRoutes]);
+  }, [isAuthenticated, pathname, router, isInitialized, callbackUrl, authRoutes]);
 
   // Show loading state while initializing auth
-  if (isLoading) {
+  if (!isInitialized || storeLoading) {
+    console.log('AuthProvider: Showing loading screen', { isInitialized, storeLoading });
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div role="status" className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
+      <LoadingScreen
+        message="Initializing your session..."
+        submessage="Please wait while we set up your workspace"
+      />
     );
   }
 
-  return <>{children}</>;
+  return (
+    <AuthContext.Provider
+      value={{
+        isInitialized,
+        isLoading: storeLoading,
+        isAuthenticated,
+        error,
+        user
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }

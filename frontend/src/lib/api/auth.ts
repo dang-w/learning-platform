@@ -1,11 +1,10 @@
 import axios from 'axios';
 import { API_URL, BACKEND_API_URL } from '../config';
 
-/**
- * Clean token by removing Bearer prefix if present
- */
-function cleanToken(token: string): string {
-  return token.replace(/^Bearer\s+/i, '').trim();
+// Helper function to format token
+function formatToken(token: string): string {
+  if (!token) return '';
+  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
 }
 
 // Helper function to get auth headers for client-side requests
@@ -22,44 +21,62 @@ export function getAuthHeaders(): Record<string, string> {
 
   const token = localStorage.getItem('token');
 
-  // If token exists, include it in headers
-  if (token) {
-    // Check if token looks valid (basic validation)
-    if (token.length > 20) {
-      const cleanedToken = cleanToken(token);
+  // If token exists and is valid, include it in headers
+  if (token && token.length > 20) {
+    // Format token if needed
+    const formattedToken = formatToken(token);
 
-      // Update cookies to ensure consistency across the app
-      document.cookie = `token=${cleanedToken}; path=/; max-age=3600; SameSite=Lax`;
+    // Update localStorage with formatted token if needed
+    if (token !== formattedToken) {
+      localStorage.setItem('token', formattedToken);
+    }
+
+    return {
+      'Authorization': formattedToken,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  // If token is not in localStorage, check cookies as fallback
+  const cookies = document.cookie.split(';');
+  const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('token='));
+
+  if (tokenCookie) {
+    const cookieToken = decodeURIComponent(tokenCookie.split('=')[1]);
+    if (cookieToken && cookieToken.length > 20) {
+      // Format and store token
+      const formattedToken = formatToken(cookieToken);
+
+      // Sync to localStorage for future use
+      localStorage.setItem('token', formattedToken);
 
       return {
-        'Authorization': `Bearer ${cleanedToken}`,
+        'Authorization': formattedToken,
         'Content-Type': 'application/json'
       };
-    } else {
-      console.warn('Token found in localStorage but appears invalid');
-    }
-  } else {
-    // If token is not in localStorage, check cookies as fallback
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('token='));
-
-    if (tokenCookie) {
-      const cookieToken = tokenCookie.split('=')[1];
-      if (cookieToken && cookieToken.length > 20) {
-        const cleanedToken = cleanToken(cookieToken);
-
-        // Sync to localStorage for future use
-        localStorage.setItem('token', cleanedToken);
-
-        return {
-          'Authorization': `Bearer ${cleanedToken}`,
-          'Content-Type': 'application/json'
-        };
-      }
     }
   }
 
   return defaultHeaders;
+}
+
+// Helper function to clear auth state
+export function clearAuthState() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('token_expiry');
+  localStorage.removeItem('sessionId');
+  document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+}
+
+// Helper function to redirect to login
+export function redirectToLogin() {
+  if (typeof window !== 'undefined') {
+    const currentPath = window.location.pathname;
+    const redirectUrl = `/auth/login?redirect=${encodeURIComponent(currentPath)}`;
+    window.location.href = redirectUrl;
+  }
 }
 
 export interface LoginCredentials {
@@ -74,13 +91,18 @@ export interface RegisterData extends LoginCredentials {
 }
 
 export interface User {
-  id: string;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  createdAt: string;
+  user: {
+    id: number;
+    username: string;
+  };
+  token: string;
+  refresh_token: string;
+  emailNotifications: boolean;
+  courseUpdates: boolean;
+  marketingEmails: boolean;
+  totalCoursesEnrolled: number;
+  completedCourses: number;
+  averageScore: number;
 }
 
 export interface AuthResponse {
@@ -106,20 +128,43 @@ export interface NotificationPreferences {
   weeklyDigest: boolean;
 }
 
-// Synchronize token between localStorage and cookies
+// Synchronize token between localStorage and cookies with expiration
 function syncToken(token: string | null): void {
   if (token) {
-    const cleanedToken = cleanToken(token);
-    localStorage.setItem('token', cleanedToken);
+    // Ensure token has Bearer prefix
+    const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+    // Store in localStorage
+    localStorage.setItem('token', formattedToken);
+
+    // Set token expiration (1 hour from now)
+    const expiryTime = Date.now() + 3600000;
+    localStorage.setItem('token_expiry', expiryTime.toString());
+
+    // Store in cookies
     if (typeof document !== 'undefined') {
-      document.cookie = `token=${cleanedToken}; path=/; max-age=3600; SameSite=Lax`;
+      const expires = new Date(expiryTime);
+      document.cookie = `token=${encodeURIComponent(formattedToken)}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
     }
   } else {
-    localStorage.removeItem('token');
-    if (typeof document !== 'undefined') {
-      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    }
+    clearAuthState();
   }
+}
+
+export interface AuthAPI {
+  login: (credentials: LoginCredentials) => Promise<{token: string, refreshToken?: string}>;
+  register: (data: RegisterData) => Promise<void>;
+  logout: () => Promise<void>;
+  getCurrentUser: () => Promise<User>;
+  refreshAuthToken: () => Promise<boolean>;
+  updateSessionActivity: () => Promise<boolean>;
+  updateProfile: (data: Partial<User>) => Promise<User>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+  getUserStatistics: () => Promise<UserStatistics>;
+  getNotificationPreferences: () => Promise<NotificationPreferences>;
+  updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<NotificationPreferences>;
+  exportUserData: () => Promise<Blob>;
+  deleteAccount: () => Promise<void>;
 }
 
 const authApi = {
@@ -154,19 +199,16 @@ const authApi = {
         throw new Error('Invalid login response - no token received');
       }
 
-      // Store clean tokens
-      syncToken(token);
+      // Format and store token
+      const formattedToken = formatToken(token);
+      localStorage.setItem('token', formattedToken);
 
       if (refreshToken) {
         localStorage.setItem('refresh_token', refreshToken);
-        // Also set refresh token cookie
-        if (typeof document !== 'undefined') {
-          document.cookie = `refresh_token=${refreshToken}; path=/; max-age=86400; SameSite=Lax`;
-        }
       }
 
       return {
-        token: `Bearer ${token}`,
+        token: formattedToken,
         refreshToken
       };
     } catch (error) {
@@ -211,7 +253,7 @@ const authApi = {
       console.error('Error during logout API call:', error);
     } finally {
       // Always clear token state regardless of API response
-      syncToken(null);
+      clearAuthState();
     }
   },
 
@@ -225,8 +267,8 @@ const authApi = {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `Failed to get current user: ${response.status}`);
+      const error = await response.json().catch(() => ({ message: `Failed to get current user: ${response.status}` }));
+      throw new Error(error.message);
     }
 
     return response.json();
@@ -234,13 +276,15 @@ const authApi = {
 
   async refreshAuthToken(): Promise<boolean> {
     try {
+      const refreshToken = localStorage.getItem('refresh_token');
+
       const response = await fetch('/api/auth/token/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          refresh_token: localStorage.getItem('refresh_token'),
+          refresh_token: refreshToken,
         }),
         cache: 'no-store'
       });
@@ -260,12 +304,6 @@ const authApi = {
 
         if (data.refresh_token) {
           localStorage.setItem('refresh_token', data.refresh_token);
-        }
-
-        // Also set token in cookies for middleware
-        if (typeof document !== 'undefined') {
-          const tokenValue = token.replace(/^Bearer\s+/i, '');
-          document.cookie = `token=${tokenValue}; path=/; max-age=3600; SameSite=Lax`;
         }
 
         return true;

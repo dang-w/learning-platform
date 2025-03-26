@@ -13,8 +13,8 @@ import {
   ReviewStats,
   LearningPathProgress
 } from '@/components/dashboard';
-import { Spinner } from '@/components/ui/feedback';
 import ErrorDisplay from '@/components/ui/feedback/ErrorDisplay';
+import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
 
 const SyncTokens = () => {
   useEffect(() => {
@@ -23,18 +23,20 @@ const SyncTokens = () => {
 
     // Check if token exists in cookies
     const tokenCookie = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
-    const cookieToken = tokenCookie ? tokenCookie.split('=')[1] : null;
+    const cookieToken = tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : null;
 
     console.log('Token storage check:', {
       hasLocalStorage: !!localStorageToken,
       hasCookie: !!cookieToken,
-      match: localStorageToken === cookieToken
+      match: localStorageToken === cookieToken,
+      localStoragePrefix: localStorageToken ? localStorageToken.substring(0, 10) + '...' : 'none',
+      cookiePrefix: cookieToken ? cookieToken.substring(0, 10) + '...' : 'none'
     });
 
     // If token is in localStorage but not in cookie, add it to cookie
     if (localStorageToken && !cookieToken) {
       console.log('Token found in localStorage but not in cookie, fixing...');
-      document.cookie = `token=${localStorageToken}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `token=${encodeURIComponent(localStorageToken)}; path=/; max-age=86400; SameSite=Lax`;
     }
     // If token is in cookie but not in localStorage, add it to localStorage
     else if (!localStorageToken && cookieToken) {
@@ -44,7 +46,15 @@ const SyncTokens = () => {
     // If tokens don't match, prefer localStorage version
     else if (localStorageToken && cookieToken && localStorageToken !== cookieToken) {
       console.log('Token mismatch between localStorage and cookie, synchronizing...');
-      document.cookie = `token=${localStorageToken}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `token=${encodeURIComponent(localStorageToken)}; path=/; max-age=86400; SameSite=Lax`;
+    }
+
+    // Ensure token is properly formatted (has Bearer prefix)
+    if (localStorageToken && !localStorageToken.startsWith('Bearer ')) {
+      console.log('Adding Bearer prefix to token...');
+      const formattedToken = `Bearer ${localStorageToken}`;
+      localStorage.setItem('token', formattedToken);
+      document.cookie = `token=${encodeURIComponent(formattedToken)}; path=/; max-age=86400; SameSite=Lax`;
     }
   }, []);
 
@@ -180,12 +190,10 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Loading dashboard...</h2>
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-        </div>
-      </div>
+      <LoadingScreen
+        message="Loading your dashboard..."
+        submessage="Preparing your personalized learning experience"
+      />
     );
   }
 
@@ -202,47 +210,42 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" />
-        </div>
-      ) : (
-        <div>
-          {debugDisplay}
+      <div>
+        {debugDisplay}
+        {errorDisplay}
 
-          {errorDisplay}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Suspense fallback={<LoadingScreen />}>
             <ResourceStats />
+          </Suspense>
+          <Suspense fallback={<LoadingScreen />}>
             <StudyMetrics />
+          </Suspense>
+          <Suspense fallback={<LoadingScreen />}>
             <ReviewStats />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* Learning Progress Overview */}
-            <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
-              <LearningProgress />
-            </Suspense>
-
-            {/* Quick Actions */}
-            <div>
-              <QuickActions />
-            </div>
-
-            {/* Activity Feed (compact version) */}
-            <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
-              <ActivityFeed compact={true} />
-            </Suspense>
-          </div>
-
-            {/* Learning Path Progress */}
-            <div className="mb-8">
-              <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
-                <LearningPathProgress />
-              </Suspense>
-            </div>
+          </Suspense>
         </div>
-      )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Suspense fallback={<LoadingScreen />}>
+            <LearningProgress />
+          </Suspense>
+
+          <div>
+            <QuickActions />
+          </div>
+
+          <Suspense fallback={<LoadingScreen />}>
+            <ActivityFeed compact={true} />
+          </Suspense>
+        </div>
+
+        <div className="mb-8">
+          <Suspense fallback={<LoadingScreen />}>
+            <LearningPathProgress />
+          </Suspense>
+        </div>
+      </div>
     </div>
   );
 }
