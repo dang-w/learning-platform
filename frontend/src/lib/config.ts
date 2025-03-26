@@ -6,7 +6,7 @@
 export const API_PREFIX = '/api';
 
 // Backend API URL for server-to-server communication
-export const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
+export const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Full API URL for client-side requests (uses Next.js API routes)
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
@@ -16,9 +16,9 @@ export const SESSION_UPDATE_INTERVAL = 5;
 
 // Authentication token expiry times in seconds
 export const AUTH_TOKEN_EXPIRY = {
-  ACCESS_TOKEN: 60 * 60, // 1 hour
-  REFRESH_TOKEN: 60 * 60 * 24 * 7, // 7 days
-};
+  ACCESS_TOKEN: 3600, // 1 hour in seconds
+  REFRESH_TOKEN: 86400 // 24 hours in seconds
+} as const;
 
 // Learning path endpoints
 export const LEARNING_PATH_API = {

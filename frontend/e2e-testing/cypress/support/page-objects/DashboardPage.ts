@@ -20,6 +20,8 @@ export class DashboardPage extends BasePage {
     conceptsList: '[data-testid="concepts-list"]',
     conceptItem: '[data-testid="concept-item"]',
     learningPathList: '[data-testid="learning-path-list"]',
+    loadingScreen: '[data-testid="loading-screen"]',
+    userGreeting: '[data-testid="user-greeting"]',
 
     // Actions
     addResourceButton: '[data-testid="add-resource-button"]',
@@ -32,7 +34,20 @@ export class DashboardPage extends BasePage {
    * Navigate to the dashboard with resilient handling
    */
   visitDashboard(): Cypress.Chainable<void> {
+    cy.visit('/dashboard');
+    this.waitForLoadingToComplete();
     return this.visitProtected('/dashboard');
+  }
+
+  /**
+   * Waits for the loading screen to disappear
+   */
+  waitForLoadingToComplete(): this {
+    // First check if loading screen exists
+    cy.get(this.selectors.loadingScreen).should('exist');
+    // Then wait for it to disappear
+    cy.get(this.selectors.loadingScreen).should('not.exist');
+    return this;
   }
 
   /**
@@ -40,7 +55,20 @@ export class DashboardPage extends BasePage {
    * @returns Boolean indicating if dashboard appears to be loaded
    */
   isDashboardLoaded(): Cypress.Chainable<boolean> {
-    return this.elementExists(this.selectors.navBar);
+    return cy.get(this.selectors.userGreeting)
+      .should('be.visible')
+      .then(() => {
+        // Check for main dashboard sections
+        cy.get(this.selectors.navBar).should('exist');
+        cy.get('[data-testid="resource-stats"]').should('exist');
+        cy.get('[data-testid="study-metrics"]').should('exist');
+        cy.get('[data-testid="review-stats"]').should('exist');
+        return true;
+      })
+      .then(null, () => {
+        cy.log('Dashboard not fully loaded');
+        return false;
+      });
   }
 
   /**

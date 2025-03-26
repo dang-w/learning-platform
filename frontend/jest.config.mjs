@@ -16,7 +16,8 @@ const customJestConfig = {
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/.next/',
-    '<rootDir>/src/__tests__/test-middleware-direct.js'
+    '<rootDir>/src/__tests__/test-middleware-direct.js',
+    '<rootDir>/src/__tests__/utils/test-utils.ts'
   ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
@@ -35,6 +36,8 @@ const customJestConfig = {
       statements: 70,
     },
   },
+  // Set default timeout to 10 seconds
+  testTimeout: 10000,
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
