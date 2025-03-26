@@ -16,7 +16,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const { login, error, clearError } = useAuthStore();
+  const { login, error, clearError, isLoading: storeLoading } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -33,102 +33,145 @@ export default function LoginPage() {
 
   // Clear error when component mounts or when search params change
   useEffect(() => {
+    console.log('Login page mounted, clearing states');
     clearError();
     setLoginError(null);
+    setIsLoading(false);
 
     // Check if redirected from successful registration
     if (searchParams?.get('registered') === 'true') {
       setRegistrationSuccess(true);
     }
+
+    // Debug current auth state
+    const currentAuthState = useAuthStore.getState();
+    console.log('Current auth state:', {
+      isAuthenticated: currentAuthState.isAuthenticated,
+      hasToken: !!currentAuthState.token,
+      storeLoading: currentAuthState.isLoading
+    });
   }, [clearError, searchParams]);
 
+  // Monitor loading states and auth state changes
+  useEffect(() => {
+    const currentAuthState = useAuthStore.getState();
+    console.log('State update:', {
+      componentLoading: isLoading,
+      storeLoading,
+      error,
+      loginError,
+      isAuthenticated: currentAuthState.isAuthenticated,
+      hasToken: !!currentAuthState.token
+    });
+
+    // If we somehow got authenticated but didn't redirect
+    if (currentAuthState.isAuthenticated && currentAuthState.token) {
+      console.log('Detected authenticated state, redirecting to:', callbackUrl);
+      window.location.href = callbackUrl;
+    }
+  }, [isLoading, storeLoading, error, loginError, callbackUrl]);
+
   const onSubmit = async (data: LoginFormValues) => {
+    console.log('Login form submitted');
+
+    // Prevent multiple submissions
+    if (isLoading || storeLoading) {
+      console.log('Login already in progress, ignoring submission');
+      return;
+    }
+
+    // Reset all states
     setIsLoading(true);
     clearError();
     setLoginError(null);
 
     try {
-      console.log('Attempting login for user:', data.username);
+      console.log('Starting login process for user:', data.username);
 
-      // First try clearing any existing auth data
+      // Clear any existing auth data
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('sessionId');
-
-        // Also clear cookies
-        document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        console.log('Clearing existing auth data');
+        localStorage.clear(); // Clear all localStorage to ensure clean state
       }
 
+      console.log('Calling login function');
       await login(data.username, data.password);
+      console.log('Login function completed successfully');
 
-      // Double-check token was stored
-      const token = localStorage.getItem('token');
-      const refreshToken = localStorage.getItem('refresh_token');
-      const sessionId = localStorage.getItem('sessionId');
-
-      // Check if token is in cookies
-      const tokenCookie = document.cookie.split(';').find(c => c.trim().startsWith('token='));
-      const refreshTokenCookie = document.cookie.split(';').find(c => c.trim().startsWith('refresh_token='));
-
-      console.log('Auth after login:', {
-        hasToken: !!token,
-        hasRefreshToken: !!refreshToken,
-        hasSessionId: !!sessionId,
-        hasCookie: !!tokenCookie,
-        hasRefreshCookie: !!refreshTokenCookie,
-        token: token ? `${token.substring(0, 6)}...` : null
-      });
-
-      if (!token) {
-        console.error('Login appeared successful but no token was stored');
-        throw new Error('Login failed - authentication token not received');
-      }
-
-      // Set token in document.cookie for middleware if it's not there
-      if (!tokenCookie) {
-        console.log('Token not found in cookies, setting it now');
-        document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
-      }
-
-      // Set refresh token in document.cookie for middleware if it's not there
-      if (refreshToken && !refreshTokenCookie) {
-        console.log('Refresh token not found in cookies, setting it now');
-        document.cookie = `refresh_token=${refreshToken}; path=/; max-age=86400; SameSite=Lax`;
-      }
-
-      // Check authentication state in the store
+      // Verify auth state after login
       const authState = useAuthStore.getState();
       console.log('Auth state after login:', {
         isAuthenticated: authState.isAuthenticated,
         hasToken: !!authState.token,
-        hasRefreshToken: !!authState.refreshToken,
-        hasUser: !!authState.user
+        hasUser: !!authState.user,
+        isLoading: authState.isLoading
       });
 
-      // Add a longer delay to ensure token and auth state are properly set before redirect
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Check localStorage state
+      const token = localStorage.getItem('token');
+      const tokenExpiry = localStorage.getItem('token_expiry');
+      console.log('localStorage after login:', {
+        hasToken: !!token,
+        hasTokenExpiry: !!tokenExpiry,
+        token: token ? `${token.substring(0, 6)}...` : null
+      });
 
+      if (!token || !tokenExpiry) {
+        throw new Error('Login failed - authentication token not stored');
+      }
+
+      if (!authState.isAuthenticated || !authState.token) {
+        throw new Error('Login failed - authentication state not updated');
+      }
+
+      // If we get here, login was successful
       console.log('Login successful, redirecting to:', callbackUrl);
-
-      // Force a hard redirect instead of using router to ensure fresh state
       window.location.href = callbackUrl;
     } catch (error) {
       console.error('Login error:', error);
-
-      // Create an error message based on the error type
       const errorMessage = error instanceof Error
         ? error.message
         : 'Failed to login. Please check your credentials and try again.';
 
-      // Use the proper error handling method
-      clearError(); // Clear any existing errors first and set our local error state
+      // Log final state for debugging
+      const finalAuthState = useAuthStore.getState();
+      console.log('Final auth state after error:', {
+        isAuthenticated: finalAuthState.isAuthenticated,
+        hasToken: !!finalAuthState.token,
+        isLoading: finalAuthState.isLoading,
+        error: errorMessage
+      });
+
+      clearError();
       setLoginError(errorMessage);
-    } finally {
       setIsLoading(false);
     }
   };
+
+  // Show loading state with more debug info
+  if (isLoading || storeLoading) {
+    console.log('Rendering loading state, current states:', {
+      componentLoading: isLoading,
+      storeLoading,
+      error,
+      loginError
+    });
+    return (
+      <div className="sm:mx-auto sm:w-full sm:max-w-md mt-8">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          </div>
+          <p className="text-center mt-4 text-gray-600">Signing in...</p>
+          {(error || loginError) && (
+            <p className="text-center mt-2 text-sm text-red-600">
+              {loginError || error}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sm:mx-auto sm:w-full sm:max-w-md mt-8">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_URL } from '@/config';
-import { getServerAuthToken, logAuthSources } from '@/lib/utils/api';
+import { getAuthToken } from '@/lib/auth/utils';
 
 /**
  * Get resource statistics from the backend API
@@ -10,10 +10,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get authentication token using standardized utility
-    const authToken = getServerAuthToken(request);
-
-    // Log token debug information
-    logAuthSources(request);
+    const authToken = getAuthToken(request);
 
     if (!authToken) {
       console.log('No token found, returning 401');

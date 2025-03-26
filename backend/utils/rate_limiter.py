@@ -26,7 +26,7 @@ IS_DEVELOPMENT = ENVIRONMENT.lower() == "development"
 # Rate limit settings
 RATE_LIMIT_SETTINGS = {
     "auth": {
-        "requests": 5,      # 5 requests
+        "requests": 20,     # 20 requests
         "window": 300       # per 5 minutes (300 seconds)
     },
     "user_creation": {

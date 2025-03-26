@@ -63,9 +63,9 @@ async def test_auth_rate_limit():
             # Force set the rate limit to 1 below the limit to ensure the next request triggers it
             client_identifier = "test-client:test-user-agent"
             key = f"rate_limit:auth:{client_identifier}"
-            # Set to value of 6 which should exceed limit of 5
-            redis_client.setex(key, 3600, 6)
-            logger.info(f"Set rate limit key {key} to 6")
+            # Set to value of 21 which should exceed limit of 20
+            redis_client.setex(key, 3600, 21)
+            logger.info(f"Set rate limit key {key} to 21")
 
             # This request should hit the rate limit
             response = await client.post(

@@ -3,6 +3,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -25,11 +26,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
   // Show loading state while checking authentication
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div role="status" className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
+    return <LoadingScreen message="Verifying your access..." />;
   }
 
   // If authenticated, render children

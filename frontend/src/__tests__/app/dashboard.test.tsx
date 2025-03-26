@@ -43,17 +43,14 @@ jest.mock('@/components/dashboard', () => ({
   LearningPathProgress: () => <div data-testid="learning-path-progress">Learning Path Progress</div>,
 }));
 
-// Mock Suspense and Spinner
-jest.mock('react', () => {
-  const originalReact = jest.requireActual('react');
-  return {
-    ...originalReact,
-    Suspense: ({ children }: { children: React.ReactNode }) => children,
-  };
-});
-
-jest.mock('@/components/ui/feedback', () => ({
-  Spinner: () => <div data-testid="spinner">Loading...</div>,
+// Mock LoadingScreen component
+jest.mock('@/components/ui/feedback/loading-screen', () => ({
+  LoadingScreen: ({ message, submessage }: { message?: string; submessage?: string }) => (
+    <div data-testid="loading-screen">
+      {message && <h2>{message}</h2>}
+      {submessage && <p>{submessage}</p>}
+    </div>
+  ),
 }));
 
 describe('DashboardPage', () => {
@@ -62,50 +59,46 @@ describe('DashboardPage', () => {
 
     // Mock auth store with a user
     ((useAuthStore as unknown) as jest.Mock).mockReturnValue({
-      user: { id: '1', name: 'Test User' },
+      user: { id: '1', username: 'Test User' },
+      isAuthenticated: true,
     });
 
-    // Mock successful query responses
-    (useQuery as jest.Mock).mockImplementation(({ queryKey }) => {
-      if (queryKey[0] === 'resources') {
-        return { isSuccess: true, data: {} };
-      } else if (queryKey[0] === 'metrics') {
-        return { isSuccess: true, data: {} };
-      } else if (queryKey[0] === 'reviews') {
-        return { isSuccess: true, data: {} };
-      } else if (queryKey[0] === 'learning-path') {
-        return { isSuccess: true, data: {} };
-      }
-      return { isSuccess: false };
-    });
+    // Default to loading state for all queries
+    (useQuery as jest.Mock).mockImplementation(() => ({
+      isSuccess: false,
+      isLoading: true,
+      data: null,
+    }));
   });
 
-  it('shows loading state initially', () => {
-    // Override one query to be loading
-    (useQuery as jest.Mock).mockImplementationOnce(({ queryKey }) => {
-      if (queryKey[0] === 'resources') {
-        return { isSuccess: false, isLoading: true };
-      }
-      return { isSuccess: true, data: {} };
-    });
-
+  it('shows loading screen initially', () => {
     render(<DashboardPage />);
 
-    // Check if loading state is shown
-    expect(screen.getByText(/Loading dashboard/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Loading dashboard/i })).toBeInTheDocument();
+    // Check if loading screen is shown with correct message
+    const loadingScreen = screen.getByTestId('loading-screen');
+    expect(loadingScreen).toBeInTheDocument();
+    expect(screen.getByText('Loading your dashboard...')).toBeInTheDocument();
+    expect(screen.getByText('Preparing your personalized learning experience')).toBeInTheDocument();
   });
 
   it('renders dashboard components when data is loaded', async () => {
+    // Mock successful responses for all queries
+    (useQuery as jest.Mock).mockImplementation(() => ({
+      isSuccess: true,
+      isLoading: false,
+      data: {},
+    }));
+
     render(<DashboardPage />);
 
-    // Wait for loading to complete
+    // Wait for loading screen to disappear
     await waitFor(() => {
-      expect(screen.queryByText(/Loading dashboard/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('loading-screen')).not.toBeInTheDocument();
     });
 
-    // Check if dashboard title is rendered
-    expect(screen.getByRole('heading', { name: /Dashboard/i })).toBeInTheDocument();
+    // Check if user greeting is rendered
+    expect(screen.getByTestId('user-greeting')).toBeInTheDocument();
+    expect(screen.getByText('Welcome, Test User!')).toBeInTheDocument();
 
     // Check if all dashboard components are rendered
     expect(screen.getByTestId('learning-progress')).toBeInTheDocument();
@@ -144,5 +137,40 @@ describe('DashboardPage', () => {
       queryFn: expect.any(Function),
       enabled: true,
     });
+  });
+
+  it('transitions from loading to loaded state', async () => {
+    // Start with loading state
+    (useQuery as jest.Mock).mockImplementation(() => ({
+      isSuccess: false,
+      isLoading: true,
+      data: null,
+    }));
+
+    const { rerender } = render(<DashboardPage />);
+
+    // Verify loading state
+    expect(screen.getByTestId('loading-screen')).toBeInTheDocument();
+    expect(screen.queryByTestId('user-greeting')).not.toBeInTheDocument();
+
+    // Update to loaded state
+    (useQuery as jest.Mock).mockImplementation(() => ({
+      isSuccess: true,
+      isLoading: false,
+      data: {},
+    }));
+
+    rerender(<DashboardPage />);
+
+    // Wait for loading screen to disappear
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-screen')).not.toBeInTheDocument();
+    });
+
+    // Verify loaded state
+    expect(screen.getByTestId('user-greeting')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-stats')).toBeInTheDocument();
+    expect(screen.getByTestId('study-metrics')).toBeInTheDocument();
+    expect(screen.getByTestId('review-stats')).toBeInTheDocument();
   });
 });

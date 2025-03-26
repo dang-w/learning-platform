@@ -10,8 +10,7 @@ from datetime import datetime, timedelta
 import logging
 from dotenv import load_dotenv
 from pymongo.errors import DuplicateKeyError
-import jwt
-from jwt.exceptions import PyJWTError
+from jose import jwt, JWTError
 import asyncio
 import time
 import traceback

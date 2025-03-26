@@ -42,7 +42,6 @@ interface CustomMatchers<R = unknown> {
   toThrowError(error?: unknown): R;
 }
 
-
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace jest {
@@ -144,5 +143,129 @@ Object.defineProperty(document, 'cookie', {
   writable: true,
   value: ''
 });
+
+// Mock Response if not available
+if (typeof Response === 'undefined') {
+  global.Response = class Response {
+    private body: string;
+    public status: number;
+    public ok: boolean;
+    private headers: Map<string, string>;
+
+    constructor(body?: BodyInit | null, init: ResponseInit = {}) {
+      this.body = body?.toString() || '';
+      this.status = init.status || 200;
+      this.ok = this.status >= 200 && this.status < 300;
+      this.headers = new Map(Object.entries(init.headers || {}));
+    }
+
+    async json() {
+      return JSON.parse(this.body);
+    }
+
+    async text() {
+      return this.body;
+    }
+
+    clone() {
+      return new Response(this.body, {
+        status: this.status,
+        headers: Object.fromEntries(this.headers)
+      });
+    }
+  } as unknown as typeof Response;
+}
+
+// Mock Headers if not available
+if (typeof Headers === 'undefined') {
+  global.Headers = class Headers {
+    private map: Map<string, string>;
+
+    constructor(init?: Record<string, string> | Headers | string[][] | undefined) {
+      this.map = new Map();
+      if (init) {
+        if (init instanceof Headers) {
+          Array.from(init.entries()).forEach(([key, value]) => this.map.set(key.toLowerCase(), value));
+        } else if (Array.isArray(init)) {
+          init.forEach(([key, value]) => this.map.set(key.toLowerCase(), value));
+        } else {
+          Object.entries(init).forEach(([key, value]) => this.map.set(key.toLowerCase(), value));
+        }
+      }
+    }
+
+    append(name: string, value: string): void {
+      this.map.set(name.toLowerCase(), value);
+    }
+
+    delete(name: string): void {
+      this.map.delete(name.toLowerCase());
+    }
+
+    get(name: string): string | null {
+      return this.map.get(name.toLowerCase()) || null;
+    }
+
+    has(name: string): boolean {
+      return this.map.has(name.toLowerCase());
+    }
+
+    set(name: string, value: string): void {
+      this.map.set(name.toLowerCase(), value);
+    }
+
+    forEach(callback: (value: string, key: string) => void): void {
+      this.map.forEach((value, key) => callback(value, key));
+    }
+
+    *entries(): IterableIterator<[string, string]> {
+      yield* this.map.entries();
+    }
+
+    *keys(): IterableIterator<string> {
+      yield* this.map.keys();
+    }
+
+    *values(): IterableIterator<string> {
+      yield* this.map.values();
+    }
+  } as unknown as typeof Headers;
+}
+
+// Mock Request if not available
+if (typeof Request === 'undefined') {
+  global.Request = class Request {
+    public url: string;
+    public method: string;
+    public headers: Headers;
+    public body: BodyInit | null;
+    public credentials: RequestCredentials;
+
+    constructor(input: string | URL | Request, init: RequestInit = {}) {
+      if (input instanceof Request) {
+        this.url = input.url;
+        this.method = input.method;
+        this.headers = new Headers(input.headers);
+        this.body = input.body;
+        this.credentials = input.credentials;
+      } else {
+        this.url = input.toString();
+        this.method = init.method || 'GET';
+        this.headers = new Headers(init.headers);
+        this.body = init.body || null;
+        this.credentials = init.credentials || 'same-origin';
+      }
+    }
+
+    clone(): Request {
+      return new Request(this.url, {
+        method: this.method,
+        headers: this.headers,
+        body: this.body,
+        credentials: this.credentials
+      });
+    }
+  } as unknown as typeof Request;
+}
 
 // Add any additional global mocks or setup required for tests

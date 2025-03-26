@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import authApi, { User, UserStatistics, NotificationPreferences } from '../api/auth';
+import { redirectToLogin } from '../api/auth';
+import { tokenService } from '../services/token-service';
 
 export interface AuthState {
   user: User | null;
-  token: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -35,36 +35,15 @@ export interface AuthState {
   initializeFromStorage: () => void;
   setStatistics: (stats: UserStatistics) => void;
   setNotificationPreferences: (prefs: NotificationPreferences) => void;
+  refreshToken: string | null;
 }
-
-const getStoredTokens = () => {
-  if (typeof window === 'undefined') return { token: null, refreshToken: null };
-
-  // Try localStorage first
-  let token = localStorage.getItem('token');
-  let refreshToken = localStorage.getItem('refresh_token');
-
-  // If not in localStorage, try cookies
-  if (!token || !refreshToken) {
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(c => c.trim().startsWith('token='));
-    const refreshTokenCookie = cookies.find(c => c.trim().startsWith('refresh_token='));
-
-    if (tokenCookie) token = tokenCookie.split('=')[1];
-    if (refreshTokenCookie) refreshToken = refreshTokenCookie.split('=')[1];
-  }
-
-  return { token, refreshToken };
-};
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
-      refreshToken: null,
       isAuthenticated: false,
-      isLoading: true,
+      isLoading: false,
       error: null,
       statistics: null,
       notificationPreferences: null,
@@ -73,6 +52,7 @@ export const useAuthStore = create<AuthState>()(
       _lastRefreshAttemptTimestamp: null,
       _refreshAttempts: 0,
       _lastRefreshTimestamp: null,
+      refreshToken: null,
 
       setStatistics: (stats: UserStatistics) => {
         set({ statistics: stats });
@@ -82,87 +62,267 @@ export const useAuthStore = create<AuthState>()(
         set({ notificationPreferences: prefs });
       },
 
-      initializeFromStorage: () => {
-        const { token, refreshToken } = getStoredTokens();
-        if (token && refreshToken) {
-          set({
-            isAuthenticated: true,
-            token,
-            refreshToken,
-            isLoading: false
-          });
+      initializeFromStorage: async () => {
+        console.log('Auth store: Initializing from storage');
+        const token = tokenService.getToken();
+        const refreshToken = tokenService.getRefreshToken();
 
-          // Verify token validity
-          authApi.getCurrentUser()
-            .then(user => set({ user }))
-            .catch(async () => {
-              // If current user fetch fails, try to refresh token
-              const refreshed = await get().refreshAuthToken();
-              if (!refreshed) {
-                // If refresh fails, reset auth state
-                set({
-                  isAuthenticated: false,
-                  token: null,
-                  refreshToken: null,
-                  user: null,
-                  error: null,
-                  statistics: null,
-                  notificationPreferences: null
-                });
-              }
+        if (!token || !refreshToken) {
+          console.log('Auth store: No tokens found during initialization');
+          tokenService.clearTokens();
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: null,
+            statistics: null,
+            notificationPreferences: null,
+            isLoading: false,
+            _lastTokenRefresh: 0,
+            _refreshAttempts: 0,
+            _lastRefreshTimestamp: null
+          });
+          return;
+        }
+
+        if (tokenService.isTokenExpired()) {
+          console.log('Auth store: Token expired during initialization');
+          const refreshed = await get().refreshAuthToken();
+          if (!refreshed) {
+            tokenService.clearTokens();
+            set({
+              isAuthenticated: false,
+              user: null,
+              error: 'Token expired and refresh failed',
+              statistics: null,
+              notificationPreferences: null,
+              isLoading: false,
+              _lastTokenRefresh: 0,
+              _refreshAttempts: 0,
+              _lastRefreshTimestamp: null
             });
-        } else {
-          set({ isLoading: false });
+            return;
+          }
+        }
+
+        console.log('Auth store: Found valid tokens during initialization');
+        set({
+          isAuthenticated: true,
+          isLoading: true,
+          error: null
+        });
+
+        try {
+          const user = await authApi.getCurrentUser();
+          console.log('Auth store: Successfully fetched user data during initialization');
+          set({
+            user,
+            isLoading: false,
+            _lastTokenRefresh: Date.now(),
+            _refreshAttempts: 0,
+            _lastRefreshTimestamp: Date.now()
+          });
+        } catch (error: unknown) {
+          console.error('Auth store: Error fetching user during initialization:', error);
+          if (error instanceof Error && (error.message?.includes('401') || error.message?.includes('Unauthorized'))) {
+            console.log('Auth store: Unauthorized during initialization, attempting token refresh');
+            const refreshed = await get().refreshAuthToken();
+            if (!refreshed) {
+              console.log('Auth store: Token refresh failed, clearing auth state');
+              tokenService.clearTokens();
+              set({
+                isAuthenticated: false,
+                user: null,
+                error: 'Failed to refresh token during initialization',
+                statistics: null,
+                notificationPreferences: null,
+                isLoading: false,
+                _lastTokenRefresh: 0,
+                _refreshAttempts: 0,
+                _lastRefreshTimestamp: null
+              });
+            }
+          } else {
+            set({
+              error: error instanceof Error ? error.message : 'Failed to fetch user during initialization',
+              isLoading: false
+            });
+          }
         }
       },
 
       setDirectAuthState: (token: string, isAuth: boolean) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', token);
-        }
+        tokenService.setTokens(token);
         set({
-          token,
           isAuthenticated: isAuth
         });
       },
 
       login: async (username: string, password: string) => {
+        console.log('Auth store: Starting login process');
         set({ isLoading: true, error: null });
+
         try {
+          // Clear any existing auth state first
+          console.log('Auth store: Clearing existing auth state');
+          tokenService.clearTokens();
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: null
+          });
+
+          console.log('Auth store: Calling login API');
           const { token, refreshToken } = await authApi.login({ username, password });
 
           if (!token) {
+            console.error('Auth store: No token received from login');
             throw new Error('No token received from login');
           }
 
-          // Store tokens in localStorage and cookies
-          localStorage.setItem('token', token.replace(/^Bearer\s+/i, ''));
-          if (refreshToken) {
-            localStorage.setItem('refresh_token', refreshToken);
-          }
+          console.log('Auth store: Token received and formatted');
+          tokenService.setTokens(token, refreshToken);
 
-          // Get user details
-          const user = await authApi.getCurrentUser();
-
+          console.log('Auth store: Updating store state');
           set({
             isAuthenticated: true,
-            token: token.replace(/^Bearer\s+/i, ''),
-            refreshToken,
-            user,
             error: null
           });
+
+          try {
+            console.log('Auth store: Fetching user details');
+            const user = await authApi.getCurrentUser();
+            console.log('Auth store: User details fetched successfully');
+            set({ user });
+
+            // Initialize user data after successful login
+            console.log('Auth store: Initializing user data');
+            await Promise.all([
+              get().fetchStatistics(),
+              get().getNotificationPreferences()
+            ]).catch(error => {
+              console.error('Auth store: Error initializing user data:', error);
+              // Don't fail the login if these fail
+            });
+
+            console.log('Auth store: Login process complete');
+            set({ isLoading: false });
+          } catch (error: unknown) {
+            console.error('Auth store: Error fetching user after login:', error);
+            // Don't fail the login if user fetch fails
+            set({ isLoading: false });
+          }
         } catch (error: unknown) {
-          console.error('Login error:', error);
+          console.error('Auth store: Login error:', error);
+          // Clear any partial auth state
+          tokenService.clearTokens();
           set({
             isAuthenticated: false,
-            token: null,
-            refreshToken: null,
             user: null,
-            error: error instanceof Error ? error.message : 'Failed to login'
+            error: error instanceof Error ? error.message : 'Failed to login',
+            isLoading: false
           });
           throw error;
+        }
+      },
+
+      logout: async () => {
+        set({ isLoading: true });
+        try {
+          // Only call logout API if authenticated
+          if (get().isAuthenticated) {
+            await authApi.logout();
+          }
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: null,
+            isLoading: false,
+            statistics: null,
+            notificationPreferences: null
+          });
+        } catch (error) {
+          console.error('Logout error:', error);
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: error instanceof Error ? error.message : 'Failed to logout',
+            isLoading: false,
+            statistics: null,
+            notificationPreferences: null
+          });
         } finally {
-          set({ isLoading: false });
+          tokenService.clearTokens();
+          redirectToLogin();
+        }
+      },
+
+      refreshAuthToken: async () => {
+        const refreshToken = tokenService.getRefreshToken();
+
+        // Check if token is expired first
+        if (!tokenService.isTokenExpired()) {
+          console.log('Auth store: Token not expired, skipping refresh');
+          return true;
+        }
+
+        if (!refreshToken) {
+          console.error('No refresh token available');
+          tokenService.clearTokens();
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: 'No refresh token available'
+          });
+          return false;
+        }
+
+        try {
+          console.log('Auth store: Starting token refresh');
+          const success = await authApi.refreshAuthToken();
+
+          if (!success) {
+            console.error('Auth store: Token refresh failed');
+            tokenService.clearTokens();
+            set({
+              isAuthenticated: false,
+              user: null,
+              error: 'Token refresh failed'
+            });
+            return false;
+          }
+
+          // Update state with new token
+          set({
+            isAuthenticated: true,
+            error: null,
+            _lastTokenRefresh: Date.now(),
+            _refreshAttempts: 0,
+            _lastRefreshTimestamp: Date.now()
+          });
+
+          try {
+            const user = await authApi.getCurrentUser();
+            set({ user });
+            console.log('Auth store: Token refresh successful');
+            return true;
+          } catch (error) {
+            console.error('Auth store: Error fetching user after refresh:', error);
+            // Don't clear tokens on user fetch failure
+            // This allows retrying the user fetch later
+            set({
+              error: 'Failed to fetch user after token refresh'
+            });
+            return true;
+          }
+        } catch (error) {
+          console.error('Auth store: Token refresh failed:', error);
+          tokenService.clearTokens();
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: error instanceof Error ? error.message : 'Token refresh failed'
+          });
+          return false;
         }
       },
 
@@ -214,99 +374,23 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: async () => {
-        set({ isLoading: true });
-        try {
-          await authApi.logout();
-        } catch (error) {
-          console.error('Logout error:', error);
-        } finally {
-          // Clear all auth state
-          localStorage.removeItem('token');
-          localStorage.removeItem('refresh_token');
-          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
-          set({
-            isAuthenticated: false,
-            token: null,
-            refreshToken: null,
-            user: null,
-            error: null,
-            isLoading: false,
-            statistics: null,
-            notificationPreferences: null
-          });
-        }
-      },
-
       fetchUser: async () => {
+        set({ isLoading: true, error: null });
         try {
-          set({ isLoading: true });
+          const user = await authApi.getCurrentUser();
+          set({ user, isLoading: false });
+        } catch (error: unknown) {
+          console.error('Error fetching user:', error);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to fetch user',
+            isLoading: false
+          });
 
           // Check if we already have a token in localStorage but not in state
-          const localStorageToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-          if (localStorageToken && !get().token) {
-            set({ token: localStorageToken });
+          const token = tokenService.getToken();
+          if (token && !get().isAuthenticated) {
+            set({ isAuthenticated: true });
           }
-
-          const user = await authApi.getCurrentUser();
-
-          if (!user) {
-            throw new Error('Failed to fetch user data - empty response');
-          }
-
-          set({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-        } catch (error) {
-          console.error('Failed to fetch user:', error);
-          set({
-            isLoading: false,
-            error: 'Failed to fetch user',
-          });
-
-          // Don't clear authentication state on fetch errors during test
-          const isTestEnvironment = typeof window !== 'undefined' && window.location.href.includes('localhost:300');
-          if (!isTestEnvironment) {
-            set({
-              isAuthenticated: false,
-              user: null,
-            });
-          }
-
-          throw error;
-        }
-      },
-
-      refreshAuthToken: async () => {
-        const state = get();
-        const refreshToken = state.refreshToken || localStorage.getItem('refresh_token');
-
-        if (!refreshToken) {
-          console.error('No refresh token available');
-          return false;
-        }
-
-        try {
-          const success = await authApi.refreshAuthToken();
-          if (success) {
-            // Update stored tokens
-            const { token, refreshToken } = getStoredTokens();
-            set({
-              isAuthenticated: true,
-              token,
-              refreshToken,
-              error: null
-            });
-            return true;
-          }
-          return false;
-        } catch (error) {
-          console.error('Token refresh failed:', error);
-          return false;
         }
       },
 
@@ -352,8 +436,6 @@ export const useAuthStore = create<AuthState>()(
       reset: () => {
         set({
           user: null,
-          token: null,
-          refreshToken: null,
           isAuthenticated: false,
           isLoading: false,
           error: null,
@@ -368,10 +450,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setRefreshToken: (refreshToken: string) => {
-        set({ refreshToken });
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('refresh_token', refreshToken);
-        }
+        tokenService.setTokens(tokenService.getToken() ?? '', refreshToken);
       },
 
       fetchStatistics: async () => {
@@ -467,7 +546,6 @@ export const useAuthStore = create<AuthState>()(
           await authApi.deleteAccount();
           set({
             user: null,
-            token: null,
             isAuthenticated: false,
             isLoading: false,
             statistics: null,
@@ -485,8 +563,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        token: state.token,
-        refreshToken: state.refreshToken,
+        user: state.user,
         isAuthenticated: state.isAuthenticated
       })
     }

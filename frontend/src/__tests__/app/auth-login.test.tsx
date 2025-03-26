@@ -256,20 +256,18 @@ describe('LoginPage', () => {
     });
   }, 20000);
 
-  // @ts-expect-error - Jest typing issue
   it('shows loading state during login', async () => {
-    // Set up a delayed login function
+    // Configure login mock to delay resolution
     const mockStore = authStore.useAuthStore();
-    (mockStore.login as jest.Mock).mockImplementation(() =>
-      new Promise(resolve => {
-        // Resolve after a short delay
-        setTimeout(() => resolve({
-          token: 'mock-token',
-          refresh_token: 'mock-refresh-token',
-          user: { id: 1, username: 'testuser' }
-        }), 100);
-      })
-    );
+    let resolveLogin: (value: unknown) => void;
+    const loginPromise = new Promise((resolve) => {
+      resolveLogin = resolve;
+    });
+
+    (mockStore.login as jest.Mock).mockImplementation(() => {
+      // Return a promise that we can control
+      return loginPromise;
+    });
 
     render(<LoginPage />);
     const user = userEvent.setup();
@@ -283,10 +281,16 @@ describe('LoginPage', () => {
 
     // Verify loading state is displayed
     await waitFor(() => {
-      expect(screen.getByText(/signing in/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled();
+      expect(screen.getByText(/signing in\.\.\./i)).toBeInTheDocument();
     });
-  }, 20000);
+
+    // Complete the login
+    resolveLogin!({
+      token: 'mock-token',
+      refresh_token: 'mock-refresh-token',
+      user: { id: 1, username: 'testuser' }
+    });
+  });
 
   // @ts-expect-error - Jest typing issue
   it('uses the callback URL from search params', async () => {

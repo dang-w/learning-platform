@@ -1,12 +1,13 @@
-/**
- * Type for fetch options
- */
-interface FetchOptions extends RequestInit {
-  headers: Record<string, string>;
-}
+import { tokenService } from '../services/token-service';
 
 // Debug toggle for auth operations
 const AUTH_DEBUG = true;
+
+interface RequestWithCookies extends Request {
+  cookies?: {
+    'auth-token'?: string;
+  };
+}
 
 /**
  * Log authentication operations when debug is enabled
@@ -18,185 +19,105 @@ export const logAuthOperation = (operation: string, details: Record<string, unkn
 };
 
 /**
- * Get the auth token from localStorage or cookies
+ * Format token to ensure Bearer prefix
+ */
+const formatToken = (token: string): string => {
+  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+};
+
+/**
+ * Get the auth token from the TokenService
  */
 export const getToken = (): string | null => {
-  try {
-    // Check localStorage first
-    let token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-    // Log the token source for debugging
-    if (token) {
-      logAuthOperation('getToken', { source: 'localStorage', tokenPrefix: token.substring(0, 10) + '...' });
-      return token;
-    }
-
-    // If not in localStorage, try to get from cookies
-    if (typeof document !== 'undefined') {
-      const cookies = document.cookie.split(';');
-      const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('token='));
-      if (tokenCookie) {
-        token = tokenCookie.split('=')[1];
-        logAuthOperation('getToken', { source: 'cookie', tokenPrefix: token.substring(0, 10) + '...' });
-
-        // Sync back to localStorage
-        if (token && typeof window !== 'undefined') {
-          localStorage.setItem('token', token);
-          logAuthOperation('tokenSync', { direction: 'cookie->localStorage' });
-        }
-
-        return token;
-      }
-    }
-
-    // No token found in either storage location
-    logAuthOperation('getToken', { status: 'failed', message: 'No token found in localStorage or cookies' });
-
-    // At this point, we don't have a token in either localStorage or cookies
-    return null;
-  } catch (error) {
-    console.error('Error retrieving auth token:', error);
-    return null;
-  }
+  return tokenService.getToken();
 };
 
 /**
  * Get the auth token from request headers or cookies (for server-side API routes)
- * @param request NextRequest object from API route
- * @returns Authorization header value or null if not found
  */
-export const getServerAuthToken = (request: Request): string | null => {
+export const getServerAuthToken = (request: RequestWithCookies): string | null => {
   // Try all possible token sources for maximum reliability
   let token: string | null = null;
 
-  // Check Authorization header first (already formatted properly)
+  // Check Authorization header first
   const authHeader = request.headers.get('Authorization');
   if (authHeader) {
-    // Ensure it has Bearer prefix
-    if (authHeader.startsWith('Bearer ')) {
-      console.log('Server auth token found in Authorization header (with Bearer)');
-      return authHeader;
-    } else {
-      // Format as Bearer token if it doesn't have the prefix
-      console.log('Server auth token found in Authorization header (without Bearer)');
-      return `Bearer ${authHeader}`;
-    }
+    // Return the raw token without Bearer prefix
+    token = authHeader.replace(/^Bearer\s+/i, '');
+    logAuthOperation('getServerAuthToken', { source: 'header', hasBearer: authHeader.startsWith('Bearer ') });
+    return token;
   }
 
   // Check cookies next
-  const cookie = request.headers.get('cookie');
-  if (cookie) {
-    const cookies = cookie.split(';');
-    const tokenCookie = cookies.find(c => c.trim().startsWith('token='));
-    if (tokenCookie) {
-      token = tokenCookie.trim().substring(6); // 'token='.length === 6
-      if (token) {
-        console.log('Server auth token found in cookie:', token.substring(0, 10) + '...');
-
-        // Format as Bearer token
-        return `Bearer ${token}`;
-      }
-    }
+  if (request.cookies?.['auth-token']) {
+    token = request.cookies['auth-token'];
+    logAuthOperation('getServerAuthToken', { source: 'cookie' });
+    return token;
   }
 
-  // Log detailed debug info if no token found
-  console.warn('No server auth token found - auth details:', {
-    hasAuthHeader: !!authHeader,
-    authHeaderType: authHeader ? authHeader.split(' ')[0] : null,
-    hasCookie: !!cookie,
-    hasTokenCookie: cookie ? cookie.includes('token=') : false
-  });
-
+  logAuthOperation('getServerAuthToken', { status: 'failed', message: 'No token found' });
   return null;
 };
 
 /**
- * Log authentication token sources for debugging
- */
-export const logAuthSources = (request: Request): void => {
-  const cookieMatch = request.headers.get('cookie')?.match(/token=([^;]+)/);
-  const cookieTokenPrefix = cookieMatch && cookieMatch.length > 1
-    ? cookieMatch[1].substring(0, 10)
-    : null;
-
-  console.log('Auth token sources:', {
-    hasAuthHeader: !!request.headers.get('Authorization'),
-    authHeaderPrefix: request.headers.get('Authorization')?.substring(0, 10),
-    hasCookie: request.headers.get('cookie')?.includes('token='),
-    cookieTokenPrefix
-  });
-};
-
-/**
- * Fetch with authentication headers
+ * Fetch with authentication headers and automatic token refresh
  */
 export const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
   try {
-    // Always get a fresh token directly from storage
-    const token = getToken();
+    // Get fresh token
+    const token = tokenService.getToken();
 
     // Prepare headers with authentication
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {})
-    };
-
-    const fetchOptions: FetchOptions = {
-      ...options,
-      headers
+      ...(options.headers instanceof Headers ? Object.fromEntries(options.headers.entries()) :
+        options.headers as Record<string, string> || {})
     };
 
     // Set Authorization header if token is available
     if (token) {
-      fetchOptions.headers['Authorization'] = `Bearer ${token}`;
-      logAuthOperation('fetchWithAuth', {
-        tokenAvailable: true,
-        url,
-        tokenPrefix: token.substring(0, 10) + '...'
-      });
+      headers['Authorization'] = formatToken(token);
+      logAuthOperation('fetchWithAuth', { tokenAvailable: true, url });
     } else {
-      // No token available, try to refresh first
-      logAuthOperation('fetchWithAuth', { tokenAvailable: false, url, action: 'attempting refresh' });
-      try {
-        const refreshResult = await refreshTokenAndRetry(fetchOptions, url);
-        if (refreshResult.ok) {
-          return refreshResult;
+      logAuthOperation('fetchWithAuth', { tokenAvailable: false, url });
+    }
+
+    const fetchOptions: RequestInit = {
+      ...options,
+      headers,
+      credentials: 'include'
+    };
+
+    // Function to make the actual request
+    const makeRequest = async (): Promise<Response> => {
+      const response = await fetch(url, fetchOptions);
+
+      if (response.status === 401 && !url.includes('/auth/token/refresh')) {
+        // If token refresh is already in progress, queue this request
+        if (tokenService.isRefreshingToken()) {
+          logAuthOperation('fetchWithAuth', { status: 'queued', url });
+          return tokenService.queueRequest(() => makeRequest());
         }
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
+
+        // Start token refresh
+        const newToken = await tokenService.startTokenRefresh();
+        if (newToken) {
+          headers['Authorization'] = formatToken(newToken);
+          return fetch(url, fetchOptions);
+        }
+
+        throw new Error('Authentication failed');
       }
-    }
 
-    // Send cookies along with the request
-    if (!fetchOptions.credentials) {
-      fetchOptions.credentials = 'include';
-    }
+      return response;
+    };
 
-    // Disable caching by default for authenticated requests
-    if (token && !fetchOptions.cache) {
-      fetchOptions.cache = 'no-store';
-    }
-
-    // Make the fetch request
-    const response = await fetch(url, fetchOptions);
-
-    // Check if response indicates auth error (401)
-    if (response.status === 401) {
-      logAuthOperation('fetchWithAuth', { status: 401, url, message: 'Authentication failed' });
-
-      // Only attempt refresh if we haven't already
-      if (!url.includes('/auth/token/refresh')) {
-        // Attempt to refresh token and retry
-        const retryResponse = await refreshTokenAndRetry(fetchOptions, url);
-        return retryResponse;
-      }
-    }
-
-    // Return the successful response
-    return response;
+    return makeRequest();
   } catch (error) {
-    console.error('Error in fetchWithAuth:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Request failed');
   }
 };
 
@@ -207,41 +128,16 @@ export const fetchJsonWithAuth = async <T>(url: string, options: RequestInit = {
   try {
     const response = await fetchWithAuth(url, options);
 
-    // If we get a 401 or 403, try to refresh the token once
-    if ((response.status === 401 || response.status === 403) && !url.includes('/auth/')) {
-      try {
-        console.log(`[fetchJsonWithAuth] Got ${response.status}, attempting to refresh token and retry`);
-        const fetchOptions: FetchOptions = {
-          ...options,
-          headers: {
-            ...(options.headers as Record<string, string> || {}),
-            'Content-Type': 'application/json',
-          },
-        };
-
-        // Try to refresh the token and retry
-        const retryResponse = await refreshTokenAndRetry(fetchOptions, url);
-
-        console.log(`[fetchJsonWithAuth] Retry after token refresh: ${retryResponse.status}`);
-
-        if (retryResponse.ok) {
-          return await retryResponse.json();
-        }
-
-        // If still failing after refresh, throw error
-        throw new Error(`Request failed after token refresh: ${retryResponse.status}`);
-      } catch (refreshError) {
-        // If token refresh fails, redirect to login
-        console.error('[fetchJsonWithAuth] Token refresh failed:', refreshError);
+    if (!response.ok) {
+      // If authentication failed completely, redirect to login
+      if (response.status === 401 || response.status === 403) {
+        tokenService.clearTokens();
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('token');
           window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
         }
         throw new Error('Authentication required');
       }
-    }
 
-    if (!response.ok) {
       throw new Error(`Request failed: ${response.status}`);
     }
 
@@ -253,141 +149,24 @@ export const fetchJsonWithAuth = async <T>(url: string, options: RequestInit = {
 };
 
 /**
- * Attempt to refresh the token and retry the original request
- */
-export const refreshTokenAndRetry = async (fetchOptions: FetchOptions, url: string): Promise<Response> => {
-  try {
-    console.log('Attempting to refresh token before retrying request');
-    const authStore = await import('@/lib/store/auth-store');
-
-    // Before attempting to refresh, check if we're already rate limited
-    const authState = authStore.useAuthStore.getState();
-    const now = Date.now();
-    const retryAfter = authState._retryAfterTimestamp || 0;
-
-    if (retryAfter > now) {
-      // We're in a rate-limited state, check if we have a token we can use
-      if (authState.token) {
-        console.log('Rate limited for token refresh, using existing token for request');
-        // Ensure token is correctly formatted with Bearer prefix
-        const formattedToken = authState.token.startsWith('Bearer ')
-          ? authState.token
-          : `Bearer ${authState.token}`;
-        fetchOptions.headers['Authorization'] = formattedToken;
-
-        // Also set token cookie for future requests
-        if (typeof document !== 'undefined') {
-          const cookieToken = authState.token.replace(/^Bearer\s+/i, '');
-          document.cookie = `token=${cookieToken}; path=/; max-age=3600; SameSite=Lax`;
-          console.log('Set token cookie in rate-limited state');
-        }
-
-        return await fetch(url, fetchOptions);
-      } else {
-        // No token available and we're rate limited - this will likely fail
-        console.warn('No token available and rate limited for refresh, request will likely fail');
-        return await fetch(url, fetchOptions);
-      }
-    }
-
-    // Call the refreshToken function from auth-store
-    console.log('Attempting token refresh via auth store');
-    const refreshSuccess = await authStore.useAuthStore.getState().refreshAuthToken();
-
-    if (!refreshSuccess) {
-      console.error('Token refresh failed, cannot retry the request');
-
-      // Even if refresh fails, check if we have a valid token we can try
-      const existingToken = getToken();
-      if (existingToken) {
-        console.log('Using existing token despite refresh failure');
-        // Ensure token is correctly formatted
-        const formattedToken = existingToken.startsWith('Bearer ')
-          ? existingToken
-          : `Bearer ${existingToken}`;
-        fetchOptions.headers['Authorization'] = formattedToken;
-
-        // Also set token cookie
-        if (typeof document !== 'undefined') {
-          const cookieToken = existingToken.replace(/^Bearer\s+/i, '');
-          document.cookie = `token=${cookieToken}; path=/; max-age=3600; SameSite=Lax`;
-          console.log('Set token cookie from existing token');
-        }
-
-        return await fetch(url, fetchOptions);
-      }
-
-      throw new Error('Failed to refresh authentication token');
-    }
-
-    // Get the updated token after refresh
-    const newAuthState = authStore.useAuthStore.getState();
-    const newToken = newAuthState.token || getToken();
-
-    if (!newToken) {
-      console.error('No token found after successful refresh');
-      throw new Error('No token available after refresh');
-    }
-
-    console.log('Token successfully refreshed, updating Authorization header');
-
-    // Ensure token is correctly formatted for the Authorization header
-    const formattedToken = newToken.startsWith('Bearer ') ? newToken : `Bearer ${newToken}`;
-    fetchOptions.headers['Authorization'] = formattedToken;
-
-    // Ensure token is also set in cookies for future requests
-    if (typeof document !== 'undefined') {
-      const cookieToken = newToken.replace(/^Bearer\s+/i, '');
-      document.cookie = `token=${cookieToken}; path=/; max-age=3600; SameSite=Lax`;
-      console.log('Set token cookie after successful refresh');
-    }
-
-    // Retry the original request with the new token
-    console.log('Retrying original request with refreshed token', {
-      url,
-      method: fetchOptions.method,
-      tokenPrefix: newToken.substring(0, 10) + '...'
-    });
-
-    // Add a small delay to ensure the token is propagated
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    return await fetch(url, fetchOptions);
-  } catch (error) {
-    console.error('Error in refreshTokenAndRetry:', error);
-    throw error;
-  }
-};
-
-/**
- * Utility function to retry failed operations
+ * Utility function to retry operations with exponential backoff
  */
 export const withRetry = async <T>(
   fn: () => Promise<T>,
   maxRetries = 3,
   initialDelay = 500
 ): Promise<T> => {
-  let retries = 0;
-  let lastError;
+  let lastError: Error | null = null;
 
-  while (retries < maxRetries) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
-      lastError = error;
-      retries++;
-
-      if (retries >= maxRetries) {
-        break;
+      lastError = error as Error;
+      if (attempt < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      // Calculate exponential backoff delay
-      const delay = initialDelay * Math.pow(2, retries - 1);
-
-      console.log(`Retry attempt ${retries}/${maxRetries} failed, retrying in ${delay}ms`);
-
-      // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
