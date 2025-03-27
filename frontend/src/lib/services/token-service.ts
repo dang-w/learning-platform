@@ -1,10 +1,23 @@
 import { AUTH_TOKEN_EXPIRY } from '../config';
 import { cookieUtils } from '../utils/cookie';
 
+interface TokenPayload {
+  exp: number;
+  type: 'access' | 'refresh';
+  sub: string;
+  [key: string]: unknown;
+}
+
 interface QueuedRequest {
   resolve: (value: Response | PromiseLike<Response>) => void;
   reject: (reason?: unknown) => void;
   request: () => Promise<Response>;
+}
+
+interface TokenMetadata {
+  expiresAt: number;
+  type: 'access' | 'refresh';
+  lastRefresh?: number;
 }
 
 class TokenService {
@@ -15,8 +28,14 @@ class TokenService {
   private refreshPromise: Promise<string | null> | null = null;
   private lastRefreshFailure = 0;
   private readonly REFRESH_COOLDOWN = 5000; // 5 seconds cooldown after a failed refresh
+  private readonly TOKEN_REFRESH_THRESHOLD = 300; // Refresh token if less than 5 minutes until expiry
 
-  private constructor() {}
+  private constructor() {
+    // Initialize cross-tab synchronization
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', this.handleStorageChange.bind(this));
+    }
+  }
 
   static getInstance(): TokenService {
     if (!TokenService.instance) {
@@ -32,12 +51,13 @@ class TokenService {
     const formattedToken = this.formatToken(token);
     const expiresAt = Date.now() + (AUTH_TOKEN_EXPIRY.ACCESS_TOKEN * 1000);
 
-    // Set HttpOnly cookie as primary storage
+    // Store tokens in cookies (primary storage)
     cookieUtils.set('token', formattedToken, {
       path: '/',
       expires: new Date(expiresAt),
       secure: true,
-      sameSite: 'strict'
+      sameSite: 'strict',
+      httpOnly: true
     });
 
     if (refreshToken) {
@@ -46,14 +66,23 @@ class TokenService {
         path: '/',
         expires: new Date(refreshExpiresAt),
         secure: true,
-        sameSite: 'strict'
+        sameSite: 'strict',
+        httpOnly: true
+      });
+
+      // Store minimal metadata in localStorage for token management
+      this.setTokenMetadata('refresh_token', {
+        expiresAt: refreshExpiresAt,
+        type: 'refresh',
+        lastRefresh: Date.now()
       });
     }
 
-    // Set localStorage as backup with minimal data
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('token_expiry', expiresAt.toString());
-    }
+    // Store minimal metadata in localStorage for token management
+    this.setTokenMetadata('access_token', {
+      expiresAt,
+      type: 'access'
+    });
 
     // Process queued requests if any
     this.processQueue(formattedToken);
@@ -81,17 +110,28 @@ class TokenService {
   }
 
   /**
-   * Clear all auth tokens from storage
+   * Clear all auth tokens and metadata from storage
    */
   clearTokens(): void {
     if (typeof window === 'undefined') return;
 
     // Clear cookies
-    cookieUtils.remove('token', { path: '/', secure: true, sameSite: 'strict' });
-    cookieUtils.remove('refresh_token', { path: '/', secure: true, sameSite: 'strict' });
+    cookieUtils.remove('token', {
+      path: '/',
+      secure: true,
+      sameSite: 'strict',
+      httpOnly: true
+    });
+    cookieUtils.remove('refresh_token', {
+      path: '/',
+      secure: true,
+      sameSite: 'strict',
+      httpOnly: true
+    });
 
-    // Clear localStorage backup
-    localStorage.removeItem('token_expiry');
+    // Clear localStorage metadata
+    localStorage.removeItem('access_token_metadata');
+    localStorage.removeItem('refresh_token_metadata');
 
     // Clear any queued requests
     this.rejectQueue(new Error('Authentication cleared'));
@@ -103,6 +143,26 @@ class TokenService {
 
     // Notify subscribers
     this.notifyTokenChange(null);
+  }
+
+  /**
+   * Check if the current token is expired or will expire soon
+   */
+  isTokenExpired(threshold = 0): boolean {
+    if (typeof window === 'undefined') return true;
+
+    const metadata = this.getTokenMetadata('access_token');
+    if (!metadata) return true;
+
+    // Check if token is expired or will expire within threshold seconds
+    return Date.now() + (threshold * 1000) >= metadata.expiresAt;
+  }
+
+  /**
+   * Check if token needs to be refreshed (close to expiration)
+   */
+  shouldRefreshToken(): boolean {
+    return this.isTokenExpired(this.TOKEN_REFRESH_THRESHOLD);
   }
 
   /**
@@ -140,34 +200,56 @@ class TokenService {
    * Start token refresh process
    */
   async startTokenRefresh(): Promise<string | null> {
-    // Check if we need to observe the cooldown period after a failed refresh
     const now = Date.now();
-    if (this.lastRefreshFailure > 0 && now - this.lastRefreshFailure < this.REFRESH_COOLDOWN) {
-      return null;
-    }
 
     // If a refresh is already in progress, return the existing promise
     if (this.refreshPromise) {
+      console.log('Token service: Refresh already in progress, returning existing promise');
       return this.refreshPromise;
+    }
+
+    // If we're in the refresh process but don't have a promise, something went wrong
+    if (this.isRefreshing) {
+      console.log('Token service: In refresh cycle but no promise exists, creating new one');
+      this.isRefreshing = false;
+    }
+
+    // Check if we need to observe the cooldown period after a failed refresh
+    if (this.lastRefreshFailure > 0 && now - this.lastRefreshFailure < this.REFRESH_COOLDOWN) {
+      console.log('Token service: Skipping refresh due to cooldown period');
+      return Promise.resolve(null);
+    }
+
+    // Check if we have refreshed too recently
+    const refreshMetadata = this.getTokenMetadata('refresh_token');
+    if (refreshMetadata?.lastRefresh && now - refreshMetadata.lastRefresh < this.REFRESH_COOLDOWN) {
+      console.log('Token service: Skipping refresh - too soon since last refresh');
+      const currentToken = this.getToken();
+      return Promise.resolve(currentToken);
     }
 
     // Start the refresh process
     this.isRefreshing = true;
-    this.refreshPromise = this.refreshToken();
-
-    try {
-      const token = await this.refreshPromise;
-      if (token) {
-        this.setTokens(token);
+    this.refreshPromise = (async () => {
+      try {
+        const token = await this.refreshToken();
+        if (token) {
+          this.setTokens(token);
+          return token;
+        }
+        this.lastRefreshFailure = now;
+        return null;
+      } catch (error) {
+        console.error('Token service: Refresh failed:', error);
+        this.lastRefreshFailure = now;
+        return null;
+      } finally {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
       }
-      return token;
-    } catch {
-      this.lastRefreshFailure = Date.now();
-      return null;
-    } finally {
-      this.isRefreshing = false;
-      this.refreshPromise = null;
-    }
+    })();
+
+    return this.refreshPromise;
   }
 
   /**
@@ -178,27 +260,6 @@ class TokenService {
     return () => {
       this.tokenChangeCallbacks = this.tokenChangeCallbacks.filter(cb => cb !== callback);
     };
-  }
-
-  /**
-   * Check if the current token is expired
-   */
-  isTokenExpired(): boolean {
-    if (typeof window === 'undefined') return true;
-
-    const expiryStr = localStorage.getItem('token_expiry');
-    if (!expiryStr) return true;
-
-    const expiryTime = parseInt(expiryStr, 10);
-    return Date.now() > expiryTime;
-  }
-
-  private formatToken(token: string): string {
-    return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-  }
-
-  private notifyTokenChange(token: string | null): void {
-    this.tokenChangeCallbacks.forEach(callback => callback(token));
   }
 
   private async refreshToken(): Promise<string | null> {
@@ -230,6 +291,73 @@ class TokenService {
     }
   }
 
+  /**
+   * Parse and validate a JWT token
+   */
+  private parseToken(token: string): TokenPayload | null {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join(''));
+
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error('Error parsing token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Store token metadata in localStorage
+   */
+  private setTokenMetadata(type: 'access_token' | 'refresh_token', metadata: TokenMetadata): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(`${type}_metadata`, JSON.stringify(metadata));
+  }
+
+  /**
+   * Get token metadata from localStorage
+   */
+  private getTokenMetadata(type: 'access_token' | 'refresh_token'): TokenMetadata | null {
+    if (typeof window === 'undefined') return null;
+
+    try {
+      const metadata = localStorage.getItem(`${type}_metadata`);
+      return metadata ? JSON.parse(metadata) : null;
+    } catch (error) {
+      console.error(`Error reading ${type} metadata:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Handle storage changes for cross-tab synchronization
+   */
+  private handleStorageChange(event: StorageEvent): void {
+    if (!event.key?.endsWith('_metadata')) return;
+
+    const token = this.getToken();
+    if (event.key === 'access_token_metadata' || event.key === 'refresh_token_metadata') {
+      // If metadata was cleared in another tab
+      if (!event.newValue) {
+        this.clearTokens();
+      } else {
+        // Notify subscribers of token changes
+        this.notifyTokenChange(token);
+      }
+    }
+  }
+
+  private formatToken(token: string): string {
+    return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  }
+
+  private notifyTokenChange(token: string | null): void {
+    this.tokenChangeCallbacks.forEach(callback => callback(token));
+  }
+
   private processQueue(token: string | null): void {
     const queue = this.requestQueue;
     this.requestQueue = [];
@@ -254,6 +382,24 @@ class TokenService {
     const queue = this.requestQueue;
     this.requestQueue = [];
     queue.forEach(({ reject }) => reject(error));
+  }
+
+  public getMetadata<T>(key: string): T | null {
+    try {
+      const value = localStorage.getItem(`${key}_metadata`);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error('Error getting metadata:', error);
+      return null;
+    }
+  }
+
+  public setMetadata<T>(key: string, value: T): void {
+    try {
+      localStorage.setItem(`${key}_metadata`, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error setting metadata:', error);
+    }
   }
 }
 

@@ -1,203 +1,104 @@
-import React, { useState } from 'react';
-import { Modal } from '@/components/ui/layout/modal';
+'use client';
+
+import { useState } from 'react';
 import { Button } from '@/components/ui/buttons';
-import { useRouter } from 'next/navigation';
+import { tokenService } from '@/lib/services/token-service';
 
 interface SpacedRepetitionOnboardingProps {
-  isOpen: boolean;
-  onClose: () => void;
+  onComplete: () => void;
 }
 
-export function SpacedRepetitionOnboarding({ isOpen, onClose }: SpacedRepetitionOnboardingProps) {
-  const router = useRouter();
+export function SpacedRepetitionOnboarding({ onComplete }: SpacedRepetitionOnboardingProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
   const steps = [
     {
       title: 'Welcome to Spaced Repetition',
-      content: (
-        <div className="space-y-4">
-          <p>
-            Spaced repetition is a powerful learning technique that helps you remember information
-            more effectively by reviewing it at optimal intervals.
-          </p>
-          <p>
-            This system is particularly effective for learning AI/ML concepts that
-            require long-term retention and understanding.
-          </p>
-          <div className="flex justify-center">
-            <img
-              src="/images/spaced-repetition-curve.svg"
-              alt="Forgetting curve with spaced repetition"
-              className="max-w-md my-4"
-              onError={(e) => {e.currentTarget.style.display = 'none'}}
-            />
-          </div>
-        </div>
-      )
+      description: 'Learn how to effectively manage and retain your AI/ML knowledge using spaced repetition.',
+      image: '/images/spaced-repetition-intro.svg',
     },
     {
-      title: 'How It Works',
-      content: (
-        <div className="space-y-4">
-          <p>
-            The spaced repetition system schedules reviews based on how well you know each concept:
-          </p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>
-              <strong>Rate your confidence</strong> after each review on a scale of 1-5
-            </li>
-            <li>
-              <strong>Easy concepts</strong> are reviewed less frequently (longer intervals)
-            </li>
-            <li>
-              <strong>Difficult concepts</strong> are reviewed more often (shorter intervals)
-            </li>
-            <li>
-              Over time, the intervals <strong>automatically adjust</strong> to optimize your retention
-            </li>
-          </ul>
-          <p className="text-sm text-gray-600 italic mt-4">
-            The system uses proven algorithms like SM2 and Leitner that are backed by cognitive science research.
-          </p>
-        </div>
-      )
+      title: 'Create Concepts',
+      description: 'Start by creating concepts for the topics you want to learn and remember.',
+      image: '/images/create-concepts.svg',
     },
     {
-      title: 'Getting Started',
-      content: (
-        <div className="space-y-4">
-          <p>
-            To begin using spaced repetition:
-          </p>
-          <ol className="list-decimal pl-5 space-y-2">
-            <li>Create knowledge concepts you want to learn</li>
-            <li>Review your first concepts</li>
-            <li>Rate your confidence after each review</li>
-            <li>Return regularly to review concepts as they become due</li>
-          </ol>
-          <p className="mt-4">
-            Consistency is key! Even 10-15 minutes of daily review can lead to dramatic improvements in retention.
-          </p>
-        </div>
-      )
+      title: 'Review Regularly',
+      description: 'Review concepts at optimal intervals to strengthen your memory and understanding.',
+      image: '/images/review-concepts.svg',
     },
     {
-      title: 'Customize Your Settings',
-      content: (
-        <div className="space-y-4">
-          <p>
-            You can customize your spaced repetition experience in the settings:
-          </p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>
-              <strong>Algorithm:</strong> Choose between SM2, Leitner, or Custom scheduling
-            </li>
-            <li>
-              <strong>Daily review limit:</strong> Set how many reviews to show per day
-            </li>
-            <li>
-              <strong>Include new concepts:</strong> Decide if new concepts should be mixed with reviews
-            </li>
-          </ul>
-          <p className="mt-4">
-            We recommend starting with the default settings and adjusting as you become familiar with the system.
-          </p>
-        </div>
-      )
-    }
+      title: 'Track Progress',
+      description: 'Monitor your learning progress and adjust your review schedule as needed.',
+      image: '/images/track-progress.svg',
+    },
   ];
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      handleFinish();
+      tokenService.setMetadata('spacedRepetitionOnboardingCompleted', true);
+      onComplete();
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleFinish = () => {
-    onClose();
-    // Store in localStorage that the user has completed onboarding
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('spacedRepetitionOnboardingCompleted', 'true');
-    }
-  };
-
-  const handleGoToSettings = () => {
-    onClose();
-    router.push('/knowledge/settings');
+  const handleSkip = () => {
+    tokenService.setMetadata('spacedRepetitionOnboardingCompleted', true);
+    onComplete();
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={steps[currentStep].title}
-      size="lg"
-    >
-      <div className="py-4">
-        {/* Progress indicator */}
-        <div className="flex justify-center mb-6">
-          <div className="flex space-x-2">
-            {steps.map((_, index) => (
-              <div
-                key={index}
-                className={`h-2 w-8 rounded-full ${
-                  index === currentStep
-                    ? 'bg-indigo-600'
-                    : index < currentStep
-                    ? 'bg-indigo-300'
-                    : 'bg-gray-200'
-                }`}
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-extrabold text-gray-900">
+                {steps[currentStep].title}
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                {steps[currentStep].description}
+              </p>
+            </div>
+
+            <div className="relative">
+              <img
+                src={steps[currentStep].image}
+                alt={steps[currentStep].title}
+                className="w-full h-48 object-contain"
               />
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Content */}
-        <div className="min-h-[15rem]" data-testid="onboarding-content">
-          {steps[currentStep].content}
-        </div>
-
-        {/* Navigation buttons */}
-        <div className="flex justify-between mt-8">
-          <Button
-            onClick={handleBack}
-            variant="outline"
-            disabled={currentStep === 0}
-            data-testid="back-button"
-          >
-            Back
-          </Button>
-          <div className="space-x-2">
-            {currentStep === steps.length - 1 ? (
-              <>
-                <Button
-                  onClick={handleGoToSettings}
-                  variant="outline"
-                  data-testid="go-to-settings-button"
-                >
-                  Go to Settings
-                </Button>
-                <Button onClick={handleFinish} data-testid="finish-button">
-                  Get Started
-                </Button>
-              </>
-            ) : (
-              <Button onClick={handleNext} data-testid="next-button">
-                Next
+            <div className="flex justify-between items-center">
+              <Button
+                onClick={handleSkip}
+                variant="outline"
+                className="text-sm"
+              >
+                Skip Tutorial
               </Button>
-            )}
+              <Button
+                onClick={handleNext}
+                className="text-sm"
+              >
+                {currentStep < steps.length - 1 ? 'Next' : 'Get Started'}
+              </Button>
+            </div>
+
+            <div className="flex justify-center space-x-2">
+              {steps.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-2 w-2 rounded-full ${
+                    index === currentStep ? 'bg-indigo-600' : 'bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }

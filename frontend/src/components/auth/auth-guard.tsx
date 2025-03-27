@@ -1,34 +1,31 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { useAuthStore } from '@/lib/store/auth-store';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useAuthContext } from '@/lib/store/auth-store';
 import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
 
 interface AuthGuardProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
-  const pathname = usePathname();
+  const { isAuthenticated, isLoading } = useAuthContext();
 
   useEffect(() => {
-    // Skip if still loading
-    if (isLoading) return;
-
-    // If not authenticated, redirect to login
-    if (!isAuthenticated) {
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent(pathname || '')}`);
+    if (!isLoading && !isAuthenticated) {
+      router.push('/auth/login');
     }
-  }, [isAuthenticated, isLoading, router, pathname]);
+  }, [isLoading, isAuthenticated, router]);
 
-  // Show loading state while checking authentication
   if (isLoading) {
-    return <LoadingScreen message="Verifying your access..." />;
+    return <LoadingScreen />;
   }
 
-  // If authenticated, render children
-  return isAuthenticated ? <>{children}</> : null;
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

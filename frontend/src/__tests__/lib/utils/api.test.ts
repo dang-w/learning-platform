@@ -3,7 +3,7 @@
 import { expect, jest } from '@jest/globals';
 import { tokenService } from '@/lib/services/token-service';
 import { fetchWithAuth, fetchJsonWithAuth, getServerAuthToken } from '@/lib/utils/api';
-import { createMockResponse, createJsonResponse, createMockFetch } from '@/__tests__/utils/test-utils';
+import { createMockResponse, createJsonResponse, createMockFetch } from '@/lib/utils/test-utils';
 
 // Mock tokenService
 jest.mock('@/lib/services/token-service');

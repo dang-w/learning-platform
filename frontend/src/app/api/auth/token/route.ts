@@ -1,4 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AUTH_TOKEN_EXPIRY } from '@/lib/config';
+
+/**
+ * Clean token by removing Bearer prefix if present
+ */
+function cleanToken(token: string): string {
+  return token.startsWith('Bearer ') ? token.substring(7) : token;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,26 +57,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!data.access_token) {
+      console.error('Auth Token API route: No access token in response:', data);
+      return NextResponse.json(
+        { error: 'Invalid response from authentication server' },
+        { status: 500 }
+      );
+    }
+
     console.log('Auth Token API route: Authentication successful');
 
-    // Create cookies for authentication
-    const authResponse = NextResponse.json(data);
+    // Clean the access token
+    const cleanedToken = cleanToken(data.access_token);
 
-    // Set cookies for the access token and refresh token
-    authResponse.cookies.set('token', data.access_token, {
+    // Create response with proper headers
+    const authResponse = NextResponse.json({
+      token: cleanedToken,
+      refreshToken: data.refresh_token,
+      tokenType: data.token_type
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
+
+    // Set cookies for the access token and refresh token with proper expiry times
+    authResponse.cookies.set({
+      name: 'token',
+      value: cleanedToken,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60, // 1 hour
+      maxAge: AUTH_TOKEN_EXPIRY.ACCESS_TOKEN,
       path: '/',
     });
 
     if (data.refresh_token) {
-      authResponse.cookies.set('refresh_token', data.refresh_token, {
+      authResponse.cookies.set({
+        name: 'refresh_token',
+        value: data.refresh_token,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60, // 7 days
+        maxAge: AUTH_TOKEN_EXPIRY.REFRESH_TOKEN,
         path: '/',
       });
     }

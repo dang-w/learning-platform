@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AUTH_TOKEN_EXPIRY } from '@/lib/config';
 import { API_URL } from '@/config';
+
+/**
+ * Clean token by removing Bearer prefix if present
+ */
+function cleanToken(token: string): string {
+  return token.startsWith('Bearer ') ? token.substring(7) : token;
+}
 
 /**
  * Refreshes the user's authentication token
@@ -51,6 +59,19 @@ export async function POST(request: NextRequest) {
       const errorData = await backendResponse.json().catch(() => ({}));
       console.error('Token refresh error from backend:', errorData);
 
+      // If authentication failed, clear cookies
+      if (backendResponse.status === 401) {
+        const errorResponse = NextResponse.json(
+          { message: errorData.detail || 'Authentication failed - please log in again' },
+          { status: 401 }
+        );
+
+        errorResponse.cookies.delete('token');
+        errorResponse.cookies.delete('refresh_token');
+
+        return errorResponse;
+      }
+
       return NextResponse.json(
         { message: errorData.detail || 'Token refresh failed' },
         { status: backendResponse.status }
@@ -68,33 +89,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Rename tokens for frontend consistency
-    const tokenResponse = {
-      token: responseData.access_token,
+    // Clean the access token
+    const cleanedToken = cleanToken(responseData.access_token);
+
+    // Create response with proper headers
+    const response = NextResponse.json({
+      token: cleanedToken,
       refreshToken: responseData.refresh_token
-    };
-
-    // Set cookies for server-side authentication
-    const response = NextResponse.json(tokenResponse, { status: 200 });
-
-    // Set HTTP-only cookie for added security
-    response.cookies.set({
-      name: 'token',
-      value: tokenResponse.token,
-      httpOnly: true,
-      path: '/',
-      maxAge: 60 * 60, // 1 hour
-      sameSite: 'lax',
+    }, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
     });
 
-    if (tokenResponse.refreshToken) {
+    // Set cookies for server-side authentication with proper expiry times
+    response.cookies.set({
+      name: 'token',
+      value: cleanedToken,
+      httpOnly: true,
+      path: '/',
+      maxAge: AUTH_TOKEN_EXPIRY.ACCESS_TOKEN,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+
+    if (responseData.refresh_token) {
       response.cookies.set({
         name: 'refresh_token',
-        value: tokenResponse.refreshToken,
+        value: responseData.refresh_token,
         httpOnly: true,
         path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: AUTH_TOKEN_EXPIRY.REFRESH_TOKEN,
         sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
       });
     }
 

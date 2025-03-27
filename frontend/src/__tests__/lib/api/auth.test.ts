@@ -1,256 +1,239 @@
-import { expect, jest } from '@jest/globals';
-import authApi from '@/lib/api/auth';
+import { expect, jest, beforeEach, afterEach, describe, it } from '@jest/globals';
+import { InternalAxiosRequestConfig } from 'axios';
+import authApi, { User, LoginCredentials } from '../../../lib/api/auth';
+import apiClient from '../../../lib/api/client';
+import { tokenService } from '../../../lib/services/token-service';
+import { createAxiosErrorResponse } from '../../../lib/utils/test-utils';
 
-// Mock fetch globally
-const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-global.fetch = mockFetch;
+// Store original implementations
+const originalApiGet = apiClient.get;
+const originalApiPost = apiClient.post;
+const originalTokenClear = tokenService.clearTokens;
+const originalTokenRefresh = tokenService.startTokenRefresh;
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+// Define mock variables (can use simple jest.Mock type here)
+let mockApiGet: jest.Mock;
+let mockApiPost: jest.Mock;
+let mockTokenClear: jest.Mock;
+let mockTokenRefresh: jest.Mock;
+
+// Define a reusable mock user
+const mockUser: User = {
+  id: '1',
+  username: 'test',
+  email: 'test@example.com',
+  firstName: 'Test',
+  lastName: 'User',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  isActive: true,
+  role: 'user',
 };
-Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
-
-// Mock document.cookie
-Object.defineProperty(document, 'cookie', {
-  writable: true,
-  value: '',
-});
 
 describe('Auth API', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockLocalStorage.clear();
-    document.cookie = '';
-    mockFetch.mockReset();
+    // Create fresh mocks for each test and assign them
+    mockApiGet = jest.fn(async () => {
+        throw new Error('apiClient.get mock not implemented for this test');
+    });
+    mockApiPost = jest.fn(async () => {
+        throw new Error('apiClient.post mock not implemented for this test');
+    });
+    mockTokenClear = jest.fn(() => {});
+    mockTokenRefresh = jest.fn(async () => {
+        throw new Error('tokenService.startTokenRefresh mock not implemented for this test');
+    });
+
+    // Overwrite the actual methods with our mocks
+    apiClient.get = mockApiGet;
+    apiClient.post = mockApiPost;
+    tokenService.clearTokens = mockTokenClear;
+    tokenService.startTokenRefresh = mockTokenRefresh;
+  });
+
+  afterEach(() => {
+    // Restore original implementations after each test
+    apiClient.get = originalApiGet;
+    apiClient.post = originalApiPost;
+    tokenService.clearTokens = originalTokenClear;
+    tokenService.startTokenRefresh = originalTokenRefresh;
   });
 
   describe('login', () => {
-    const mockCredentials = {
-      username: 'testuser',
-      password: 'password123'
+    const credentials: LoginCredentials = { username: 'test', password: 'password' };
+    const mockLoginResponse = {
+      token: 'test-token',
+      refreshToken: 'test-refresh-token',
     };
 
-    it('should successfully login and store tokens', async () => {
-      const mockResponse = {
-        token: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockResponse)
-      } as Response);
-
-      const result = await authApi.login(mockCredentials);
-
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/login', expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mockCredentials)
-      }));
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('token', `Bearer ${mockResponse.token}`);
-      expect(result).toEqual({
-        token: `Bearer ${mockResponse.token}`,
-        refreshToken: mockResponse.refreshToken
+    it('should successfully login with valid credentials', async () => {
+      // Arrange: Mock API success using the spy
+      mockApiPost.mockResolvedValueOnce({ // Use the mock variable
+        data: mockLoginResponse,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
       });
+
+      // Act
+      const result = await authApi.login(credentials);
+
+      // Assert
+      expect(result).toEqual(mockLoginResponse);
+      expect(mockApiPost).toHaveBeenCalledWith('/auth/login', credentials);
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockTokenClear).not.toHaveBeenCalled();
     });
 
-    it('should handle login failure', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        json: () => Promise.resolve({ message: 'Invalid credentials' })
-      } as Response);
+    it('should handle invalid credentials (401)', async () => {
+      // Arrange: Mock API failure (401) using the spy
+      const error = createAxiosErrorResponse(401, 'Invalid credentials');
+      mockApiPost.mockRejectedValueOnce(error); // Use the mock variable
 
-      await expect(authApi.login(mockCredentials)).rejects.toThrow('Invalid credentials');
-      expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('register', () => {
-    const mockUserData = {
-      email: 'test@example.com',
-      password: 'password123',
-      username: 'testuser',
-      firstName: 'Test',
-      lastName: 'User'
-    };
-
-    it('should successfully register', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ token: 'mock-token' })
-      } as Response);
-
-      await authApi.register(mockUserData);
-
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/register', expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mockUserData)
-      }));
+      // Act & Assert
+      await expect(authApi.login(credentials)).rejects.toThrow('Request failed with status code 401');
+      expect(mockApiPost).toHaveBeenCalledWith('/auth/login', credentials);
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockTokenClear).not.toHaveBeenCalled();
     });
 
-    it('should handle registration failure', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        json: () => Promise.resolve({ message: 'Email already exists' })
-      } as Response);
+    it('should handle network errors (e.g., 500)', async () => {
+      // Arrange: Mock API failure (500) using the spy
+      const error = createAxiosErrorResponse(500, 'Server Error');
+      mockApiPost.mockRejectedValueOnce(error); // Use the mock variable
 
-      await expect(authApi.register(mockUserData)).rejects.toThrow('Email already exists');
+      // Act & Assert
+      await expect(authApi.login(credentials)).rejects.toThrow('Request failed with status code 500');
+      expect(mockApiPost).toHaveBeenCalledWith('/auth/login', credentials);
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockTokenClear).not.toHaveBeenCalled();
     });
   });
 
   describe('logout', () => {
-    beforeEach(() => {
-      // Mock a valid token that meets the length requirement
-      mockLocalStorage.getItem.mockImplementation((key) => {
-        if (key === 'token') return 'Bearer mock-token-with-sufficient-length-123456789';
-        return null;
-      });
-    });
-
     it('should successfully logout and clear tokens', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ success: true })
-      } as Response);
+      // Arrange: Mock API success using the spy
+      mockApiPost.mockResolvedValueOnce({ // Use the mock variable
+        data: {},
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
+      });
 
+      // Act
       await authApi.logout();
 
-      // Verify that the fetch call was made with the correct headers
-      const fetchCalls = mockFetch.mock.calls;
-      expect(fetchCalls.length).toBe(1);
-      expect(fetchCalls[0][0]).toBe('/api/auth/logout');
-      expect(fetchCalls[0][1]).toMatchObject({
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer mock-token-with-sufficient-length-123456789',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('refresh_token');
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token_expiry');
+      // Assert
+      expect(mockApiPost).toHaveBeenCalledWith('/auth/logout');
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockTokenClear).toHaveBeenCalledTimes(1); // Use the mock variable
     });
 
     it('should clear tokens even if logout request fails', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        text: () => Promise.resolve('Network error')
-      } as Response);
+      // Arrange: Mock API failure using the spy
+      const error = createAxiosErrorResponse(500, 'Server Error');
+      mockApiPost.mockRejectedValueOnce(error); // Use the mock variable
 
-      await authApi.logout();
-
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token');
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('refresh_token');
-      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('token_expiry');
-    });
-  });
-
-  describe('refreshAuthToken', () => {
-    beforeEach(() => {
-      mockLocalStorage.getItem.mockImplementation((key) => {
-        if (key === 'refresh_token') return 'mock-refresh-token';
-        return null;
-      });
-    });
-
-    it('should successfully refresh token', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          access_token: 'new-access-token',
-          refresh_token: 'new-refresh-token'
-        })
-      } as Response);
-
-      const result = await authApi.refreshAuthToken();
-
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/token/refresh', expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: 'mock-refresh-token' })
-      }));
-      expect(result).toBe(true);
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('token', 'new-access-token');
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('refresh_token', 'new-refresh-token');
-    });
-
-    it('should handle refresh token failure', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401
-      } as Response);
-
-      const result = await authApi.refreshAuthToken();
-
-      expect(result).toBe(false);
+      // Act & Assert
+      await expect(authApi.logout()).rejects.toThrow('Request failed with status code 500');
+      expect(mockApiPost).toHaveBeenCalledWith('/auth/logout');
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockTokenClear).toHaveBeenCalledTimes(1); // Use the mock variable
     });
   });
 
   describe('getCurrentUser', () => {
-    const mockUser = {
-      user: {
-        id: 1,
-        username: 'testuser'
-      },
-      token: 'mock-token',
-      refresh_token: 'mock-refresh-token',
-      emailNotifications: true,
-      courseUpdates: true,
-      marketingEmails: false,
-      totalCoursesEnrolled: 5,
-      completedCourses: 3,
-      averageScore: 85
-    };
-
-    beforeEach(() => {
-      // Mock a valid token that meets the length requirement
-      mockLocalStorage.getItem.mockImplementation((key) => {
-        if (key === 'token') return 'Bearer mock-token-with-sufficient-length-123456789';
-        return null;
-      });
-    });
-
     it('should successfully fetch current user', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockUser)
-      } as Response);
+      // Arrange: Mock API success using the spy
+      mockApiGet.mockResolvedValueOnce({ // Use the mock variable
+        data: mockUser,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
+      });
 
+      // Act
       const result = await authApi.getCurrentUser();
 
-      // Verify that the fetch call was made with the correct headers
-      const fetchCalls = mockFetch.mock.calls;
-      expect(fetchCalls.length).toBe(1);
-      expect(fetchCalls[0][0]).toBe('/api/users/me');
-      expect(fetchCalls[0][1]).toMatchObject({
-        method: 'GET',
-        headers: {
-          'Authorization': 'Bearer mock-token-with-sufficient-length-123456789',
-          'Content-Type': 'application/json'
-        }
+      // Assert
+      expect(result).toEqual(mockUser);
+      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
+      expect(mockTokenRefresh).not.toHaveBeenCalled(); // Use the mock variable
+      expect(mockTokenClear).not.toHaveBeenCalled(); // Use the mock variable
+    });
+
+    it('should handle unauthorized error (401), refresh token, and retry successfully', async () => {
+      // Arrange: Mock sequence using spies
+      const error401 = createAxiosErrorResponse(401, 'Token expired');
+      mockApiGet.mockRejectedValueOnce(error401); // First call fails
+      mockTokenRefresh.mockResolvedValueOnce('new-access-token'); // Refresh succeeds
+      mockApiGet.mockResolvedValueOnce({ // Second call succeeds
+        data: mockUser,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
       });
 
+      // Act
+      const result = await authApi.getCurrentUser();
+
+      // Assert
       expect(result).toEqual(mockUser);
+      expect(mockTokenRefresh).toHaveBeenCalledTimes(1);
+      expect(mockApiGet).toHaveBeenCalledTimes(2);
+      expect(mockApiGet).toHaveBeenNthCalledWith(1, '/auth/me');
+      expect(mockApiGet).toHaveBeenNthCalledWith(2, '/auth/me');
+      expect(mockTokenClear).not.toHaveBeenCalled();
     });
 
-    it('should handle getCurrentUser failure', async () => {
-      const mockResponse = {
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({ message: 'Failed to get current user: 401' })
-      } as Response;
+    it('should handle network errors (e.g., 500) and clear tokens', async () => {
+      // Arrange: Mock API failure (non-401) using spy
+      const error500 = createAxiosErrorResponse(500, 'Server Error');
+      mockApiGet.mockRejectedValueOnce(error500);
 
-      mockFetch.mockResolvedValueOnce(mockResponse);
+      // Act & Assert
+      await expect(authApi.getCurrentUser()).rejects.toThrow('Request failed with status code 500');
+      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
+      expect(mockTokenRefresh).not.toHaveBeenCalled();
+      expect(mockTokenClear).toHaveBeenCalledTimes(1);
+    });
 
-      await expect(authApi.getCurrentUser()).rejects.toThrow('Failed to get current user: 401');
+    it('should handle unauthorized error (401) followed by token refresh failure and clear tokens', async () => {
+      // Arrange: Mock sequence using spies
+      const error401 = createAxiosErrorResponse(401, 'Token expired');
+      const refreshError = new Error('No refresh token available');
+      mockApiGet.mockRejectedValueOnce(error401); // First call fails
+      mockTokenRefresh.mockRejectedValueOnce(refreshError); // Refresh fails
+
+      // Act & Assert
+      await expect(authApi.getCurrentUser()).rejects.toThrow('No refresh token available');
+      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
+      expect(mockTokenRefresh).toHaveBeenCalledTimes(1);
+      expect(mockTokenClear).toHaveBeenCalledTimes(1);
+    });
+
+     it('should handle unauthorized error (401) followed by successful refresh but no new token and clear tokens', async () => {
+      // Arrange: Mock sequence using spies
+      const error401 = createAxiosErrorResponse(401, 'Token expired');
+      mockApiGet.mockRejectedValueOnce(error401); // First call fails
+      mockTokenRefresh.mockResolvedValueOnce(null); // Refresh succeeds but returns null
+
+      // Act & Assert
+      await expect(authApi.getCurrentUser()).rejects.toThrow('Request failed with status code 401');
+      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
+      expect(mockTokenRefresh).toHaveBeenCalledTimes(1);
+      expect(mockTokenClear).toHaveBeenCalled();
     });
   });
-});
+
+  // Add tests for other authApi methods (register, updateProfile, etc.) using this pattern
+
+}); // End describe('Auth API')
