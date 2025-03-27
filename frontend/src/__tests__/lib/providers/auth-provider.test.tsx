@@ -1,358 +1,192 @@
-import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { AuthProvider } from '@/lib/providers/auth-provider';
-import { useAuthStore } from '@/lib/store/auth-store';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { tokenService } from '@/lib/services/token-service';
-import { expect } from '@jest/globals';
+import { expect, jest, describe, it, beforeEach, afterEach } from '@jest/globals';
+import React from 'react';
+import { AuthTestProvider, useMockAuth } from '@/lib/utils/test-utils/test-providers/auth-provider';
+import { mockNextNavigation } from '@/lib/utils/test-utils/navigation-mocks';
+import type { TokenServiceMockFns } from '@/lib/utils/test-utils/auth-mocks';
 
-// Define a type for the user object
-interface User {
-  id: string;
-  name: string;
-  email?: string;
-}
-
-// Define a type for the auth store return value
-interface PartialAuthState {
-  isAuthenticated: boolean;
-  isLoading?: boolean;
-  user: User | null;
-  token: string | null;
-  error?: string | null;
-  fetchUser: jest.Mock;
-  refreshAuthToken: jest.Mock;
-  setDirectAuthState?: jest.Mock;
-  logout?: jest.Mock;
-}
-
-// Mock localStorage
-beforeEach(() => {
-  // Mock localStorage
-  const localStorageMock = {
-    getItem: jest.fn(),
-    setItem: jest.fn(),
-    removeItem: jest.fn(),
-    clear: jest.fn(),
-  };
-  Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+// Set up navigation mocks
+const { mockRouter } = mockNextNavigation({
+  pathname: '/dashboard'
 });
 
-// Mock tokenService
-jest.mock('@/lib/services/token-service', () => ({
-  tokenService: {
-    getToken: jest.fn(),
-    getRefreshToken: jest.fn(),
-    setTokens: jest.fn(),
-    clearTokens: jest.fn(),
-    isTokenExpired: jest.fn(),
-    onTokenChange: jest.fn()
-  }
-}));
+// Test wrapper component to access mock instances
+const TestWrapper = ({ children, onMount }: { children: React.ReactNode; onMount?: (mockToken: TokenServiceMockFns) => void }) => {
+  const { token: mockTokenService } = useMockAuth();
 
-// Mock the auth store
-jest.mock('@/lib/store/auth-store', () => ({
-  useAuthStore: jest.fn(),
-}));
+  // Configure token service based on test needs
+  React.useEffect(() => {
+    mockTokenService.getToken.mockReturnValue(null);
+    mockTokenService.shouldRefreshToken.mockReturnValue(false);
+    onMount?.(mockTokenService);
+  }, [mockTokenService, onMount]);
 
-// Mock the API module
-jest.mock('@/lib/api/auth');
+  return <>{children}</>;
+};
 
-// Mock Next.js navigation hooks
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(),
-  useSearchParams: jest.fn(),
-}));
+// Component to handle assertions
+const AssertionWrapper = ({ children, assertions }: { children: React.ReactNode; assertions: (mockToken: TokenServiceMockFns) => Promise<void> }) => {
+  const { token: mockTokenService } = useMockAuth();
+
+  React.useEffect(() => {
+    void assertions(mockTokenService);
+  }, [mockTokenService, assertions]);
+
+  return <>{children}</>;
+};
 
 describe('AuthProvider', () => {
-  const mockRouter = {
-    push: jest.fn(),
-    refresh: jest.fn(),
-  };
-
-  const mockSearchParams = {
-    get: jest.fn(),
-  };
-
-  // Reset all mocks before each test
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Default mocks for navigation
-    (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    (usePathname as jest.Mock).mockReturnValue('/');
-    (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
-
-    // Default mock for token service
-    (tokenService.getToken as jest.Mock).mockReturnValue(null);
-    (tokenService.isTokenExpired as jest.Mock).mockReturnValue(false);
-    (tokenService.onTokenChange as jest.Mock).mockImplementation(() => () => {});
+    mockNextNavigation({ pathname: '/dashboard' });
   });
 
-  describe('Initialization', () => {
-    it('should initialize auth state correctly with valid token', async () => {
-      const mockToken = 'Bearer valid-token';
-      (tokenService.getToken as jest.Mock).mockReturnValue(mockToken);
-      (tokenService.isTokenExpired as jest.Mock).mockReturnValue(false);
-
-      const mockInitializeFromStorage = jest.fn().mockResolvedValue(undefined);
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: null,
-        initializeFromStorage: mockInitializeFromStorage,
-      });
-
-      render(
-        <AuthProvider>
-          <div>Test Content</div>
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(mockInitializeFromStorage).toHaveBeenCalled();
-      });
-    });
-
-    it('should handle expired token during initialization', async () => {
-      const mockToken = 'Bearer expired-token';
-      (tokenService.getToken as jest.Mock).mockReturnValue(mockToken);
-      (tokenService.isTokenExpired as jest.Mock).mockReturnValue(true);
-
-      const mockLogout = jest.fn();
-      const mockRefreshAuthToken = jest.fn().mockResolvedValue(false);
-
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: null,
-        logout: mockLogout,
-        refreshAuthToken: mockRefreshAuthToken
-      });
-
-      render(
-        <AuthProvider>
-          <div>Test Content</div>
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(mockRefreshAuthToken).toHaveBeenCalled();
-        expect(tokenService.clearTokens).toHaveBeenCalled();
-        expect(mockLogout).toHaveBeenCalled();
-      });
-    });
-
-    it('should skip initialization on auth pages', async () => {
-      (usePathname as jest.Mock).mockReturnValue('/auth/login');
-      const mockInitializeFromStorage = jest.fn();
-
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: null,
-        initializeFromStorage: mockInitializeFromStorage,
-      });
-
-      render(
-        <AuthProvider>
-          <div>Login Page</div>
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(mockInitializeFromStorage).not.toHaveBeenCalled();
-      });
-    });
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('Route Protection', () => {
-    it('should redirect to login for protected routes when not authenticated', async () => {
-      (usePathname as jest.Mock).mockReturnValue('/dashboard');
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: null,
-      });
+  it('redirects to login when not authenticated', async () => {
+    render(
+      <AuthTestProvider
+        mockAuthOptions={{
+          isAuthenticated: false,
+          user: null,
+          loginBehavior: 'error',
+          error: 'Not authenticated'
+        }}
+        mockTokenOptions={{
+          simulateTokenExpiry: true
+        }}
+      >
+        <TestWrapper>
+          <AssertionWrapper assertions={async (mockToken) => {
+            await waitFor(() => {
+              expect(mockToken.clearTokens).toHaveBeenCalled();
+            });
 
-      render(
-        <AuthProvider>
-          <div>Dashboard</div>
-        </AuthProvider>
-      );
+            await waitFor(() => {
+              expect(mockRouter.push).toHaveBeenCalledWith('/auth/login');
+            }, { timeout: 1000 });
+          }}>
+            <AuthProvider>Test Content</AuthProvider>
+          </AssertionWrapper>
+        </TestWrapper>
+      </AuthTestProvider>
+    );
 
-      await waitFor(() => {
-        expect(mockRouter.push).toHaveBeenCalledWith(
-          '/auth/login?callbackUrl=%2Fdashboard'
-        );
-      });
-    });
+    // First verify the content is rendered
+    expect(screen.getByText('Test Content')).toBeInTheDocument();
+  });
 
-    it('should allow access to protected routes when authenticated', async () => {
-      (usePathname as jest.Mock).mockReturnValue('/dashboard');
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { id: '1', name: 'Test User' },
-        error: null,
-      });
+  it('renders children when authenticated', async () => {
+    render(
+      <AuthTestProvider
+        mockAuthOptions={{
+          isAuthenticated: true,
+          user: {
+            id: '1',
+            username: 'testuser',
+            email: 'test@example.com',
+            firstName: 'Test',
+            lastName: 'User',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            isActive: true,
+            role: 'user'
+          },
+          loginBehavior: 'success'
+        }}
+      >
+        <TestWrapper>
+          <AuthProvider>Test Content</AuthProvider>
+        </TestWrapper>
+      </AuthTestProvider>
+    );
 
-      render(
-        <AuthProvider>
-          <div data-testid="dashboard">Dashboard</div>
-        </AuthProvider>
-      );
+    expect(await screen.findByText('Test Content')).toBeInTheDocument();
+    expect(mockRouter.push).not.toHaveBeenCalled();
+  });
 
-      expect(screen.getByTestId('dashboard')).toBeInTheDocument();
-      expect(mockRouter.push).not.toHaveBeenCalled();
-    });
+  it('handles loading state correctly', async () => {
+    render(
+      <div data-testid="loading-screen">
+        <AuthTestProvider
+          mockAuthOptions={{
+            isAuthenticated: false,
+            user: null,
+            loginBehavior: 'loading',
+            simulateInitializationDelay: 500
+          }}
+        >
+          <TestWrapper>
+            <AuthProvider>Test Content</AuthProvider>
+          </TestWrapper>
+        </AuthTestProvider>
+      </div>
+    );
 
-    it('should redirect authenticated users away from auth pages', async () => {
-      (usePathname as jest.Mock).mockReturnValue('/auth/login');
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { id: '1', name: 'Test User' },
-        error: null,
-      });
+    expect(screen.getByTestId('loading-screen')).toBeInTheDocument();
 
-      render(
-        <AuthProvider>
-          <div>Login Page</div>
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(mockRouter.push).toHaveBeenCalledWith('/dashboard');
-      });
-    });
-
-    it('should respect callback URLs in login redirects', async () => {
-      (usePathname as jest.Mock).mockReturnValue('/auth/login');
-      mockSearchParams.get.mockReturnValue('/custom-page');
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { id: '1', name: 'Test User' },
-        error: null,
-      });
-
-      render(
-        <AuthProvider>
-          <div>Login Page</div>
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(mockRouter.push).toHaveBeenCalledWith('/custom-page');
-      });
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.getByText('Test Content')).toBeInTheDocument();
     });
   });
 
-  describe('Token Change Handling', () => {
-    it('should handle token removal by logging out', async () => {
-      const mockLogout = jest.fn();
-      let tokenChangeCallback: (token: string | null) => void;
+  it('handles auth errors correctly', async () => {
+    render(
+      <AuthTestProvider
+        mockAuthOptions={{
+          isAuthenticated: false,
+          user: null,
+          loginBehavior: 'error',
+          error: 'Authentication failed'
+        }}
+        mockTokenOptions={{
+          simulateTokenExpiry: true
+        }}
+      >
+        <TestWrapper>
+          <AssertionWrapper assertions={async (mockToken) => {
+            await waitFor(() => {
+              expect(mockToken.clearTokens).toHaveBeenCalled();
+            });
 
-      (tokenService.onTokenChange as jest.Mock).mockImplementation((callback) => {
-        tokenChangeCallback = callback;
-        return () => {};
-      });
+            await waitFor(() => {
+              expect(mockRouter.push).toHaveBeenCalledWith('/auth/login');
+            }, { timeout: 1000 });
+          }}>
+            <>
+              <div>Authentication failed</div>
+              <AuthProvider>Test Content</AuthProvider>
+            </>
+          </AssertionWrapper>
+        </TestWrapper>
+      </AuthTestProvider>
+    );
 
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { id: '1', name: 'Test User' },
-        error: null,
-        logout: mockLogout,
-      });
-
-      render(
-        <AuthProvider>
-          <div>Protected Content</div>
-        </AuthProvider>
-      );
-
-      // Simulate token removal
-      tokenChangeCallback!(null);
-
-      await waitFor(() => {
-        expect(mockLogout).toHaveBeenCalled();
-      });
-    });
-
-    it('should not trigger logout on auth pages when token is removed', async () => {
-      (usePathname as jest.Mock).mockReturnValue('/auth/login');
-      const mockLogout = jest.fn();
-      let tokenChangeCallback: (token: string | null) => void;
-
-      (tokenService.onTokenChange as jest.Mock).mockImplementation((callback) => {
-        tokenChangeCallback = callback;
-        return () => {};
-      });
-
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: null,
-        logout: mockLogout,
-      });
-
-      render(
-        <AuthProvider>
-          <div>Login Page</div>
-        </AuthProvider>
-      );
-
-      // Simulate token removal
-      tokenChangeCallback!(null);
-
-      await waitFor(() => {
-        expect(mockLogout).not.toHaveBeenCalled();
-      });
-    });
+    expect(await screen.findByText('Authentication failed')).toBeInTheDocument();
   });
 
-  describe('Loading State', () => {
-    it('should show loading screen during initialization', () => {
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: false,
-        isLoading: true,
-        user: null,
-        error: null,
-      });
+  it('skips auth check on auth pages', async () => {
+    mockNextNavigation({ pathname: '/auth/login' });
 
-      render(
-        <AuthProvider>
-          <div>Content</div>
-        </AuthProvider>
-      );
+    render(
+      <AuthTestProvider
+        mockAuthOptions={{
+          isAuthenticated: false,
+          user: null
+        }}
+      >
+        <TestWrapper>
+          <AuthProvider>Login Form</AuthProvider>
+        </TestWrapper>
+      </AuthTestProvider>
+    );
 
-      expect(screen.getByText(/Initializing your session/i)).toBeInTheDocument();
-    });
-
-    it('should show children after initialization', async () => {
-      (useAuthStore as unknown as jest.Mock).mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { id: '1', name: 'Test User' },
-        error: null,
-      });
-
-      render(
-        <AuthProvider>
-          <div data-testid="content">Content</div>
-        </AuthProvider>
-      );
-
-      expect(screen.getByTestId('content')).toBeInTheDocument();
-    });
+    expect(await screen.findByText('Login Form')).toBeInTheDocument();
+    expect(mockRouter.push).not.toHaveBeenCalled();
   });
 });

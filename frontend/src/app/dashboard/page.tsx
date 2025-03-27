@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { resourcesApi, progressApi, reviewsApi, learningPathApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { tokenService } from '@/lib/services/token-service';
 import {
   LearningProgress,
   ActivityFeed,
@@ -18,44 +19,14 @@ import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
 
 const SyncTokens = () => {
   useEffect(() => {
-    // Check if token exists in localStorage
-    const localStorageToken = localStorage.getItem('token');
-
-    // Check if token exists in cookies
-    const tokenCookie = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
-    const cookieToken = tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : null;
-
-    console.log('Token storage check:', {
-      hasLocalStorage: !!localStorageToken,
-      hasCookie: !!cookieToken,
-      match: localStorageToken === cookieToken,
-      localStoragePrefix: localStorageToken ? localStorageToken.substring(0, 10) + '...' : 'none',
-      cookiePrefix: cookieToken ? cookieToken.substring(0, 10) + '...' : 'none'
+    // Token synchronization is now handled by TokenService
+    const unsubscribe = tokenService.onTokenChange((token) => {
+      console.log('Token status:', token ? 'present' : 'absent');
     });
 
-    // If token is in localStorage but not in cookie, add it to cookie
-    if (localStorageToken && !cookieToken) {
-      console.log('Token found in localStorage but not in cookie, fixing...');
-      document.cookie = `token=${encodeURIComponent(localStorageToken)}; path=/; max-age=86400; SameSite=Lax`;
-    }
-    // If token is in cookie but not in localStorage, add it to localStorage
-    else if (!localStorageToken && cookieToken) {
-      console.log('Token found in cookie but not in localStorage, fixing...');
-      localStorage.setItem('token', cookieToken);
-    }
-    // If tokens don't match, prefer localStorage version
-    else if (localStorageToken && cookieToken && localStorageToken !== cookieToken) {
-      console.log('Token mismatch between localStorage and cookie, synchronizing...');
-      document.cookie = `token=${encodeURIComponent(localStorageToken)}; path=/; max-age=86400; SameSite=Lax`;
-    }
-
-    // Ensure token is properly formatted (has Bearer prefix)
-    if (localStorageToken && !localStorageToken.startsWith('Bearer ')) {
-      console.log('Adding Bearer prefix to token...');
-      const formattedToken = `Bearer ${localStorageToken}`;
-      localStorage.setItem('token', formattedToken);
-      document.cookie = `token=${encodeURIComponent(formattedToken)}; path=/; max-age=86400; SameSite=Lax`;
-    }
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return null;
@@ -67,13 +38,19 @@ export default function DashboardPage() {
 
   // Add token verification
   useEffect(() => {
-    // Check if token exists
-    const token = localStorage.getItem('token');
+    // Check if token exists and is valid
+    const token = tokenService.getToken();
     console.log('Dashboard loaded with token?', !!token);
 
     if (!user && token) {
       console.log('Token exists but no user data, fetching user');
       fetchUser().catch(e => console.error('Error fetching user in dashboard:', e));
+    }
+
+    // Check if token needs refresh
+    if (token && tokenService.shouldRefreshToken()) {
+      console.log('Token needs refresh, initiating refresh');
+      tokenService.startTokenRefresh().catch(e => console.error('Error refreshing token:', e));
     }
   }, [user, fetchUser]);
 
@@ -88,7 +65,7 @@ export default function DashboardPage() {
   const resourcesQuery = useQuery({
     queryKey: ['resources', 'statistics'],
     queryFn: () => {
-      const token = localStorage.getItem('token');
+      const token = tokenService.getToken();
       console.log('Fetching resource statistics with token?', !!token);
       return resourcesApi.getStatistics();
     },
@@ -158,7 +135,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <p>User: {user ? `${user.username} (Logged in)` : 'Not logged in'}</p>
-          <p>Token: {localStorage.getItem('token') ? 'Present' : 'Missing'}</p>
+          <p>Token: {tokenService.getToken() ? 'Present' : 'Missing'}</p>
         </div>
         <div>
           <p>Resources: {resourcesQuery.status}</p>

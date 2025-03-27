@@ -169,32 +169,50 @@ apiClient.interceptors.response.use(
       // Start token refresh
       const newToken = await tokenService.startTokenRefresh();
       if (!newToken) {
-        throw new TokenRefreshError('Token refresh failed - no token returned');
+        // Don't throw here, let the original caller handle the null token case.
+        // The original request will be re-thrown implicitly if we don't return anything.
+        console.warn('Token refresh succeeded but returned no token.');
+        // Let the original 401 error propagate by not returning apiClient(originalRequest)
+        // processQueue(); // Don't process queue if refresh didn't yield a useful token
+        // isRefreshing = false;
+        // We fall through to the finally block if present, or return undefined, causing the original error path.
+      } else {
+        // Update the request header with the new token
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+
+        // Process any queued requests ONLY if refresh was successful with a token
+        processQueue();
+        isRefreshing = false; // Reset only after successful refresh and queue processing
+
+        // Retry the original request
+        return apiClient(originalRequest);
       }
-
-      // Update the request header with the new token
-      originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-
-      // Process any queued requests
-      processQueue();
-      isRefreshing = false;
-
-      // Retry the original request
-      return apiClient(originalRequest);
     } catch (refreshError) {
-      // If refresh fails, process queue with error and clear auth state
+      // If refresh fails (promise rejected), process queue with error and clear auth state
       isRefreshing = false;
       processQueue(refreshError instanceof Error ? refreshError : new TokenRefreshError('Unknown refresh error'));
-      tokenService.clearTokens();
 
-      // Only redirect to login if this was a refresh token failure
-      if (refreshError instanceof TokenRefreshError) {
-        window.location.href = '/login';
+      // Only clear tokens if the refresh itself threw an error.
+      if (refreshError instanceof Error) {
+          tokenService.clearTokens();
+          // Optional: Redirect only on actual refresh failure
+          if (refreshError instanceof TokenRefreshError) { // Or specific error types
+            // Check if window is defined before using it (for non-browser environments like tests)
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+            }
+          }
       }
 
+      // Rethrow the error caught from startTokenRefresh
       throw refreshError;
     }
+    // If newToken was null, we reach here implicitly.
+    // We need to ensure isRefreshing is reset and the original error is propagated.
+    isRefreshing = false;
+    // Reject with the original error to signify the overall operation failed due to lack of a new token
+    return Promise.reject(error);
   }
 );
 

@@ -7,6 +7,7 @@ interface CookieOptions {
   expires?: Date;
   secure?: boolean;
   sameSite?: 'strict' | 'lax' | 'none';
+  httpOnly?: boolean;
 }
 
 export const cookieUtils = {
@@ -33,6 +34,9 @@ export const cookieUtils = {
     if (options.sameSite) {
       cookie += `; samesite=${options.sameSite}`;
     }
+    if (options.httpOnly) {
+      cookie += '; httponly';
+    }
     document.cookie = cookie;
   },
 
@@ -47,6 +51,9 @@ export const cookieUtils = {
     }
     if (options.sameSite) {
       cookie += `; samesite=${options.sameSite}`;
+    }
+    if (options.httpOnly) {
+      cookie += '; httponly';
     }
     document.cookie = cookie;
   }

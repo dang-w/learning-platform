@@ -2,25 +2,25 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuthStore } from '@/lib/store/auth-store';
+import { useAuthContext } from '@/lib/store/contexts/auth-context';
 import useSessionKeepAlive from '@/lib/hooks/useSessionKeepAlive';
 import Navbar from './navbar';
 import Sidebar from './sidebar';
+import { tokenService } from '@/lib/services/token-service';
 
 interface MainLayoutProps {
   children: ReactNode;
 }
 
-// Helper to detect Cypress testing environment
-const isCypressTest = () => {
-  if (typeof window === 'undefined') return false;
-
-  // Check for the special bypass flag set by Cypress
-  return !!window.localStorage.getItem('cypress_test_auth_bypass');
+/**
+ * Check if we're in a Cypress test environment with auth bypass enabled
+ */
+const isCypressAuthBypass = () => {
+  return !!tokenService.getMetadata('cypress_test_auth_bypass');
 };
 
 export default function MainLayout({ children }: MainLayoutProps) {
-  const { isAuthenticated, fetchUser } = useAuthStore();
+  const { initializeFromStorage, isAuthenticated, isLoading, error } = useAuthContext();
   const router = useRouter();
   const pathname = usePathname();
   const [authChecked, setAuthChecked] = useState(false);
@@ -28,58 +28,77 @@ export default function MainLayout({ children }: MainLayoutProps) {
   // Keep session alive while authenticated
   useSessionKeepAlive();
 
-  // Check authentication on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-
-    // If we have a token but no user, fetch the user
-    if (token && !isAuthenticated) {
-      // Mark as authenticated immediately for Cypress tests
-      if (isCypressTest()) {
-        const authStore = useAuthStore.getState();
-        authStore.setDirectAuthState(token, true);
+    const initAuth = async () => {
+      // Skip auth check if we're in Cypress with auth bypass
+      if (isCypressAuthBypass()) {
+        console.log('Cypress auth bypass detected, skipping auth check');
+        return;
       }
 
-      if (fetchUser) {
-        fetchUser().catch((err) => {
-          console.error('Error fetching user:', err);
-        });
-      } else {
-        console.error('fetchUser function is undefined');
-      }
-    }
+      // Check if we have a valid token
+      const token = tokenService.getToken();
+      console.log('Main layout mounted, token present:', !!token);
 
-    setAuthChecked(true);
-  }, [isAuthenticated, fetchUser]);
+      if (token) {
+        try {
+          // Initialize auth state from storage
+          await initializeFromStorage();
+        } catch (error: unknown) {
+          console.error('Error initializing auth state:', error instanceof Error ? error.message : 'Unknown error');
+        }
+      }
+
+      setAuthChecked(true);
+    };
+
+    initAuth();
+  }, [initializeFromStorage]);
 
   // Handle redirection with delay to avoid redirect loops
   useEffect(() => {
-    if (!authChecked) return;
-
     // Skip redirection in Cypress tests
-    if (isCypressTest()) {
+    if (isCypressAuthBypass()) {
       return;
     }
 
     let redirectTimeout: NodeJS.Timeout;
 
-    if (!isAuthenticated && !pathname.startsWith('/auth') && pathname !== '/') {
+    if ((!authChecked || !isAuthenticated) && !pathname.startsWith('/auth') && pathname !== '/') {
       redirectTimeout = setTimeout(() => {
         router.push('/auth/login');
       }, 300); // Small delay to avoid race conditions
-    } else if (isAuthenticated && pathname.startsWith('/auth')) {
+    } else if (authChecked && isAuthenticated && pathname.startsWith('/auth')) {
       redirectTimeout = setTimeout(() => {
         router.push('/dashboard');
-      }, 300); // Small delay to avoid race conditions
+      }, 300);
     }
 
     return () => {
       if (redirectTimeout) clearTimeout(redirectTimeout);
     };
-  }, [isAuthenticated, router, pathname, authChecked]);
+  }, [authChecked, isAuthenticated, router, pathname]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center" data-testid="loading-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error && !pathname.startsWith('/auth')) {
+    return (
+      <div className="flex h-screen items-center justify-center" data-testid="error-screen">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   // If we're on the auth pages, don't show the layout
-  if (pathname.startsWith('/auth') || pathname === '/') {
+  if (pathname.startsWith('/auth')) {
     return <>{children}</>;
   }
 

@@ -44,7 +44,6 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
     initializeFromStorage,
     updateProfile,
     changePassword,
-    error: storeError,
     clearError,
     statistics,
     notificationPreferences,
@@ -65,7 +64,8 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register: registerProfile,
@@ -105,7 +105,7 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
       }
 
       setIsPageLoading(true);
-      setError(null);
+      setPageError(null);
 
       try {
         // Fetch statistics and preferences in parallel
@@ -119,7 +119,7 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
         setNotificationPreferences(prefs);
       } catch (err) {
         console.error('Error loading profile data:', err);
-        setError('Failed to load profile data. Please try again.');
+        setPageError('Failed to load profile data. Please try again.');
       } finally {
         setIsPageLoading(false);
       }
@@ -131,6 +131,7 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
   const onProfileSubmit = async (data: ProfileFormValues) => {
     setIsProfileLoading(true);
     setProfileSuccess(false);
+    setFormError(null);
     clearError();
 
     try {
@@ -147,6 +148,7 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
       setProfileSuccess(true);
     } catch (error) {
       console.error('Profile update error:', error);
+      setFormError(error instanceof Error ? error.message : 'Failed to update profile');
     } finally {
       setIsProfileLoading(false);
     }
@@ -200,15 +202,15 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
   if (isLoading || isPageLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div role="status" className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  if (error) {
+  if (pageError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-red-500 mb-4">{error}</div>
+        <div className="text-red-500 mb-4">{pageError}</div>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
@@ -387,7 +389,7 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-start" data-testid="profile-info">
+    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-start" data-testid="profile-page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
@@ -397,7 +399,7 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
             </p>
           </div>
           <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-            <div className="border-b border-gray-200">
+            <div className="border-b border-gray-200" data-testid="profile-tabs">
               <div className="sm:hidden">
                 <label htmlFor="tabs" className="sr-only">Select a tab</label>
                 <select
@@ -419,26 +421,26 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
                 <div className="border-b border-gray-200">
                   <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                     <button
+                      data-testid="profile-tab"
+                      onClick={() => setActiveTab('profile')}
                       className={cn(
                         activeTab === 'profile'
-                          ? 'border-indigo-500 text-indigo-600'
-                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                        'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium'
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                        'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm'
                       )}
-                      onClick={() => setActiveTab('profile')}
-                      data-testid="profile-tab"
                     >
                       Profile
                     </button>
                     <button
+                      data-testid="password-tab"
+                      onClick={() => setActiveTab('password')}
                       className={cn(
                         activeTab === 'password'
-                          ? 'border-indigo-500 text-indigo-600'
-                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                        'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium'
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                        'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm'
                       )}
-                      onClick={() => setActiveTab('password')}
-                      data-testid="password-tab"
                     >
                       Password
                     </button>
@@ -496,180 +498,131 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
             </div>
 
             {activeTab === 'profile' && (
-              <div>
+              <div data-testid="profile-form">
                 <div className="px-4 py-5 sm:px-6">
                   <h2 className="text-lg font-medium text-gray-900">Personal Information</h2>
                   <p className="mt-1 text-sm text-gray-500">Update your personal information.</p>
                 </div>
                 <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
-                  <form onSubmit={handleProfileSubmit(onProfileSubmit)} data-testid="profile-form">
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                      <div>
-                        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                          Username
-                        </label>
-                        <input
-                          type="text"
-                          id="username"
-                          value={user.username}
-                          disabled
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-500 cursor-not-allowed"
-                          data-testid="profile-username"
-                        />
-                        <p className="mt-1 text-sm text-gray-500">Username cannot be changed.</p>
-                      </div>
-                      <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                          Email
-                        </label>
-                        <input
-                          type="email"
-                          id="email"
-                          {...registerProfile('email')}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          data-testid="profile-email"
-                        />
-                        {profileErrors.email && (
-                          <p className="mt-1 text-sm text-red-600" data-testid="email-error">{profileErrors.email.message}</p>
-                        )}
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-                          Full Name
-                        </label>
-                        <input
-                          type="text"
-                          id="fullName"
-                          {...registerProfile('fullName')}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          data-testid="profile-full-name"
-                        />
-                        {profileErrors.fullName && (
-                          <p className="mt-1 text-sm text-red-600" data-testid="full-name-error">{profileErrors.fullName.message}</p>
-                        )}
-                      </div>
+                  <form onSubmit={handleProfileSubmit(onProfileSubmit)} className="space-y-6">
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                        Email
+                      </label>
+                      <input
+                        data-testid="profile-email"
+                        type="email"
+                        {...registerProfile('email')}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                      />
+                      {profileErrors.email && (
+                        <p className="mt-2 text-sm text-red-600">{profileErrors.email.message}</p>
+                      )}
                     </div>
 
-                    {storeError && (
-                      <div className="mt-4 rounded-md bg-red-50 p-4" data-testid="profile-error">
-                        <div className="flex">
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-red-800">Update failed</h3>
-                            <div className="mt-2 text-sm text-red-700">
-                              <p>{storeError}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {profileSuccess && (
-                      <div className="mt-4 rounded-md bg-green-50 p-4" data-testid="profile-success">
-                        <div className="flex">
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-green-800">Profile updated</h3>
-                            <div className="mt-2 text-sm text-green-700">
-                              <p>Your profile has been updated successfully.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-6 flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={isProfileLoading}
-                        className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        data-testid="save-profile-button"
-                      >
-                        {isProfileLoading ? 'Saving...' : 'Save Changes'}
-                      </button>
+                    <div>
+                      <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+                        Full Name
+                      </label>
+                      <input
+                        data-testid="profile-full-name"
+                        type="text"
+                        {...registerProfile('fullName')}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                      />
+                      {profileErrors.fullName && (
+                        <p className="mt-2 text-sm text-red-600">{profileErrors.fullName.message}</p>
+                      )}
                     </div>
+
+                    <button
+                      data-testid="save-profile-button"
+                      type="submit"
+                      disabled={isProfileLoading}
+                      className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    >
+                      {isProfileLoading ? 'Saving...' : 'Save Changes'}
+                    </button>
                   </form>
+                  {formError && (
+                    <div data-testid="profile-error" className="mt-4 rounded-md bg-red-50 p-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-red-800">{formError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {activeTab === 'password' && (
-              <div>
+              <div data-testid="password-form">
                 <div className="px-4 py-5 sm:px-6">
                   <h2 className="text-lg font-medium text-gray-900">Change Password</h2>
                   <p className="mt-1 text-sm text-gray-500">Update your password.</p>
                 </div>
                 <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
-                  <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} data-testid="password-form">
-                    <div className="space-y-6">
-                      <div>
-                        <label htmlFor="current_password" className="block text-sm font-medium text-gray-700">
-                          Current Password
-                        </label>
-                        <input
-                          type="password"
-                          id="current_password"
-                          {...registerPassword('current_password')}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          data-testid="current-password-input"
-                        />
-                        {passwordErrors.current_password && (
-                          <p className="mt-1 text-sm text-red-600" data-testid="current-password-error">{passwordErrors.current_password.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label htmlFor="new_password" className="block text-sm font-medium text-gray-700">
-                          New Password
-                        </label>
-                        <input
-                          type="password"
-                          id="new_password"
-                          {...registerPassword('new_password')}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          data-testid="new-password-input"
-                        />
-                        {passwordErrors.new_password && (
-                          <p className="mt-1 text-sm text-red-600" data-testid="new-password-error">{passwordErrors.new_password.message}</p>
-                        )}
-                      </div>
-                      <div>
-                        <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700">
-                          Confirm New Password
-                        </label>
-                        <input
-                          type="password"
-                          id="confirm_password"
-                          {...registerPassword('confirm_password')}
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          data-testid="confirm-password-input"
-                        />
-                        {passwordErrors.confirm_password && (
-                          <p className="mt-1 text-sm text-red-600" data-testid="confirm-password-error">{passwordErrors.confirm_password.message}</p>
-                        )}
-                      </div>
+                  <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-6">
+                    <div>
+                      <label htmlFor="current_password" className="block text-sm font-medium text-gray-700">
+                        Current Password
+                      </label>
+                      <input
+                        data-testid="current-password-input"
+                        type="password"
+                        {...registerPassword('current_password')}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                      />
+                      {passwordErrors.current_password && (
+                        <p className="mt-2 text-sm text-red-600">{passwordErrors.current_password.message}</p>
+                      )}
                     </div>
 
-                    {passwordSuccess && (
-                      <div className="mt-4 rounded-md bg-green-50 p-4" data-testid="password-success">
-                        <div className="flex">
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-green-800">Password updated</h3>
-                            <div className="mt-2 text-sm text-green-700">
-                              <p>Your password has been updated successfully.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-6 flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={isPasswordLoading}
-                        className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        data-testid="save-password-button"
-                      >
-                        {isPasswordLoading ? 'Saving...' : 'Change Password'}
-                      </button>
+                    <div>
+                      <label htmlFor="new_password" className="block text-sm font-medium text-gray-700">
+                        New Password
+                      </label>
+                      <input
+                        data-testid="new-password-input"
+                        type="password"
+                        {...registerPassword('new_password')}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                      />
+                      {passwordErrors.new_password && (
+                        <p className="mt-2 text-sm text-red-600">{passwordErrors.new_password.message}</p>
+                      )}
                     </div>
+
+                    <div>
+                      <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700">
+                        Confirm Password
+                      </label>
+                      <input
+                        data-testid="confirm-password-input"
+                        type="password"
+                        {...registerPassword('confirm_password')}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                      />
+                      {passwordErrors.confirm_password && (
+                        <p className="mt-2 text-sm text-red-600">{passwordErrors.confirm_password.message}</p>
+                      )}
+                    </div>
+
+                    <button
+                      data-testid="save-password-button"
+                      type="submit"
+                      disabled={isPasswordLoading}
+                      className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                    >
+                      {isPasswordLoading ? 'Saving...' : 'Save Changes'}
+                    </button>
                   </form>
                 </div>
               </div>
