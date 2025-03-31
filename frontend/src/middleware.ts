@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { AUTH_TOKEN_EXPIRY } from '@/lib/config';
 
 // Define public routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -12,19 +13,52 @@ const PUBLIC_ROUTES = [
 ];
 
 /**
- * Clean token by removing Bearer prefix if present and ensuring no double prefix
+ * Clean token by removing Bearer prefix if present
  */
 function cleanToken(token: string): string {
-  // Remove any existing Bearer prefix, case insensitive
-  const cleanedToken = token.replace(/^Bearer\s+/gi, '').trim();
+  return token.startsWith('Bearer ') ? token.substring(7) : token;
+}
 
-  // Ensure the token looks valid (basic validation)
-  if (!cleanedToken || cleanedToken.length < 20) {
-    console.log('[Middleware] Invalid token format detected');
-    return '';
+/**
+ * Check if a request is rate limited
+ */
+function checkRateLimiting(request: NextRequest): boolean {
+  const rateLimitUntil = request.cookies.get('_rate_limit_until')?.value;
+
+  if (rateLimitUntil) {
+    const limitTime = parseInt(rateLimitUntil, 10);
+    const now = Date.now();
+
+    if (limitTime > now) {
+      // We're still in a rate-limited state
+      return true;
+    }
   }
 
-  return cleanedToken;
+  return false;
+}
+
+/**
+ * Check if a request is an API request
+ */
+function isAPIRequest(path: string): boolean {
+  return path.startsWith('/api/');
+}
+
+/**
+ * Check if a request is a client-side request
+ */
+function isClientSideRequest(request: NextRequest): boolean {
+  // Check if the request has standard client-side request headers
+  const accept = request.headers.get('accept') || '';
+  const xRequestedWith = request.headers.get('x-requested-with');
+  const contentType = request.headers.get('content-type') || '';
+
+  return (
+    accept.includes('application/json') ||
+    xRequestedWith === 'XMLHttpRequest' ||
+    contentType.includes('application/json')
+  );
 }
 
 /**
@@ -85,7 +119,7 @@ export async function middleware(request: NextRequest) {
   // Clone the request headers to avoid modifying the original
   const requestHeaders = new Headers(request.headers);
 
-  // Set clean token in Authorization header (without Bearer prefix)
+  // Set clean token in Authorization header
   requestHeaders.set('Authorization', `Bearer ${token}`);
 
   console.log(`[Middleware] Set Authorization header with clean token: Bearer ${token.substring(0, 10)}...`);
@@ -97,60 +131,18 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Set clean token in cookie
+  // Set clean token in cookie with proper expiry time
   response.cookies.set({
     name: 'token',
-    value: token, // Already cleaned
+    value: token,
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 // 1 hour
+    maxAge: AUTH_TOKEN_EXPIRY.ACCESS_TOKEN
   });
 
   return response;
-}
-
-/**
- * Check if the request is from client-side JavaScript
- */
-function isClientSideRequest(request: NextRequest): boolean {
-  // Check if the request has standard client-side request headers
-  const accept = request.headers.get('accept') || '';
-  const xRequestedWith = request.headers.get('x-requested-with');
-  const contentType = request.headers.get('content-type') || '';
-
-  return (
-    accept.includes('application/json') ||
-    xRequestedWith === 'XMLHttpRequest' ||
-    contentType.includes('application/json')
-  );
-}
-
-/**
- * Check if the request is for an API endpoint
- */
-function isAPIRequest(path: string): boolean {
-  return path.startsWith('/api/');
-}
-
-/**
- * Check if we're currently rate limited
- */
-function checkRateLimiting(request: NextRequest): boolean {
-  const rateLimitUntil = request.cookies.get('_rate_limit_until')?.value;
-
-  if (rateLimitUntil) {
-    const limitTime = parseInt(rateLimitUntil, 10);
-    const now = Date.now();
-
-    if (limitTime > now) {
-      // We're still in a rate-limited state
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // Configure paths to run the middleware on

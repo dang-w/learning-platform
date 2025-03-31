@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { KnowledgePage } from '@/app/knowledge/page';
+import KnowledgePage from '@/app/knowledge/page';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { expect } from '@jest/globals';
@@ -16,10 +16,48 @@ jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(),
 }));
 
+// Mock auth store
+jest.mock('@/lib/store/auth-store', () => ({
+  useAuthStore: jest.fn(() => ({
+    isAuthenticated: true,
+  })),
+}));
+
+// Mock token service
+jest.mock('@/lib/services/token-service', () => ({
+  tokenService: {
+    getMetadata: jest.fn().mockReturnValueOnce(false).mockReturnValue(true),
+    setMetadata: jest.fn(),
+  },
+}));
+
 // Mock knowledge components
 jest.mock('@/components/knowledge', () => ({
   SpacedRepetitionOnboarding: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
     isOpen ? <div data-testid="onboarding-modal">Onboarding Modal <button onClick={onClose}>Close</button></div> : null
+  ),
+  KnowledgeBase: () => (
+    <div>
+      <h1>Knowledge Management</h1>
+      <div className="flex space-x-4">
+        <button data-testid="start-review-button">Start Review Session</button>
+        <button data-testid="view-all-concepts-button">View All Concepts</button>
+        <button data-testid="create-concept-button">Create Concept</button>
+      </div>
+      <div>
+        <button data-testid="concepts-tab">All Concepts</button>
+        <button data-testid="due-tab">Due for Review</button>
+        <button data-testid="statistics-tab">Statistics</button>
+      </div>
+      <div>
+        <h2>Concepts Due for Review</h2>
+        <div>Concept 1</div>
+        <div>Concept 2</div>
+      </div>
+      <div>
+        <h2>Statistics</h2>
+      </div>
+    </div>
   ),
 }));
 
@@ -40,11 +78,6 @@ describe('KnowledgePage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Reset localStorage mock for onboarding
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('spacedRepetitionOnboardingCompleted', 'true');
-    }
 
     // Mock router
     (useRouter as jest.Mock).mockReturnValue({
@@ -86,6 +119,13 @@ describe('KnowledgePage', () => {
       }
       return { isLoading: false, data: null, error: null };
     });
+  });
+
+  it('displays the onboarding modal when the user has not completed the onboarding', () => {
+    render(<KnowledgePage />);
+
+    expect(screen.getByText('Welcome to Spaced Repetition')).toBeInTheDocument();
+    expect(screen.getByText('Skip Tutorial')).toBeInTheDocument();
   });
 
   it('renders the knowledge page with concepts tab active by default', () => {

@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 import os
-import jwt
+from jose import jwt, JWTError
 
 from auth import (
     User, Token, UserInDB, TokenData,
@@ -53,7 +53,7 @@ class NotificationPreferences(BaseModel):
 async def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    _: None = Depends(rate_limit_dependency(limit=5, window=300, key_prefix="auth"))
+    _: None = Depends(rate_limit_dependency(limit=20, window=300, key_prefix="auth"))
 ):
     """
     OAuth2 compatible token login endpoint.
