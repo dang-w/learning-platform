@@ -2,6 +2,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import LoginForm from '@/components/auth/LoginForm';
 import { renderWithAuth } from '@/lib/utils/test-utils';
+import { expect } from '@jest/globals';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn()
@@ -39,7 +40,7 @@ describe('LoginForm', () => {
   });
 
   it('should display error message on login failure', async () => {
-    const errorMessage = 'Invalid credentials';
+    const errorMessage = 'Failed to obtain valid token before request.';
 
     renderWithAuth(<LoginForm />, {
       authOptions: {

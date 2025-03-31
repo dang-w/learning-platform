@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthContext } from '@/lib/store/auth-store';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
 
 export default function RegisterForm() {
@@ -14,7 +14,7 @@ export default function RegisterForm() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const router = useRouter();
 
-  const { register, login, error, clearError, isLoading: storeLoading, validationErrors: storeValidationErrors } = useAuthContext();
+  const { register, login, error, clearError, isLoading: storeLoading, validationErrors: storeValidationErrors } = useAuthStore();
 
   // Sync store validation errors with local state
   useEffect(() => {

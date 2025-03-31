@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import progressApi, { Metric, MetricCreate, MetricsSummary, WeeklyReport } from '@/lib/api/progress';
 import { LearningProgress } from '@/types/progress';
-import * as apiUtils from '@/lib/utils/api';
+import apiClient from '@/lib/api/client';
 import { expect } from '@jest/globals';
 
 // Mock the apiClient
@@ -17,52 +17,37 @@ jest.mock('@/lib/api/client', () => {
   };
 });
 
-// Mock the fetchJsonWithAuth function
-jest.mock('@/lib/utils/api', () => ({
-  fetchJsonWithAuth: jest.fn(),
-  logAuthOperation: jest.fn(),
-  getToken: jest.fn(),
-  refreshTokenAndRetry: jest.fn(),
-}));
-
-// Import the mocked client
-const mockedFetchJsonWithAuth = apiUtils.fetchJsonWithAuth as jest.MockedFunction<typeof apiUtils.fetchJsonWithAuth>;
+// Cast the imported apiClient to its mocked type for intellisense/type safety
+const mockedApiClient = apiClient as jest.Mocked<typeof apiClient>;
 
 describe('Progress API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset mocks on the imported object
+    mockedApiClient.get.mockReset();
+    mockedApiClient.post.mockReset();
+    mockedApiClient.put.mockReset();
+    mockedApiClient.delete.mockReset();
   });
 
   describe('addMetric', () => {
     it('should call the addMetric endpoint', async () => {
       // Mock response
       const mockMetric: Metric = {
-        id: '1',
-        date: '2023-01-01',
-        study_hours: 3.5,
-        topics: 'React, TypeScript',
-        focus_score: 8,
-        notes: 'Productive study session',
+        id: '1', date: '2023-01-01', study_hours: 3.5, topics: 'React, TypeScript', focus_score: 8, notes: 'Productive session'
       };
-      mockedFetchJsonWithAuth.mockResolvedValue(mockMetric);
+      mockedApiClient.post.mockResolvedValue({ data: mockMetric });
 
       // Test data
       const metricData: MetricCreate = {
-        date: '2023-01-01',
-        study_hours: 3.5,
-        topics: 'React, TypeScript',
-        focus_score: 8,
-        notes: 'Productive study session',
+        date: '2023-01-01', study_hours: 3.5, topics: 'React, TypeScript', focus_score: 8, notes: 'Productive session'
       };
 
       // Call the function
       const result = await progressApi.addMetric(metricData);
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics', {
-        method: 'POST',
-        body: JSON.stringify(metricData),
-      });
+      expect(mockedApiClient.post).toHaveBeenCalledWith('/api/progress/metrics', metricData);
       expect(result).toEqual(mockMetric);
     });
   });
@@ -70,47 +55,25 @@ describe('Progress API', () => {
   describe('getMetrics', () => {
     it('should call the getMetrics endpoint without params', async () => {
       // Mock response
-      const mockMetrics: Metric[] = [
-        {
-          id: '1',
-          date: '2023-01-01',
-          study_hours: 3.5,
-          topics: 'React, TypeScript',
-          focus_score: 8,
-          notes: 'Productive study session',
-        },
-      ];
-      mockedFetchJsonWithAuth.mockResolvedValue(mockMetrics);
+      const mockMetrics: Metric[] = [{ id: '1', date: '2023-01-01', study_hours: 3.5, topics: 'React', focus_score: 8, notes: 'Notes 1' }];
+      mockedApiClient.get.mockResolvedValue({ data: mockMetrics });
 
       // Call the function
       const result = await progressApi.getMetrics();
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics');
+      // Check URL and that params object was passed (even if empty search params)
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/progress/metrics', { params: expect.any(URLSearchParams) });
       expect(result).toEqual(mockMetrics);
     });
 
     it('should call the getMetrics endpoint with date range', async () => {
       // Mock response
       const mockMetrics: Metric[] = [
-        {
-          id: '1',
-          date: '2023-01-01',
-          study_hours: 3.5,
-          topics: 'React, TypeScript',
-          focus_score: 8,
-          notes: 'Productive study session',
-        },
-        {
-          id: '2',
-          date: '2023-01-02',
-          study_hours: 2.0,
-          topics: 'Next.js',
-          focus_score: 7,
-          notes: 'Worked on routing',
-        },
+        { id: '1', date: '2023-01-01', study_hours: 3.5, topics: 'React', focus_score: 8, notes: 'Notes 1' },
+        { id: '2', date: '2023-01-02', study_hours: 2.0, topics: 'Next.js', focus_score: 7, notes: 'Notes 2' },
       ];
-      mockedFetchJsonWithAuth.mockResolvedValue(mockMetrics);
+      mockedApiClient.get.mockResolvedValue({ data: mockMetrics });
 
       // Call the function with date range
       const startDate = '2023-01-01';
@@ -118,7 +81,8 @@ describe('Progress API', () => {
       const result = await progressApi.getMetrics(startDate, endDate);
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics?start_date=2023-01-01&end_date=2023-01-07');
+      const expectedParams = new URLSearchParams({ start_date: startDate, end_date: endDate });
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/progress/metrics', { params: expectedParams });
       expect(result).toEqual(mockMetrics);
     });
   });
@@ -127,57 +91,37 @@ describe('Progress API', () => {
     it('should call the getRecentMetricsSummary endpoint with default days', async () => {
       // Mock response
       const mockSummary: MetricsSummary = {
-        total_hours: 20.5,
-        average_focus: 7.5,
-        most_studied_topics: ['React', 'TypeScript', 'Next.js'],
-        streak_days: 5,
+        total_hours: 20.5, average_focus: 7.5, most_studied_topics: ['React'], streak_days: 5,
         recent_metrics: [
-          {
-            id: '1',
-            date: '2023-01-01',
-            study_hours: 3.5,
-            topics: 'React, TypeScript',
-            focus_score: 8,
-            notes: 'Productive study session',
-          },
+          { id: '1', date: '2023-01-01', study_hours: 3.5, topics: 'React', focus_score: 8, notes: 'Notes 1' },
         ],
       };
-      mockedFetchJsonWithAuth.mockResolvedValue(mockSummary);
+      mockedApiClient.get.mockResolvedValue({ data: mockSummary });
 
       // Call the function
-      const result = await progressApi.getRecentMetricsSummary();
+      const result = await progressApi.getRecentMetricsSummary(); // Default days = 7
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics/recent?days=7');
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/progress/metrics/recent', { params: { days: 7 } });
       expect(result).toEqual(mockSummary);
     });
 
     it('should call the getRecentMetricsSummary endpoint with custom days', async () => {
       // Mock response
       const mockSummary: MetricsSummary = {
-        total_hours: 30.5,
-        average_focus: 7.2,
-        most_studied_topics: ['React', 'TypeScript', 'Next.js'],
-        streak_days: 10,
+        total_hours: 30.5, average_focus: 7.2, most_studied_topics: ['React'], streak_days: 10,
         recent_metrics: [
-          {
-            id: '1',
-            date: '2023-01-01',
-            study_hours: 3.5,
-            topics: 'React, TypeScript',
-            focus_score: 8,
-            notes: 'Productive study session',
-          },
+          { id: '1', date: '2023-01-01', study_hours: 3.5, topics: 'React', focus_score: 8, notes: 'Notes 1' },
         ],
       };
-      mockedFetchJsonWithAuth.mockResolvedValue(mockSummary);
+      mockedApiClient.get.mockResolvedValue({ data: mockSummary });
 
       // Call the function with custom days
       const days = 14;
       const result = await progressApi.getRecentMetricsSummary(days);
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics/recent?days=14');
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/progress/metrics/recent', { params: { days: 14 } });
       expect(result).toEqual(mockSummary);
     });
   });
@@ -186,154 +130,76 @@ describe('Progress API', () => {
     it('should call the generateWeeklyReport endpoint without date', async () => {
       // Mock response
       const mockReport: WeeklyReport = {
-        start_date: '2023-01-01',
-        end_date: '2023-01-07',
-        total_hours: 20.5,
-        average_focus: 7.5,
-        topic_distribution: {
-          React: 8.5,
-          TypeScript: 6.0,
-          'Next.js': 6.0,
-        },
-        daily_hours: {
-          '2023-01-01': 3.5,
-          '2023-01-02': 2.0,
-          '2023-01-03': 4.0,
-          '2023-01-04': 3.0,
-          '2023-01-05': 3.5,
-          '2023-01-06': 2.5,
-          '2023-01-07': 2.0,
-        },
-        daily_focus: {
-          '2023-01-01': 8,
-          '2023-01-02': 7,
-          '2023-01-03': 8,
-          '2023-01-04': 7,
-          '2023-01-05': 8,
-          '2023-01-06': 7,
-          '2023-01-07': 7,
-        },
-        charts: {
-          hours_chart: 'base64_encoded_image',
-          focus_chart: 'base64_encoded_image',
-          topics_chart: 'base64_encoded_image',
-        },
-        comparison_to_previous: {
-          hours_change_percentage: 15.2,
-          focus_change_percentage: 5.5,
-        },
+        start_date: '2023-01-01', end_date: '2023-01-07', total_hours: 20.5, average_focus: 7.5, topic_distribution: {}, daily_hours: {}, daily_focus: {}, charts: { hours_chart: '', focus_chart: '', topics_chart: '' }, comparison_to_previous: { hours_change_percentage: 0, focus_change_percentage: 0 }
       };
-      mockedFetchJsonWithAuth.mockResolvedValue(mockReport);
+      mockedApiClient.get.mockResolvedValue({ data: mockReport });
 
       // Call the function
       const result = await progressApi.generateWeeklyReport();
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/report/weekly');
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/progress/report/weekly', { params: undefined });
       expect(result).toEqual(mockReport);
     });
 
     it('should call the generateWeeklyReport endpoint with date', async () => {
       // Mock response
       const mockReport: WeeklyReport = {
-        start_date: '2023-01-01',
-        end_date: '2023-01-07',
-        total_hours: 20.5,
-        average_focus: 7.5,
-        topic_distribution: {
-          React: 8.5,
-          TypeScript: 6.0,
-          'Next.js': 6.0,
-        },
-        daily_hours: {
-          '2023-01-01': 3.5,
-          '2023-01-02': 2.0,
-          '2023-01-03': 4.0,
-          '2023-01-04': 3.0,
-          '2023-01-05': 3.5,
-          '2023-01-06': 2.5,
-          '2023-01-07': 2.0,
-        },
-        daily_focus: {
-          '2023-01-01': 8,
-          '2023-01-02': 7,
-          '2023-01-03': 8,
-          '2023-01-04': 7,
-          '2023-01-05': 8,
-          '2023-01-06': 7,
-          '2023-01-07': 7,
-        },
-        charts: {
-          hours_chart: 'base64_encoded_image',
-          focus_chart: 'base64_encoded_image',
-          topics_chart: 'base64_encoded_image',
-        },
-        comparison_to_previous: {
-          hours_change_percentage: 15.2,
-          focus_change_percentage: 5.5,
-        },
+        start_date: '2023-01-08', end_date: '2023-01-14', total_hours: 18.0, average_focus: 8.0, topic_distribution: {}, daily_hours: {}, daily_focus: {}, charts: { hours_chart: '', focus_chart: '', topics_chart: '' }, comparison_to_previous: { hours_change_percentage: 0, focus_change_percentage: 0 }
       };
-      mockedFetchJsonWithAuth.mockResolvedValue(mockReport);
+      mockedApiClient.get.mockResolvedValue({ data: mockReport });
 
       // Call the function with date
-      const date = '2023-01-01';
+      const date = '2023-01-10';
       const result = await progressApi.generateWeeklyReport(date);
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/report/weekly?date=2023-01-01');
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/progress/report/weekly', { params: { date } });
       expect(result).toEqual(mockReport);
     });
   });
 
   describe('deleteMetric', () => {
     it('should call the deleteMetric endpoint', async () => {
-      // Mock response
-      mockedFetchJsonWithAuth.mockResolvedValue(undefined);
+      // Mock response (delete usually returns no content)
+      mockedApiClient.delete.mockResolvedValue({});
 
       // Call the function
-      await progressApi.deleteMetric('1');
+      const metricId = '1';
+      await progressApi.deleteMetric(metricId);
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/progress/metrics/1', {
-        method: 'DELETE'
-      });
+      expect(mockedApiClient.delete).toHaveBeenCalledWith(`/api/progress/metrics/${metricId}`);
     });
   });
 
   describe('fetchLearningProgress', () => {
     it('should call the fetchLearningProgress endpoint', async () => {
-      // Mock response
+      // Mock response matching the LearningProgress interface
       const mockProgress: LearningProgress = {
-        total_resources: 50,
-        completion_percentage: 50,
         completed: 25,
         in_progress: 15,
         not_started: 10,
-        recent_activity: [
-          {
-            id: '1',
-            type: 'completion',
-            resource_id: '1',
-            resource_title: 'Resource 1',
-            timestamp: '2023-01-01T00:00:00Z',
-          },
-        ],
+        total_resources: 50,
+        completion_percentage: 50,
         recent_completions: [
-          {
-            id: '1',
-            title: 'Resource 1',
-            completion_date: '2023-01-01T00:00:00Z',
-          },
+          { id: 'res1', title: 'Resource 1', completion_date: '2023-01-01T10:00:00Z' }
+        ],
+        recent_activity: [
+          { id: 'act1', type: 'completion', resource_id: 'res1', resource_title: 'Resource 1', timestamp: '2023-01-01T10:00:00Z' },
+          { id: 'act2', type: 'start', resource_id: 'res2', resource_title: 'Resource 2', timestamp: '2023-01-02T11:00:00Z' }
         ]
       };
-      mockedFetchJsonWithAuth.mockResolvedValue(mockProgress);
+      mockedApiClient.get.mockResolvedValue({ data: mockProgress });
 
       // Call the function
       const result = await progressApi.fetchLearningProgress();
 
       // Assertions
-      expect(mockedFetchJsonWithAuth).toHaveBeenCalledWith('/api/learning-path/progress');
+      expect(mockedApiClient.get).toHaveBeenCalledWith('/api/learning-path/progress');
       expect(result).toEqual(mockProgress);
     });
   });
+
+  // TODO: Add tests for getAllMetrics and getStudySessions if needed, including mock setup and assertions.
 });

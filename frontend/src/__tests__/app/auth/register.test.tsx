@@ -7,8 +7,36 @@ import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RegisterPage from '@/app/auth/register/page';
 import { renderWithProviders } from '@/lib/utils/test-utils/test-providers/test-providers';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useRouter } from 'next/navigation';
+
+// Mock next navigation
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+}));
 
 describe('RegisterPage', () => {
+  // Let TypeScript infer the spy type
+  let registerSpy: ReturnType<typeof jest.spyOn>;
+
+  beforeEach(() => {
+    // Reset mocks before each test
+    if (registerSpy) {
+      registerSpy.mockClear();
+    }
+    // Reset store state
+    useAuthStore.getState().reset();
+    // Mock useRouter
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+  });
+
+  afterEach(() => {
+    // Restore mocks
+    if (registerSpy) {
+      registerSpy.mockRestore();
+    }
+  });
+
   it('should show validation errors for empty fields', async () => {
     renderWithProviders(<RegisterPage />);
 
@@ -32,6 +60,11 @@ describe('RegisterPage', () => {
 
   it('should disable submit button during form submission', async () => {
     const user = userEvent.setup();
+    // Mock the STORE ACTION to return a pending promise
+    registerSpy = jest
+      .spyOn(useAuthStore.getState(), 'register')
+      .mockImplementation(() => new Promise(() => {}));
+
     renderWithProviders(<RegisterPage />);
 
     // Fill in form
@@ -41,10 +74,17 @@ describe('RegisterPage', () => {
     await user.type(screen.getByTestId('password-input'), 'password123');
 
     const submitButton = screen.getByTestId('submit-button');
-    await user.click(submitButton);
 
-    expect(submitButton).toBeDisabled();
-    expect(submitButton).toHaveTextContent('Creating account...');
+    // Wrap click and waitFor in act
+    await act(async () => {
+      await user.click(submitButton);
+    });
+
+    // Wait for the button to become disabled and text to change
+    await waitFor(() => {
+      expect(submitButton).toBeDisabled();
+      expect(submitButton).toHaveTextContent('Creating account...');
+    });
   });
 
   it('should show form fields with correct attributes', () => {
@@ -67,6 +107,11 @@ describe('RegisterPage', () => {
 
   it('should prevent multiple form submissions', async () => {
     const user = userEvent.setup();
+    // Mock the STORE ACTION to return a pending promise
+    registerSpy = jest
+      .spyOn(useAuthStore.getState(), 'register')
+      .mockImplementation(() => new Promise(() => {}));
+
     renderWithProviders(<RegisterPage />);
 
     // Fill in form
@@ -76,14 +121,26 @@ describe('RegisterPage', () => {
     await user.type(screen.getByTestId('password-input'), 'password123');
 
     const submitButton = screen.getByTestId('submit-button');
-    await user.click(submitButton);
 
-    // Verify button is disabled
-    expect(submitButton).toBeDisabled();
-    expect(submitButton).toHaveTextContent('Creating account...');
+    // Wrap first click and waitFor in act
+    await act(async () => {
+      await user.click(submitButton);
+    });
 
-    // Try clicking again
-    await user.click(submitButton);
-    expect(submitButton).toBeDisabled();
+    // Verify button is disabled and STORE ACTION called once after first click
+    await waitFor(() => {
+      expect(submitButton).toBeDisabled();
+      expect(submitButton).toHaveTextContent('Creating account...');
+      expect(registerSpy).toHaveBeenCalledTimes(1); // Check store action spy
+    });
+
+    // Try clicking again (this should ideally do nothing as button is disabled)
+    // Wrap in act just in case, though ideally unnecessary if truly disabled
+    await act(async () => {
+      await user.click(submitButton);
+    });
+
+    // Verify the STORE ACTION was *still* only called once after the second click attempt
+    expect(registerSpy).toHaveBeenCalledTimes(1); // Check store action spy
   });
 });

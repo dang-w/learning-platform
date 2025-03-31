@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="51.131" tests="4" failures="1">
+  <testsuite name="Root Suite" timestamp="2025-03-31T14:35:59" tests="0" file="e2e-testing/cypress/e2e/url-metadata.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="URL Metadata Extraction" timestamp="2025-03-31T14:35:59" tests="4" time="51.094" failures="1">
+    <testcase name="URL Metadata Extraction should extract metadata from a valid URL" time="16.217" classname="should extract metadata from a valid URL">
+      <failure message="Timed out retrying after 15000ms: expected null not to be null" type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 15000ms: expected null not to be null
+    at Context.eval (webpack:///./cypress/e2e/url-metadata.cy.ts:14:0)]]></failure>
+    </testcase>
+    <testcase name="URL Metadata Extraction should show an error message for invalid URLs" time="0.783" classname="should show an error message for invalid URLs">
+    </testcase>
+    <testcase name="URL Metadata Extraction should show an error message when metadata extraction fails" time="0.785" classname="should show an error message when metadata extraction fails">
+    </testcase>
+    <testcase name="URL Metadata Extraction should allow manual entry after failed metadata extraction" time="0.654" classname="should allow manual entry after failed metadata extraction">
+    </testcase>
+  </testsuite>
+</testsuites>

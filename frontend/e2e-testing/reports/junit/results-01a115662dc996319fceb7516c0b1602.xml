@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="17.239" tests="2" failures="0">
+  <testsuite name="Root Suite" timestamp="2025-03-31T14:34:55" tests="0" file="e2e-testing/cypress/e2e/knowledge-spaced-repetition.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Knowledge Management - Spaced Repetition E2E Flow" timestamp="2025-03-31T14:34:55" tests="2" time="17.208" failures="0">
+    <testcase name="Knowledge Management - Spaced Repetition E2E Flow should navigate to the Knowledge section if available" time="5.567" classname="should navigate to the Knowledge section if available">
+    </testcase>
+    <testcase name="Knowledge Management - Spaced Repetition E2E Flow should explore knowledge management features" time="5.435" classname="should explore knowledge management features">
+    </testcase>
+  </testsuite>
+</testsuites>

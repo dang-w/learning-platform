@@ -2,6 +2,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import RegisterForm from '@/components/auth/RegisterForm';
 import { renderWithAuth } from '@/lib/utils/test-utils';
+import { expect } from '@jest/globals';
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn()
@@ -43,7 +44,7 @@ describe('RegisterForm', () => {
   });
 
   it('should display error message on registration failure', async () => {
-    const errorMessage = 'Username already taken';
+    const errorMessage = 'Failed to obtain valid token before request.';
 
     renderWithAuth(<RegisterForm />, {
       authOptions: {
