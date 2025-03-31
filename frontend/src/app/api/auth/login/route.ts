@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_URL } from '@/config';
+import { AUTH_TOKEN_EXPIRY } from '@/lib/config';
 
 /**
  * Clean token by removing Bearer prefix if present
  */
 function cleanToken(token: string): string {
-  return token.replace(/^Bearer\s+/i, '').trim();
+  return token.startsWith('Bearer ') ? token.substring(7) : token;
 }
 
 /**
@@ -15,8 +15,10 @@ export async function POST(request: NextRequest) {
   console.log('Login request received');
 
   try {
+    // Get the request body
     const body = await request.json();
 
+    // Validate request body
     if (!body.username || !body.password) {
       return NextResponse.json(
         { message: 'Username and password are required' },
@@ -24,52 +26,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Login attempt for user: ${body.username}`);
+    // Forward the request to the backend API
+    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:8000';
+    console.log(`Forwarding login request to: ${backendUrl}/api/auth/login`);
 
-    // Construct the backend API URL
-    const backendUrl = process.env.BACKEND_API_URL || API_URL || 'http://localhost:8000';
-    const loginEndpoint = `${backendUrl}/api/auth/token`;
-
-    console.log(`Forwarding login request to backend: ${loginEndpoint}`);
-
-    // Convert JSON data to form data format for OAuth2 compatibility
-    const formData = new URLSearchParams();
-    formData.append('username', body.username);
-    formData.append('password', body.password);
-    formData.append('grant_type', 'password');
-
-    // Forward the request to the backend using x-www-form-urlencoded format
-    const backendResponse = await fetch(loginEndpoint, {
+    const response = await fetch(`${backendUrl}/api/auth/login`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
-      body: formData.toString(),
-      cache: 'no-store'
+      body: JSON.stringify({
+        username: body.username,
+        password: body.password,
+      }),
     });
 
-    console.log(`Backend login response status: ${backendResponse.status}`);
-
-    if (!backendResponse.ok) {
-      const errorData = await backendResponse.json().catch(() => ({}));
-      console.error('Login error from backend:', errorData);
-
-      // Return appropriate error messages
-      if (backendResponse.status === 401) {
-        return NextResponse.json(
-          { message: 'Invalid username or password' },
-          { status: 401 }
-        );
-      }
-
+    // Get the response data
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (jsonError) {
+      console.error('Error parsing login response:', jsonError);
       return NextResponse.json(
-        { message: errorData.detail || 'Login failed' },
-        { status: backendResponse.status }
+        { message: 'Invalid response from authentication server' },
+        { status: 500 }
       );
     }
 
-    // Parse tokens from backend response
-    const responseData = await backendResponse.json();
+    // Check if the response was successful
+    if (!response.ok) {
+      console.error('Login failed:', responseData);
+      return NextResponse.json(
+        { message: responseData.detail || 'Login failed' },
+        { status: response.status }
+      );
+    }
 
     if (!responseData.access_token) {
       console.error('Backend did not return an access token', responseData);
@@ -88,7 +79,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Create response with proper headers
-    const response = NextResponse.json(tokenResponse, {
+    const authResponse = NextResponse.json(tokenResponse, {
       status: 200,
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
@@ -96,31 +87,31 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Set cookies for server-side authentication
-    response.cookies.set({
+    // Set cookies for server-side authentication with proper expiry times
+    authResponse.cookies.set({
       name: 'token',
       value: cleanedToken,
       httpOnly: true,
       path: '/',
-      maxAge: 60 * 60, // 1 hour
+      maxAge: AUTH_TOKEN_EXPIRY.ACCESS_TOKEN,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
     });
 
     if (responseData.refresh_token) {
-      response.cookies.set({
+      authResponse.cookies.set({
         name: 'refresh_token',
         value: responseData.refresh_token,
         httpOnly: true,
         path: '/',
-        maxAge: 60 * 60 * 24, // 24 hours
+        maxAge: AUTH_TOKEN_EXPIRY.REFRESH_TOKEN,
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
       });
     }
 
     console.log('Login successful, returning tokens and setting cookies');
-    return response;
+    return authResponse;
 
   } catch (error) {
     console.error('Error during login:', error);

@@ -5,29 +5,18 @@ import ProfilePage from '@/app/profile/page';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useRouter } from 'next/navigation';
 import { expect } from '@jest/globals';
+import authApi from '@/lib/api/auth';
 
 // Mock the auth store
 jest.mock('@/lib/store/auth-store');
+
+// Mock the auth API
+jest.mock('@/lib/api/auth');
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
-
-// Mock fetch globally
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({
-      totalCoursesEnrolled: 5,
-      completedCourses: 3,
-      averageScore: 85,
-      emailNotifications: true,
-      courseUpdates: true,
-      marketingEmails: false
-    })
-  })
-) as jest.Mock;
 
 describe('ProfilePage', () => {
   const mockRouter = {
@@ -41,21 +30,25 @@ describe('ProfilePage', () => {
     lastName: 'User'
   };
 
+  const mockStatistics = {
+    totalCoursesEnrolled: 5,
+    completedCourses: 3,
+    averageScore: 85
+  };
+
+  const mockNotificationPreferences = {
+    emailNotifications: true,
+    courseUpdates: true,
+    marketingEmails: false
+  };
+
   const mockAuthStore = {
     user: mockUser,
     isAuthenticated: true,
     isLoading: false,
     error: null,
-    statistics: {
-      totalCoursesEnrolled: 5,
-      completedCourses: 3,
-      averageScore: 85
-    },
-    notificationPreferences: {
-      emailNotifications: true,
-      courseUpdates: true,
-      marketingEmails: false
-    },
+    statistics: mockStatistics,
+    notificationPreferences: mockNotificationPreferences,
     initializeFromStorage: jest.fn().mockResolvedValue(undefined),
     updateProfile: jest.fn(),
     changePassword: jest.fn(),
@@ -68,19 +61,10 @@ describe('ProfilePage', () => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useAuthStore as unknown as jest.Mock).mockReturnValue(mockAuthStore);
-    (global.fetch as jest.Mock).mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          totalCoursesEnrolled: 5,
-          completedCourses: 3,
-          averageScore: 85,
-          emailNotifications: true,
-          courseUpdates: true,
-          marketingEmails: false
-        })
-      })
-    );
+
+    // Mock auth API calls
+    (authApi.getUserStatistics as jest.Mock).mockResolvedValue(mockStatistics);
+    (authApi.getNotificationPreferences as jest.Mock).mockResolvedValue(mockNotificationPreferences);
   });
 
   it('renders the profile page with user data', async () => {
@@ -91,14 +75,20 @@ describe('ProfilePage', () => {
       expect(mockAuthStore.initializeFromStorage).toHaveBeenCalled();
     });
 
+    // Wait for API calls to complete
+    await waitFor(() => {
+      expect(authApi.getUserStatistics).toHaveBeenCalled();
+      expect(authApi.getNotificationPreferences).toHaveBeenCalled();
+    });
+
     // Wait for loading spinner to disappear
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
     // Now check for profile info
-    expect(screen.getByTestId('profile-info')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('testuser')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-page')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-form')).toBeInTheDocument();
     expect(screen.getByDisplayValue('test@example.com')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
   });
@@ -106,9 +96,10 @@ describe('ProfilePage', () => {
   it('submits the profile form with updated data', async () => {
     render(<ProfilePage />);
 
-    // Wait for initialization and loading to complete
+    // Wait for initialization and API calls to complete
     await waitFor(() => {
-      expect(mockAuthStore.initializeFromStorage).toHaveBeenCalled();
+      expect(authApi.getUserStatistics).toHaveBeenCalled();
+      expect(authApi.getNotificationPreferences).toHaveBeenCalled();
     });
 
     // Wait for loading spinner to disappear
@@ -136,9 +127,10 @@ describe('ProfilePage', () => {
   it('submits the password form with new password', async () => {
     render(<ProfilePage />);
 
-    // Wait for initialization and loading to complete
+    // Wait for initialization and API calls to complete
     await waitFor(() => {
-      expect(mockAuthStore.initializeFromStorage).toHaveBeenCalled();
+      expect(authApi.getUserStatistics).toHaveBeenCalled();
+      expect(authApi.getNotificationPreferences).toHaveBeenCalled();
     });
 
     // Wait for loading spinner to disappear
@@ -149,6 +141,11 @@ describe('ProfilePage', () => {
     // Switch to password tab
     const passwordTab = screen.getByTestId('password-tab');
     fireEvent.click(passwordTab);
+
+    // Wait for password form to be visible
+    await waitFor(() => {
+      expect(screen.getByTestId('password-form')).toBeInTheDocument();
+    });
 
     const currentPasswordInput = screen.getByTestId('current-password-input');
     const newPasswordInput = screen.getByTestId('new-password-input');
@@ -176,9 +173,10 @@ describe('ProfilePage', () => {
 
     render(<ProfilePage />);
 
-    // Wait for initialization and loading to complete
+    // Wait for initialization and API calls to complete
     await waitFor(() => {
-      expect(mockStoreWithError.initializeFromStorage).toHaveBeenCalled();
+      expect(authApi.getUserStatistics).toHaveBeenCalled();
+      expect(authApi.getNotificationPreferences).toHaveBeenCalled();
     });
 
     // Wait for loading spinner to disappear

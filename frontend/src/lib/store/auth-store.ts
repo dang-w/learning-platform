@@ -1,70 +1,42 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import authApi, { User, UserStatistics, NotificationPreferences } from '../api/auth';
+import { redirectToLogin } from '../api/auth';
+import { tokenService as defaultTokenService } from '../services/token-service';
+import type { AuthState } from './types';
+import { useAuthContext } from './contexts/auth-context';
 
-export interface AuthState {
-  user: User | null;
-  token: string | null;
-  refreshToken: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+// --- Test-only Dependency Injection ---
+let activeTokenService = defaultTokenService;
+export function __injectTokenService(newTokenService: typeof defaultTokenService) {
+  console.log('[DEBUG] Injecting token service:', newTokenService);
+  activeTokenService = newTokenService;
+}
+export function __resetTokenService() {
+  console.log('[DEBUG] Resetting token service to default');
+  activeTokenService = defaultTokenService;
+}
+// --- End Test-only ---
+
+export { useAuthContext };
+
+export interface AuthStore {
+  login(username: string, password: string): Promise<void>;
+  register(username: string, email: string, password: string, fullName: string): Promise<void>;
+  logout(): Promise<void>;
+  clearError(): void;
   error: string | null;
-  statistics: UserStatistics | null;
-  notificationPreferences: NotificationPreferences | null;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string, fullName: string) => Promise<void>;
-  logout: () => Promise<void>;
-  fetchUser: () => Promise<void>;
-  refreshAuthToken: () => Promise<boolean>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  clearError: () => void;
-  setDirectAuthState: (token: string, isAuth: boolean) => void;
-  fetchStatistics: () => Promise<void>;
-  getNotificationPreferences: () => Promise<NotificationPreferences>;
-  updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>;
-  exportUserData: () => Promise<Blob>;
-  deleteAccount: () => Promise<void>;
-  reset: () => void;
-  setRefreshToken: (refreshToken: string) => void;
-  _lastTokenRefresh: number;
-  _retryAfterTimestamp: number | null;
-  _lastRefreshAttemptTimestamp: number | null;
-  _refreshAttempts: number;
-  _lastRefreshTimestamp: number | null;
-  initializeFromStorage: () => void;
-  setStatistics: (stats: UserStatistics) => void;
-  setNotificationPreferences: (prefs: NotificationPreferences) => void;
+  isLoading: boolean;
+  isAuthenticated: boolean;
 }
 
-const getStoredTokens = () => {
-  if (typeof window === 'undefined') return { token: null, refreshToken: null };
-
-  // Try localStorage first
-  let token = localStorage.getItem('token');
-  let refreshToken = localStorage.getItem('refresh_token');
-
-  // If not in localStorage, try cookies
-  if (!token || !refreshToken) {
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(c => c.trim().startsWith('token='));
-    const refreshTokenCookie = cookies.find(c => c.trim().startsWith('refresh_token='));
-
-    if (tokenCookie) token = tokenCookie.split('=')[1];
-    if (refreshTokenCookie) refreshToken = refreshTokenCookie.split('=')[1];
-  }
-
-  return { token, refreshToken };
-};
-
+// Main Zustand store
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
-      refreshToken: null,
       isAuthenticated: false,
-      isLoading: true,
+      isLoading: false,
       error: null,
       statistics: null,
       notificationPreferences: null,
@@ -73,6 +45,10 @@ export const useAuthStore = create<AuthState>()(
       _lastRefreshAttemptTimestamp: null,
       _refreshAttempts: 0,
       _lastRefreshTimestamp: null,
+      refreshToken: null,
+      _inRefreshCycle: false,
+      _refreshPromise: null,
+      _refreshCallStack: [],
 
       setStatistics: (stats: UserStatistics) => {
         set({ statistics: stats });
@@ -82,88 +58,347 @@ export const useAuthStore = create<AuthState>()(
         set({ notificationPreferences: prefs });
       },
 
-      initializeFromStorage: () => {
-        const { token, refreshToken } = getStoredTokens();
-        if (token && refreshToken) {
+      initializeFromStorage: async () => {
+        const state = get();
+        console.log('[DEBUG] Called initializeFromStorage');
+
+        // Add stronger initialization protection
+        if (state.isLoading || state._inRefreshCycle || state._refreshPromise) {
+          console.log('[DEBUG] Initialization skipped - already in progress or refresh cycle active');
+          return;
+        }
+
+        // Set initialization flags immediately
+        set({
+          isLoading: true,
+          _inRefreshCycle: false, // Don't set this yet
+          error: null
+        });
+
+        try {
+          console.log('[DEBUG] Starting initialization from storage');
+          const token = activeTokenService.getToken();
+
+          if (!token) {
+            console.log('[DEBUG] No token found during initialization');
+            activeTokenService.clearTokens();
+            set({
+              isAuthenticated: false,
+              user: null,
+              error: null,
+              statistics: null,
+              notificationPreferences: null,
+              isLoading: false,
+              _lastTokenRefresh: 0,
+              _refreshAttempts: 0,
+              _lastRefreshTimestamp: null,
+              _inRefreshCycle: false,
+              _refreshPromise: null
+            });
+            return;
+          }
+
+          // Check token validity without triggering a refresh
+          const shouldRefresh = activeTokenService.shouldRefreshToken();
+          if (shouldRefresh) {
+            console.log('[DEBUG] Token needs refresh during initialization');
+            // Don't trigger refresh here, just clear state
+            activeTokenService.clearTokens();
+            set({
+              isAuthenticated: false,
+              user: null,
+              error: 'Token expired',
+              statistics: null,
+              notificationPreferences: null,
+              isLoading: false,
+              _lastTokenRefresh: 0,
+              _refreshAttempts: 0,
+              _lastRefreshTimestamp: null,
+              _inRefreshCycle: false,
+              _refreshPromise: null
+            });
+            return;
+          }
+
+          console.log('[DEBUG] Found valid token during initialization');
           set({
             isAuthenticated: true,
-            token,
-            refreshToken,
-            isLoading: false
+            error: null
           });
 
-          // Verify token validity
-          authApi.getCurrentUser()
-            .then(user => set({ user }))
-            .catch(async () => {
-              // If current user fetch fails, try to refresh token
-              const refreshed = await get().refreshAuthToken();
-              if (!refreshed) {
-                // If refresh fails, reset auth state
-                set({
-                  isAuthenticated: false,
-                  token: null,
-                  refreshToken: null,
-                  user: null,
-                  error: null,
-                  statistics: null,
-                  notificationPreferences: null
-                });
-              }
+          try {
+            const user = await authApi.getCurrentUser();
+            console.log('[DEBUG] Successfully fetched user data during initialization');
+            set({
+              user,
+              isLoading: false,
+              _lastTokenRefresh: Date.now(),
+              _refreshAttempts: 0,
+              _lastRefreshTimestamp: Date.now(),
+              _lastRefreshAttemptTimestamp: null,
+              _inRefreshCycle: false,
+              _refreshPromise: null
             });
-        } else {
-          set({ isLoading: false });
+
+            // Initialize user data without waiting
+            Promise.all([
+              get().fetchStatistics(),
+              get().getNotificationPreferences()
+            ]).catch(error => {
+              console.error('[DEBUG] Error initializing user data:', error);
+            });
+          } catch (error: unknown) {
+            console.error('[DEBUG] Error fetching user during initialization:', error);
+            // Don't attempt refresh here, just clear state
+            activeTokenService.clearTokens();
+            set({
+              isAuthenticated: false,
+              user: null,
+              error: error instanceof Error ? error.message : 'Failed to fetch user',
+              statistics: null,
+              notificationPreferences: null,
+              isLoading: false,
+              _lastTokenRefresh: 0,
+              _refreshAttempts: 0,
+              _lastRefreshTimestamp: null,
+              _inRefreshCycle: false,
+              _refreshPromise: null
+            });
+          }
+        } catch (error) {
+          console.error('[DEBUG] Error during initialization:', error);
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: error instanceof Error ? error.message : 'Failed to initialize',
+            statistics: null,
+            notificationPreferences: null,
+            isLoading: false,
+            _lastTokenRefresh: 0,
+            _refreshAttempts: 0,
+            _lastRefreshTimestamp: null,
+            _inRefreshCycle: false,
+            _refreshPromise: null
+          });
         }
       },
 
       setDirectAuthState: (token: string, isAuth: boolean) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', token);
-        }
+        activeTokenService.setTokens(token);
         set({
-          token,
           isAuthenticated: isAuth
         });
       },
 
       login: async (username: string, password: string) => {
+        console.log('Auth store: Starting login process');
         set({ isLoading: true, error: null });
+
         try {
+          // Clear any existing auth state first
+          console.log('Auth store: Clearing existing auth state');
+          activeTokenService.clearTokens();
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: null
+          });
+
+          console.log('Auth store: Calling login API');
           const { token, refreshToken } = await authApi.login({ username, password });
 
           if (!token) {
+            console.error('Auth store: No token received from login');
             throw new Error('No token received from login');
           }
 
-          // Store tokens in localStorage and cookies
-          localStorage.setItem('token', token.replace(/^Bearer\s+/i, ''));
-          if (refreshToken) {
-            localStorage.setItem('refresh_token', refreshToken);
-          }
+          console.log('Auth store: Token received, storing tokens');
+          activeTokenService.setTokens(token, refreshToken);
 
-          // Get user details
-          const user = await authApi.getCurrentUser();
-
+          console.log('Auth store: Updating store state');
           set({
             isAuthenticated: true,
-            token: token.replace(/^Bearer\s+/i, ''),
-            refreshToken,
-            user,
             error: null
           });
+
+          try {
+            console.log('Auth store: Fetching user details');
+            const user = await authApi.getCurrentUser();
+            console.log('Auth store: User details fetched successfully');
+            set({ user, isLoading: false });
+
+            // Initialize user data after successful login
+            console.log('Auth store: Initializing user data');
+            await Promise.all([
+              get().fetchStatistics(),
+              get().getNotificationPreferences()
+            ]).catch(error => {
+              console.error('Auth store: Error initializing user data:', error);
+            });
+
+            console.log('Auth store: Login process complete');
+          } catch (error: unknown) {
+            console.error('Auth store: Error fetching user after login:', error);
+            set({
+              isLoading: false,
+              error: error instanceof Error ? error.message : 'Failed to fetch user',
+              user: null,
+              isAuthenticated: false
+            });
+          }
         } catch (error: unknown) {
-          console.error('Login error:', error);
+          console.error('Auth store: Login error:', error);
+          // Clear any partial auth state
+          activeTokenService.clearTokens();
           set({
             isAuthenticated: false,
-            token: null,
-            refreshToken: null,
             user: null,
-            error: error instanceof Error ? error.message : 'Failed to login'
+            error: error instanceof Error ? error.message : 'Failed to login',
+            isLoading: false
           });
           throw error;
-        } finally {
-          set({ isLoading: false });
         }
+      },
+
+      logout: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          // Only call logout API if authenticated
+          if (get().isAuthenticated) {
+            await authApi.logout();
+          }
+
+          // Reset state before clearing tokens
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: null,
+            isLoading: false,
+            statistics: null,
+            notificationPreferences: null,
+            _lastTokenRefresh: 0,
+            _refreshAttempts: 0,
+            _lastRefreshTimestamp: null,
+            _inRefreshCycle: false,
+            _refreshPromise: null
+          });
+
+          activeTokenService.clearTokens();
+          redirectToLogin();
+        } catch (error) {
+          console.error('Logout error:', error);
+          // Still clear state on error
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: error instanceof Error ? error.message : 'Failed to logout',
+            isLoading: false,
+            statistics: null,
+            notificationPreferences: null,
+            _lastTokenRefresh: 0,
+            _refreshAttempts: 0,
+            _lastRefreshTimestamp: null,
+            _inRefreshCycle: false,
+            _refreshPromise: null
+          });
+          activeTokenService.clearTokens();
+          redirectToLogin();
+        }
+      },
+
+      refreshAuthToken: async () => {
+        const state = get();
+        const now = Date.now();
+
+        // Debug log with cycle detection
+        const currentStack = new Error().stack?.split('\n').slice(1, 5) || [];
+        console.log('[DEBUG] refreshAuthToken called', {
+          timestamp: new Date(now).toISOString(),
+          hasExistingPromise: !!state._refreshPromise,
+          inRefreshCycle: state._inRefreshCycle,
+          stackTrace: currentStack
+        });
+
+        // Prevent refresh if we're in a cycle or have an existing promise
+        if (state._inRefreshCycle || state._refreshPromise) {
+          console.log('[DEBUG] Refresh already in progress, skipping');
+          return state._refreshPromise || Promise.resolve(false);
+        }
+
+        // Check cooldown period
+        if (state._lastRefreshTimestamp && now - state._lastRefreshTimestamp < 5000) {
+          console.log('[DEBUG] In cooldown period, skipping refresh');
+          return Promise.resolve(false);
+        }
+
+        // Create new refresh promise with cycle protection
+        const refreshPromise = (async () => {
+          try {
+            // Set cycle flags before starting refresh
+            set({
+              _inRefreshCycle: true,
+              isLoading: true,
+              error: null,
+              _lastRefreshAttemptTimestamp: now,
+              _refreshPromise: null // Clear any stale promise
+            });
+
+            // Wait for token service refresh
+            const token = await activeTokenService.startTokenRefresh();
+
+            if (!token) {
+              console.log('[DEBUG] Token refresh failed - no token returned');
+              activeTokenService.clearTokens();
+              set({
+                isAuthenticated: false,
+                user: null,
+                error: 'Token refresh failed',
+                _inRefreshCycle: false,
+                isLoading: false,
+                _refreshPromise: null,
+                _lastRefreshAttemptTimestamp: null
+              });
+              return false;
+            }
+
+            // --- Success path ---
+            const existingRefreshToken = activeTokenService.getRefreshToken();
+            activeTokenService.setTokens(token, existingRefreshToken ?? undefined);
+
+            // Update state with new token auth status etc.
+            set({
+              isAuthenticated: true,
+              error: null,
+              _lastTokenRefresh: now,
+              _refreshAttempts: 0,
+              _lastRefreshTimestamp: now,
+              _lastRefreshAttemptTimestamp: null,
+              _inRefreshCycle: false,
+              isLoading: false,
+              _refreshPromise: null
+            });
+
+            console.log('[DEBUG] Token refresh successful, new token set');
+            return true;
+          } catch (error) {
+            console.error('[DEBUG] Token refresh failed:', error);
+            activeTokenService.clearTokens();
+            const errorMessage = error instanceof Error ? error.message : 'Refresh failed';
+            set({
+              isAuthenticated: false,
+              user: null,
+              error: errorMessage,
+              _lastRefreshAttemptTimestamp: null,
+              _inRefreshCycle: false,
+              isLoading: false,
+              _refreshPromise: null
+            });
+            return false;
+          }
+        })();
+
+        set({ _refreshPromise: refreshPromise });
+        return refreshPromise;
       },
 
       register: async (username: string, email: string, password: string, fullName: string) => {
@@ -175,7 +410,7 @@ export const useAuthStore = create<AuthState>()(
           const firstName = nameParts[0] || '';
           const lastName = nameParts.slice(1).join(' ') || '';
 
-          await authApi.register({
+          const result = await authApi.register({
             username,
             email,
             password,
@@ -183,130 +418,88 @@ export const useAuthStore = create<AuthState>()(
             lastName
           });
 
-          // Add a small delay before login to give the backend time to process
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          try {
-            // Auto login after registration
-            await get().login(username, password);
-          } catch (loginError) {
-            // If auto-login fails, don't treat it as a registration error
-            console.warn('Auto login after registration failed:', loginError);
-
-            // Set a specific message for this case
-            set({
-              isLoading: false,
-              error: 'Account created successfully. Please log in with your credentials.',
-            });
-
-            // Rethrow a specific error type to handle in the component
-            throw new Error('AUTO_LOGIN_FAILED');
-          }
-        } catch (error) {
-          // Only set error state if it's not the AUTO_LOGIN_FAILED case
-          if (!(error instanceof Error) || error.message !== 'AUTO_LOGIN_FAILED') {
-            set({
-              isLoading: false,
-              error: error instanceof Error ? error.message : 'Failed to register',
-            });
-          }
-          throw error;
-        }
-      },
-
-      logout: async () => {
-        set({ isLoading: true });
-        try {
-          await authApi.logout();
-        } catch (error) {
-          console.error('Logout error:', error);
-        } finally {
-          // Clear all auth state
-          localStorage.removeItem('token');
-          localStorage.removeItem('refresh_token');
-          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
           set({
-            isAuthenticated: false,
-            token: null,
-            refreshToken: null,
-            user: null,
-            error: null,
             isLoading: false,
-            statistics: null,
-            notificationPreferences: null
+            error: null
           });
+
+          return result;
+        } catch (error) {
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Failed to register'
+          });
+          throw error;
         }
       },
 
       fetchUser: async () => {
+        const state = get();
+
+        // Don't fetch if we're already loading
+        if (state.isLoading) {
+          console.log('Auth store: Skipping user fetch - loading in progress');
+          return;
+        }
+
+        set({ isLoading: true, error: null });
+
         try {
-          set({ isLoading: true });
-
-          // Check if we already have a token in localStorage but not in state
-          const localStorageToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-          if (localStorageToken && !get().token) {
-            set({ token: localStorageToken });
-          }
-
           const user = await authApi.getCurrentUser();
-
-          if (!user) {
-            throw new Error('Failed to fetch user data - empty response');
-          }
-
           set({
             user,
-            isAuthenticated: true,
             isLoading: false,
+            error: null
           });
-        } catch (error) {
-          console.error('Failed to fetch user:', error);
-          set({
-            isLoading: false,
-            error: 'Failed to fetch user',
-          });
+        } catch (error: unknown) {
+          console.error('Error fetching user:', error);
 
-          // Don't clear authentication state on fetch errors during test
-          const isTestEnvironment = typeof window !== 'undefined' && window.location.href.includes('localhost:300');
-          if (!isTestEnvironment) {
+          // Check if the error is due to an expired token
+          const isAuthError = error instanceof Error &&
+            (error.message.includes('unauthorized') || error.message.includes('token'));
+
+          if (isAuthError && activeTokenService.shouldRefreshToken()) {
+            try {
+              const refreshed = await get().refreshAuthToken();
+              if (refreshed) {
+                // Retry fetching user once after successful token refresh
+                try {
+                  const user = await authApi.getCurrentUser();
+                  set({
+                    user,
+                    isLoading: false,
+                    error: null
+                  });
+                } catch (retryError) {
+                  console.error('Error fetching user after token refresh:', retryError);
+                  set({
+                    error: 'Failed to fetch user after token refresh',
+                    isLoading: false
+                  });
+                }
+              } else {
+                activeTokenService.clearTokens();
+                set({
+                  isAuthenticated: false,
+                  isLoading: false,
+                  error: 'Token refresh failed'
+                });
+              }
+            } catch (refreshError) {
+              console.error('Error during token refresh:', refreshError);
+              activeTokenService.clearTokens();
+              set({
+                isAuthenticated: false,
+                isLoading: false,
+                error: 'Token refresh failed'
+              });
+            }
+          } else {
             set({
-              isAuthenticated: false,
-              user: null,
+              error: error instanceof Error ? error.message : 'Failed to fetch user',
+              isLoading: false
             });
           }
-
-          throw error;
-        }
-      },
-
-      refreshAuthToken: async () => {
-        const state = get();
-        const refreshToken = state.refreshToken || localStorage.getItem('refresh_token');
-
-        if (!refreshToken) {
-          console.error('No refresh token available');
-          return false;
-        }
-
-        try {
-          const success = await authApi.refreshAuthToken();
-          if (success) {
-            // Update stored tokens
-            const { token, refreshToken } = getStoredTokens();
-            set({
-              isAuthenticated: true,
-              token,
-              refreshToken,
-              error: null
-            });
-            return true;
-          }
-          return false;
-        } catch (error) {
-          console.error('Token refresh failed:', error);
-          return false;
         }
       },
 
@@ -350,10 +543,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       reset: () => {
+        activeTokenService.clearTokens();
         set({
           user: null,
-          token: null,
-          refreshToken: null,
           isAuthenticated: false,
           isLoading: false,
           error: null,
@@ -364,19 +556,22 @@ export const useAuthStore = create<AuthState>()(
           _lastRefreshAttemptTimestamp: null,
           _refreshAttempts: 0,
           _lastRefreshTimestamp: null,
+          _inRefreshCycle: false,
+          _refreshPromise: null,
+          refreshToken: null
         });
       },
 
       setRefreshToken: (refreshToken: string) => {
-        set({ refreshToken });
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('refresh_token', refreshToken);
+        const token = activeTokenService.getToken();
+        if (token) {
+          activeTokenService.setTokens(token, refreshToken);
         }
       },
 
       fetchStatistics: async () => {
         try {
-          set({ isLoading: true });
+          set({ isLoading: true, error: null });
           console.log('Fetching user statistics from backend...');
 
           const statistics = await authApi.getUserStatistics();
@@ -402,46 +597,21 @@ export const useAuthStore = create<AuthState>()(
 
       getNotificationPreferences: async () => {
         try {
-          set({ isLoading: true });
-          console.log('Fetching notification preferences from backend...');
-
           const preferences = await authApi.getNotificationPreferences();
-          console.log('Notification preferences fetched successfully');
-
-          set({
-            notificationPreferences: preferences,
-            isLoading: false,
-          });
+          set({ notificationPreferences: preferences });
           return preferences;
         } catch (error) {
           console.error('Failed to fetch notification preferences:', error);
-          // Don't update error state to avoid UI disruption
-          set({ isLoading: false });
-
-          // Return default preferences
-          return {
-            emailNotifications: true,
-            courseUpdates: true,
-            newMessages: true,
-            marketingEmails: false,
-            weeklyDigest: true
-          };
+          throw error;
         }
       },
 
       updateNotificationPreferences: async (preferences: NotificationPreferences) => {
         try {
-          set({ isLoading: true, error: null });
-          const updatedPreferences = await authApi.updateNotificationPreferences(preferences);
-          set({
-            notificationPreferences: updatedPreferences,
-            isLoading: false,
-          });
+          await authApi.updateNotificationPreferences(preferences);
+          set({ notificationPreferences: preferences });
         } catch (error) {
-          set({
-            isLoading: false,
-            error: 'Failed to update notification preferences',
-          });
+          console.error('Failed to update notification preferences:', error);
           throw error;
         }
       },
@@ -453,10 +623,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
           return data;
         } catch (error) {
-          set({
-            isLoading: false,
-            error: 'Failed to export user data',
-          });
+          set({ isLoading: false });
           throw error;
         }
       },
@@ -465,9 +632,9 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true, error: null });
           await authApi.deleteAccount();
+          activeTokenService.clearTokens();
           set({
             user: null,
-            token: null,
             isAuthenticated: false,
             isLoading: false,
             statistics: null,
@@ -485,8 +652,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        token: state.token,
-        refreshToken: state.refreshToken,
+        user: state.user,
         isAuthenticated: state.isAuthenticated
       })
     }

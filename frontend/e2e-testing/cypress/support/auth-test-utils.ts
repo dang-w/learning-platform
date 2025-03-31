@@ -6,6 +6,7 @@
  */
 
 import { Note, NotePagination } from '../../../src/types/notes';
+import { tokenService } from '../../../src/lib/services/token-service';
 
 // Default test user
 const DEFAULT_TEST_USER = {
@@ -122,17 +123,16 @@ export const setupCompleteAuthBypass = (username?: string) => {
     statusCode: 204
   }).as('deleteNote');
 
-  // Set auth token in localStorage before any navigation
+  // Set auth token using tokenService before any navigation
   cy.window().then((win) => {
-    // Set both token variations to ensure compatibility
-    win.localStorage.setItem('token', token);
-    win.localStorage.setItem('auth_token', token);
-    win.localStorage.setItem('user', JSON.stringify(mockUser));
+    tokenService.setTokens(token);
+    tokenService.setMetadata('user', mockUser);
+    tokenService.setMetadata('cypress_test_auth_bypass', true);
     win.CYPRESS_AUTH_BYPASS = true;
   });
 
   // Wait for auth to be set up
-  cy.wait(100); // Small delay to ensure localStorage is set
+  cy.wait(100); // Small delay to ensure tokens are set
 };
 
 /**
@@ -142,10 +142,9 @@ export const disableAuthBypass = () => {
   cy.log('Disabling auth bypass');
 
   cy.window().then(win => {
-    win.localStorage.removeItem('token');
-    win.localStorage.removeItem('auth_token');
-    win.localStorage.removeItem('user');
-    win.localStorage.removeItem('cypress_test_auth_bypass');
+    tokenService.clearTokens();
+    tokenService.setMetadata('user', null);
+    tokenService.setMetadata('cypress_test_auth_bypass', null);
     delete win.CYPRESS_AUTH_BYPASS;
   });
 

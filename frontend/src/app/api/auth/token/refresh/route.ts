@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { AUTH_TOKEN_EXPIRY } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Token Refresh API route (/api/auth/token/refresh): Processing refresh request');
+    console.log('Token Refresh API route: Processing refresh request');
 
     // Get the request body
     let body;
@@ -85,12 +86,12 @@ export async function POST(request: NextRequest) {
       // Create cookies for authentication
       const authResponse = NextResponse.json(data);
 
-      // Set cookies for the access token and refresh token
+      // Set cookies for the access token and refresh token with proper expiry times
       authResponse.cookies.set('token', data.access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60, // 1 hour
+        maxAge: AUTH_TOKEN_EXPIRY.ACCESS_TOKEN,
         path: '/',
       });
 
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60, // 7 days
+          maxAge: AUTH_TOKEN_EXPIRY.REFRESH_TOKEN,
           path: '/',
         });
       }

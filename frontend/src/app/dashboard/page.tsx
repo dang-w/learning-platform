@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { resourcesApi, progressApi, reviewsApi, learningPathApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { tokenService } from '@/lib/services/token-service';
 import {
   LearningProgress,
   ActivityFeed,
@@ -13,39 +14,19 @@ import {
   ReviewStats,
   LearningPathProgress
 } from '@/components/dashboard';
-import { Spinner } from '@/components/ui/feedback';
 import ErrorDisplay from '@/components/ui/feedback/ErrorDisplay';
+import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
 
 const SyncTokens = () => {
   useEffect(() => {
-    // Check if token exists in localStorage
-    const localStorageToken = localStorage.getItem('token');
-
-    // Check if token exists in cookies
-    const tokenCookie = document.cookie.split(';').find(cookie => cookie.trim().startsWith('token='));
-    const cookieToken = tokenCookie ? tokenCookie.split('=')[1] : null;
-
-    console.log('Token storage check:', {
-      hasLocalStorage: !!localStorageToken,
-      hasCookie: !!cookieToken,
-      match: localStorageToken === cookieToken
+    // Token synchronization is now handled by TokenService
+    const unsubscribe = tokenService.onTokenChange((token) => {
+      console.log('Token status:', token ? 'present' : 'absent');
     });
 
-    // If token is in localStorage but not in cookie, add it to cookie
-    if (localStorageToken && !cookieToken) {
-      console.log('Token found in localStorage but not in cookie, fixing...');
-      document.cookie = `token=${localStorageToken}; path=/; max-age=86400; SameSite=Lax`;
-    }
-    // If token is in cookie but not in localStorage, add it to localStorage
-    else if (!localStorageToken && cookieToken) {
-      console.log('Token found in cookie but not in localStorage, fixing...');
-      localStorage.setItem('token', cookieToken);
-    }
-    // If tokens don't match, prefer localStorage version
-    else if (localStorageToken && cookieToken && localStorageToken !== cookieToken) {
-      console.log('Token mismatch between localStorage and cookie, synchronizing...');
-      document.cookie = `token=${localStorageToken}; path=/; max-age=86400; SameSite=Lax`;
-    }
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return null;
@@ -57,13 +38,19 @@ export default function DashboardPage() {
 
   // Add token verification
   useEffect(() => {
-    // Check if token exists
-    const token = localStorage.getItem('token');
+    // Check if token exists and is valid
+    const token = tokenService.getToken();
     console.log('Dashboard loaded with token?', !!token);
 
     if (!user && token) {
       console.log('Token exists but no user data, fetching user');
       fetchUser().catch(e => console.error('Error fetching user in dashboard:', e));
+    }
+
+    // Check if token needs refresh
+    if (token && tokenService.shouldRefreshToken()) {
+      console.log('Token needs refresh, initiating refresh');
+      tokenService.startTokenRefresh().catch(e => console.error('Error refreshing token:', e));
     }
   }, [user, fetchUser]);
 
@@ -78,7 +65,7 @@ export default function DashboardPage() {
   const resourcesQuery = useQuery({
     queryKey: ['resources', 'statistics'],
     queryFn: () => {
-      const token = localStorage.getItem('token');
+      const token = tokenService.getToken();
       console.log('Fetching resource statistics with token?', !!token);
       return resourcesApi.getStatistics();
     },
@@ -148,7 +135,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <p>User: {user ? `${user.username} (Logged in)` : 'Not logged in'}</p>
-          <p>Token: {localStorage.getItem('token') ? 'Present' : 'Missing'}</p>
+          <p>Token: {tokenService.getToken() ? 'Present' : 'Missing'}</p>
         </div>
         <div>
           <p>Resources: {resourcesQuery.status}</p>
@@ -180,12 +167,10 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Loading dashboard...</h2>
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-        </div>
-      </div>
+      <LoadingScreen
+        message="Loading your dashboard..."
+        submessage="Preparing your personalized learning experience"
+      />
     );
   }
 
@@ -202,47 +187,42 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" />
-        </div>
-      ) : (
-        <div>
-          {debugDisplay}
+      <div>
+        {debugDisplay}
+        {errorDisplay}
 
-          {errorDisplay}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Suspense fallback={<LoadingScreen />}>
             <ResourceStats />
+          </Suspense>
+          <Suspense fallback={<LoadingScreen />}>
             <StudyMetrics />
+          </Suspense>
+          <Suspense fallback={<LoadingScreen />}>
             <ReviewStats />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* Learning Progress Overview */}
-            <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
-              <LearningProgress />
-            </Suspense>
-
-            {/* Quick Actions */}
-            <div>
-              <QuickActions />
-            </div>
-
-            {/* Activity Feed (compact version) */}
-            <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
-              <ActivityFeed compact={true} />
-            </Suspense>
-          </div>
-
-            {/* Learning Path Progress */}
-            <div className="mb-8">
-              <Suspense fallback={<div className="h-64 flex items-center justify-center"><Spinner /></div>}>
-                <LearningPathProgress />
-              </Suspense>
-            </div>
+          </Suspense>
         </div>
-      )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Suspense fallback={<LoadingScreen />}>
+            <LearningProgress />
+          </Suspense>
+
+          <div>
+            <QuickActions />
+          </div>
+
+          <Suspense fallback={<LoadingScreen />}>
+            <ActivityFeed compact={true} />
+          </Suspense>
+        </div>
+
+        <div className="mb-8">
+          <Suspense fallback={<LoadingScreen />}>
+            <LearningPathProgress />
+          </Suspense>
+        </div>
+      </div>
     </div>
   );
 }
