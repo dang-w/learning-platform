@@ -355,8 +355,12 @@ Cypress.Commands.add('visitProtectedRoute', (route: string) => {
       // Attempt login if needed
       cy.login('test-user-cypress', 'TestPassword123!');
 
-      // Try again after login
-      cy.visit(route, { failOnStatusCode: false });
+      // After login, visit the originally requested URL
+      cy.visit(route);
+      cy.log(`Visited ${route} after login`);
+      // Optional: Add a wait or assertion here to ensure the page is fully loaded
+      // cy.wait(1000); // Example wait
+      cy.url().should('include', route); // Basic check
     }
   });
 });

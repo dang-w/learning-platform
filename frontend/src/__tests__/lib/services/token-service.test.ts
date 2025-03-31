@@ -218,16 +218,73 @@ describe('TokenService', () => {
     });
 
     it('should handle refresh failure gracefully', async () => {
-      // Mock the refresh token to be available
+      // Mock refresh token availability
       getCookieSpy.mockReturnValue('refresh-token');
 
       const mockFetch = jest.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Refresh failed'));
 
-      const result = await tokenService.startTokenRefresh();
-      expect(result).toBeNull();
-      expect(tokenService.isRefreshingToken()).toBe(false);
+      // Act & Assert: Expect the promise to reject with the specific error
+      await expect(tokenService.startTokenRefresh()).rejects.toThrow('Refresh failed');
 
-      mockFetch.mockRestore();
+      // Verify state after failure
+      expect(tokenService.isRefreshingToken()).toBe(false); // Should reset flag
+      expect(removeCookieSpy).toHaveBeenCalledWith('token', expect.any(Object)); // Should clear tokens
+      expect(removeCookieSpy).toHaveBeenCalledWith('refresh_token', expect.any(Object));
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('access_token_metadata');
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('refresh_token_metadata');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle refresh failure due to invalid refresh token (401/403)', async () => {
+      // Mock refresh token availability
+      getCookieSpy.mockReturnValue('invalid-refresh-token');
+
+      // Mock fetch to return 401
+      const mockFetch = jest.spyOn(global, 'fetch').mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: 'Invalid refresh token' }), {
+          status: 401,
+          statusText: 'Unauthorized'
+        })
+      );
+
+      // Act & Assert: Expect the promise to reject
+      await expect(tokenService.startTokenRefresh()).rejects.toThrow('Invalid refresh token');
+
+      // Verify state after failure
+      expect(tokenService.isRefreshingToken()).toBe(false);
+      expect(removeCookieSpy).toHaveBeenCalledWith('token', expect.any(Object));
+      expect(removeCookieSpy).toHaveBeenCalledWith('refresh_token', expect.any(Object));
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('access_token_metadata');
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('refresh_token_metadata');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error if refresh token is missing', async () => {
+      getCookieSpy.mockReturnValue(null); // No refresh token
+      const mockFetch = jest.spyOn(global, 'fetch');
+
+      await expect(tokenService.startTokenRefresh()).rejects.toThrow('No refresh token available');
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(tokenService.isRefreshingToken()).toBe(false);
+    });
+
+    it('should use correct endpoint and method for refresh', async () => {
+      getCookieSpy.mockReturnValue('refresh-token');
+      const mockFetch = jest.spyOn(global, 'fetch').mockResolvedValueOnce(
+        new Response(JSON.stringify({ token: 'new-token' }), { status: 200 })
+      );
+
+      await tokenService.startTokenRefresh();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/auth/token/refresh', // Verify endpoint URL
+        expect.objectContaining({
+          method: 'POST', // Verify method
+          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ refreshToken: 'refresh-token' })
+        })
+      );
     });
   });
 

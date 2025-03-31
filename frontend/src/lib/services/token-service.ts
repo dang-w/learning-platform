@@ -25,7 +25,7 @@ class TokenService {
   private tokenChangeCallbacks: Array<(token: string | null) => void> = [];
   private isRefreshing = false;
   private requestQueue: QueuedRequest[] = [];
-  private refreshPromise: Promise<string | null> | null = null;
+  private refreshPromise: Promise<string> | null = null;
   private lastRefreshFailure = 0;
   private readonly REFRESH_COOLDOWN = 5000; // 5 seconds cooldown after a failed refresh
   private readonly TOKEN_REFRESH_THRESHOLD = 300; // Refresh token if less than 5 minutes until expiry
@@ -197,9 +197,12 @@ class TokenService {
   }
 
   /**
-   * Start token refresh process
+   * Start token refresh process. Resolves with the new access token on success,
+   * throws an error on failure.
+   *
+   * @throws {Error} Throws an error if refresh fails (e.g., network, invalid refresh token).
    */
-  async startTokenRefresh(): Promise<string | null> {
+  async startTokenRefresh(): Promise<string> {
     const now = Date.now();
 
     // If a refresh is already in progress, return the existing promise
@@ -216,33 +219,45 @@ class TokenService {
 
     // Check if we need to observe the cooldown period after a failed refresh
     if (this.lastRefreshFailure > 0 && now - this.lastRefreshFailure < this.REFRESH_COOLDOWN) {
-      console.log('Token service: Skipping refresh due to cooldown period');
-      return Promise.resolve(null);
+      console.log('Token service: Skipping refresh due to cooldown period after failure');
+      throw new Error('Token refresh failed recently, cooldown active.');
     }
 
-    // Check if we have refreshed too recently
+    // Check if we have refreshed too recently (general cooldown, maybe less strict?)
     const refreshMetadata = this.getTokenMetadata('refresh_token');
     if (refreshMetadata?.lastRefresh && now - refreshMetadata.lastRefresh < this.REFRESH_COOLDOWN) {
-      console.log('Token service: Skipping refresh - too soon since last refresh');
-      const currentToken = this.getToken();
-      return Promise.resolve(currentToken);
+      console.log('Token service: Checking cooldown for recent refresh.');
+
+      const currentValidToken = this.getToken();
+
+      // Check if token exists AND is not expired
+      if (currentValidToken && !this.isTokenExpired(0)) {
+        console.log('Token service: Returning current valid token during cooldown.');
+        // Explicitly assert type after check
+        return Promise.resolve(currentValidToken as string);
+      } else {
+        // If no valid token exists and we are in cooldown, we cannot refresh
+        console.log('Token service: No valid token and in refresh cooldown. Cannot refresh.');
+        throw new Error('Token refresh skipped due to recent activity and no valid token.');
+      }
     }
 
     // Start the refresh process
     this.isRefreshing = true;
     this.refreshPromise = (async () => {
       try {
-        const token = await this.refreshToken();
-        if (token) {
-          this.setTokens(token);
-          return token;
-        }
-        this.lastRefreshFailure = now;
-        return null;
-      } catch (error) {
+        const newAccessToken = await this.refreshToken();
+        console.log('Token service: Refresh successful');
+        this.lastRefreshFailure = 0;
+        return newAccessToken;
+      } catch (error: unknown) {
         console.error('Token service: Refresh failed:', error);
         this.lastRefreshFailure = now;
-        return null;
+        if (this.isInvalidRefreshTokenError(error)) {
+          console.warn('Token Service: Invalid refresh token detected. Clearing tokens.');
+          this.clearTokens();
+        }
+        throw error;
       } finally {
         this.isRefreshing = false;
         this.refreshPromise = null;
@@ -262,7 +277,10 @@ class TokenService {
     };
   }
 
-  private async refreshToken(): Promise<string | null> {
+  private async refreshToken(): Promise<string> {
+    let newAccessToken: string | undefined;
+    let newRefreshToken: string | undefined;
+
     try {
       const refreshToken = this.getRefreshToken();
       if (!refreshToken) {
@@ -279,15 +297,35 @@ class TokenService {
       });
 
       if (!response.ok) {
-        throw new Error('Token refresh failed');
+        if (response.status === 401 || response.status === 403) {
+          console.warn(`Token refresh failed with status ${response.status}: Invalid refresh token.`);
+          throw new Error('Invalid refresh token'); // Specific error for invalid token
+        } else {
+          throw new Error(`Token refresh failed with status: ${response.status}`); // Generic error for others
+        }
       }
 
       const data = await response.json();
-      return data.token;
-    } catch (error) {
+      newAccessToken = data.token;
+      newRefreshToken = data.refreshToken; // Check if backend provides a new one
+
+      if (!newAccessToken) {
+        throw new Error('No new access token received from refresh endpoint');
+      }
+
+      // Set the new tokens (passing undefined for refreshToken if none is returned)
+      this.setTokens(newAccessToken, newRefreshToken);
+
+      return newAccessToken; // Return the new access token
+    } catch (error) { // Catch block now handles specific error types
       console.error('Error refreshing token:', error);
-      this.clearTokens();
-      return null;
+      // Only clear tokens if the refresh token itself was deemed invalid
+      if (error instanceof Error && error.message === 'Invalid refresh token') {
+        console.log('Clearing tokens due to invalid refresh token.');
+        this.clearTokens();
+      }
+      // Re-throw the original error (or a new one if preferred) regardless
+      throw error; // Propagate the error for startTokenRefresh to handle
     }
   }
 
@@ -400,6 +438,48 @@ class TokenService {
     } catch (error) {
       console.error('Error setting metadata:', error);
     }
+  }
+
+  /**
+   * Gets a valid access token, refreshing if necessary.
+   *
+   * @returns {Promise<string>} A promise that resolves with a valid access token.
+   * @throws {Error} Throws an error if a valid token cannot be obtained (e.g., refresh failed).
+   */
+  async getValidAccessToken(): Promise<string> {
+    const currentToken = this.getToken();
+
+    // Check if current token exists and is not nearing expiry
+    if (currentToken && !this.isTokenExpired(this.TOKEN_REFRESH_THRESHOLD)) {
+      return currentToken; // Return current token if it's still valid enough
+    }
+
+    // If no valid token or it's nearing expiry, attempt refresh
+    console.log('Token service: Valid token needed, attempting refresh via getValidAccessToken.');
+    try {
+      // startTokenRefresh now returns Promise<string> or throws
+      const newToken = await this.startTokenRefresh();
+      return newToken;
+    } catch (error) {
+      console.error('Token service: Failed to get valid access token:', error);
+      // If refresh fails, clear all tokens as a safety measure (especially if it was InvalidRefreshTokenError)
+      this.clearTokens();
+      // Re-throw the error to signal failure
+      throw new Error(`Failed to obtain valid access token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Hypothetical helper to check for specific invalid refresh token errors
+  // This needs to be adjusted based on how refreshToken throws errors
+  private isInvalidRefreshTokenError(error: unknown): boolean {
+    // Example check: adjust based on actual error structure/type/message
+    if (error instanceof Error) {
+      // Check for specific status codes or messages from the API call within refreshToken
+      // const axiosError = error as AxiosError; // If using Axios
+      // return axiosError.response?.status === 401 || error.message.includes('invalid_grant');
+      return error.message.includes('Invalid refresh token'); // Simple example
+    }
+    return false;
   }
 }
 

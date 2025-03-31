@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Mocha Tests" time="160.185" tests="5" failures="3">
+  <testsuite name="Root Suite" timestamp="2025-03-31T14:32:07" tests="0" file="e2e-testing/cypress/e2e/auth.cy.ts" time="0.000" failures="0">
+  </testsuite>
+  <testsuite name="Authentication Flow" timestamp="2025-03-31T14:32:07" tests="5" time="160.145" failures="3">
+    <testcase name="Authentication Flow should show validation errors for invalid registration" time="6.251" classname="should show validation errors for invalid registration">
+    </testcase>
+    <testcase name="Authentication Flow should allow a user to register and login" time="25.171" classname="should allow a user to register and login">
+      <failure message="Timed out retrying after 15000ms: Expected to find element: `[data-testid=&quot;user-greeting&quot;]`, but never found it." type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid="user-greeting"]`, but never found it.
+    at __webpack_modules__../cypress/support/page-objects/DashboardPage.ts.DashboardPage.isDashboardLoaded (webpack:///./cypress/support/page-objects/DashboardPage.ts:102:0)
+    at Context.eval (webpack:///./cypress/e2e/auth.cy.ts:78:0)]]></failure>
+    </testcase>
+    <testcase name="Authentication Flow should allow login with existing user" time="3.234" classname="should allow login with existing user">
+      <failure message="`cy.visit()` failed trying to load:
+
+http://localhost:3000/dashboard
+
+The response we received from your web server was:
+
+  &gt; 500: Internal Server Error
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`" type="CypressError"><![CDATA[CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:3000/dashboard
+
+The response we received from your web server was:
+
+  > 500: Internal Server Error
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:132351:76)
+    at visitFailedByErr (http://localhost:3000/__cypress/runner/cypress_runner.js:131757:12)
+    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:132334:13)
+    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)
+    at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)
+    at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)
+    at Promise._settlePromise0 (http://localhost:3000/__cypress/runner/cypress_runner.js:1591:10)
+    at Promise._settlePromises (http://localhost:3000/__cypress/runner/cypress_runner.js:1667:18)
+    at _drainQueueStep (http://localhost:3000/__cypress/runner/cypress_runner.js:2377:12)
+    at _drainQueue (http://localhost:3000/__cypress/runner/cypress_runner.js:2370:9)
+    at Async._drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2386:5)
+    at Async.drainQueues (http://localhost:3000/__cypress/runner/cypress_runner.js:2256:14)
+From Your Spec Code:
+    at __webpack_modules__../cypress/support/page-objects/DashboardPage.ts.DashboardPage.visitDashboard (webpack:///./cypress/support/page-objects/DashboardPage.ts:81:0)
+    at Context.eval (webpack:///./cypress/e2e/auth.cy.ts:117:0)
+    at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:118349:20)
+    at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)
+    at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)
+    at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:118360:66)
+    at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:118611:21)
+    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138862:19)]]></failure>
+    </testcase>
+    <testcase name="Authentication Flow should validate incorrect login credentials" time="5.695" classname="should validate incorrect login credentials">
+    </testcase>
+    <testcase name="Authentication Flow should allow logout" time="19.831" classname="should allow logout">
+      <failure message="Timed out retrying after 15000ms: Expected to find element: `[data-testid=&quot;user-greeting&quot;]`, but never found it." type="AssertionError"><![CDATA[AssertionError: Timed out retrying after 15000ms: Expected to find element: `[data-testid="user-greeting"]`, but never found it.
+    at __webpack_modules__../cypress/support/page-objects/DashboardPage.ts.DashboardPage.isDashboardLoaded (webpack:///./cypress/support/page-objects/DashboardPage.ts:102:0)
+    at Context.eval (webpack:///./cypress/e2e/auth.cy.ts:158:0)]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>

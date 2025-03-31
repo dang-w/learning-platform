@@ -1,0 +1,248 @@
+{
+  "stats": {
+    "suites": 1,
+    "tests": 1,
+    "passes": 0,
+    "pending": 0,
+    "failures": 1,
+    "start": "2025-03-31T14:35:33.433Z",
+    "end": "2025-03-31T14:35:37.164Z",
+    "duration": 3731,
+    "testsRegistered": 8,
+    "passPercent": 0,
+    "pendingPercent": 0,
+    "other": 0,
+    "hasOther": false,
+    "skipped": 7,
+    "hasSkipped": true
+  },
+  "results": [
+    {
+      "uuid": "ae40efe7-82ff-44eb-b0e6-89c886e3570e",
+      "title": "",
+      "fullFile": "e2e-testing/cypress/e2e/learning-path.cy.ts",
+      "file": "e2e-testing/cypress/e2e/learning-path.cy.ts",
+      "beforeHooks": [],
+      "afterHooks": [],
+      "tests": [],
+      "suites": [
+        {
+          "uuid": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+          "title": "Learning Path Management",
+          "fullFile": "",
+          "file": "",
+          "beforeHooks": [],
+          "afterHooks": [],
+          "tests": [
+            {
+              "title": "should display learning path overview",
+              "fullTitle": "Learning Path Management should display learning path overview",
+              "timedOut": null,
+              "duration": 1097,
+              "state": "failed",
+              "speed": null,
+              "pass": false,
+              "fail": true,
+              "pending": false,
+              "context": "{\n  \"title\": \"cypress-mochawesome-reporter-screenshots\",\n  \"value\": [\n    [\n      \"/learning-path.cy.ts/Learning Path Management -- should display learning path overview (failed).png\"\n    ],\n    [\n      \"/learning-path.cy.ts/Learning Path Management -- should display learning path overview (failed) (attempt 2).png\"\n    ],\n    [\n      \"/learning-path.cy.ts/Learning Path Management -- should display learning path overview -- before each hook (failed) (attempt 3).png\"\n    ]\n  ]\n}",
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Take screenshot of learning path overview\n    page_objects_1.learningPathPage.takeScreenshot('learning-path-overview');\n    // Check if goals section is visible\n    page_objects_1.learningPathPage.isGoalsSectionVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Goals section is visible');\n        }\n        else {\n            cy.log('Goals section is not visible');\n        }\n    });\n    // Check if milestones section is visible\n    page_objects_1.learningPathPage.isMilestonesSectionVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Milestones section is visible');\n        }\n        else {\n            cy.log('Milestones section is not visible');\n        }\n    });\n    // Check if roadmap section is visible\n    page_objects_1.learningPathPage.isRoadmapSectionVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Roadmap section is visible');\n        }\n        else {\n            cy.log('Roadmap section is not visible');\n        }\n    });\n});",
+              "err": {
+                "message": "CypressError: The following error originated from your test code, not from Cypress.\n\n  > Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.visit()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nWhen Cypress detects uncaught errors originating from your test code it will automatically fail the current test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Learning Path Management`",
+                "estack": "CypressError: The following error originated from your test code, not from Cypress.\n\n  > Cypress detected that you returned a promise from a command while also invoking one or more cy commands in that promise.\n\nThe command that returned the promise was:\n\n  > `cy.visit()`\n\nThe cy command you invoked inside the promise was:\n\n  > `cy.log()`\n\nBecause Cypress commands are already promise-like, you don't need to wrap them or return your own promise.\n\nCypress will resolve your command with whatever the final Cypress command yields.\n\nThe reason this is an error instead of a warning is because Cypress internally queues commands serially whereas Promises execute as soon as they are invoked. Attempting to reconcile this would prevent Cypress from ever resolving.\n\nWhen Cypress detects uncaught errors originating from your test code it will automatically fail the current test.\n\nhttps://on.cypress.io/returning-promise-and-commands-in-another-command\n\nBecause this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Learning Path Management`\n    at cy.<computed> [as log] (http://localhost:3000/__cypress/runner/cypress_runner.js:138922:64)\n    at $Cy.eval (webpack:///./cypress/e2e/learning-path.cy.ts:17:0)\n    at listener (http://localhost:3000/__cypress/runner/cypress_runner.js:140914:19)\n    at arrayMap (http://localhost:3000/__cypress/runner/cypress_runner.js:18631:23)\n    at map (http://localhost:3000/__cypress/runner/cypress_runner.js:27600:14)\n    at $Cy.emitMap (http://localhost:3000/__cypress/runner/cypress_runner.js:140916:14)\n    at parent.<computed> [as emitMap] (http://localhost:3000/__cypress/runner/cypress_runner.js:140879:32)\n    at $Cypress.action (http://localhost:3000/__cypress/runner/cypress_runner.js:41667:21)\n    at $Cy.onUncaughtException (http://localhost:3000/__cypress/runner/cypress_runner.js:139049:38)\n    at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:139225:28)\n    at onUncaughtError (http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1850:50)\n    at onCaughtError (http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1806:16)\n    at logCaughtError (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:6961:13)\n    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:3501:74)\n    at inst.componentDidCatch.update.callback (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:7002:13)\n    at callCallback (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5206:18)\n    at commitCallbacks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:5214:130)\n    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:3501:74)\n    at commitClassCallbacks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:7935:17)\n    at commitLayoutEffectOnFiber (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:8243:31)\n    at recursivelyTraverseLayoutEffects (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:8700:105)\n    at commitLayoutEffectOnFiber (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:8231:17)\nFrom Your Spec Code:\n    at Context.eval (webpack:///./cypress/support/commands.ts:234:0)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138854:43)\nFrom Your Spec Code:\n    at Context.eval (webpack:///./cypress/support/commands.ts:234:0)\n    at wrapped (http://localhost:3000/__cypress/runner/cypress_runner.js:138854:43)",
+                "diff": null
+              },
+              "uuid": "e7a58ef8-6bf4-4d36-93eb-4bb12585c98e",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": false
+            },
+            {
+              "title": "should allow creating a new goal",
+              "fullTitle": "Learning Path Management should allow creating a new goal",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Create a new goal with unique title\n    var goalTitle = \"Test Goal \".concat(Date.now());\n    page_objects_1.learningPathPage.createGoal({\n        title: goalTitle,\n        description: 'This is a test goal created by Cypress',\n        targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now\n        priority: '8',\n        category: 'Testing'\n    });\n    // Verify goal was created successfully\n    page_objects_1.learningPathPage.hasSuccessNotification().then(function (hasSuccess) {\n        if (hasSuccess) {\n            cy.log('Goal created successfully');\n        }\n        else {\n            cy.log('No success notification displayed after creating goal');\n        }\n    });\n    // Verify goal appears in the list\n    page_objects_1.learningPathPage.goalExists(goalTitle).then(function (exists) {\n        cy.wrap(exists).should('be.true');\n    });\n});",
+              "err": {},
+              "uuid": "6fef65a9-18ab-4fcb-9ef4-9fa0535975d7",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow editing an existing goal",
+              "fullTitle": "Learning Path Management should allow editing an existing goal",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if goals exist before trying to edit\n    cy.get('body').then(function ($body) {\n        var hasGoals = $body.find('[data-testid=\"goal-item\"]').length > 0;\n        if (!hasGoals) {\n            cy.log('No goals found to edit, creating a test goal first');\n            // Create a test goal first\n            page_objects_1.learningPathPage.createGoal({\n                title: \"Test Goal to Edit \".concat(Date.now()),\n                description: 'This goal will be edited'\n            });\n        }\n        // Edit the first goal with a unique title\n        var updatedTitle = \"Updated Goal \".concat(Date.now());\n        page_objects_1.learningPathPage.editFirstGoal({\n            title: updatedTitle,\n            description: 'This goal was updated by Cypress'\n        });\n        // Verify goal was updated successfully\n        page_objects_1.learningPathPage.hasSuccessNotification().then(function (hasSuccess) {\n            if (hasSuccess) {\n                cy.log('Goal updated successfully');\n            }\n            else {\n                cy.log('No success notification displayed after updating goal');\n            }\n        });\n        // Verify updated goal appears in the list\n        page_objects_1.learningPathPage.goalExists(updatedTitle).then(function (exists) {\n            cy.wrap(exists).should('be.true');\n        });\n    });\n});",
+              "err": {},
+              "uuid": "c6a2ae3c-34c2-4080-a8e5-361952a57dd9",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow marking a goal as completed",
+              "fullTitle": "Learning Path Management should allow marking a goal as completed",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if goals exist before trying to complete\n    cy.get('body').then(function ($body) {\n        var hasGoals = $body.find('[data-testid=\"goal-item\"]').length > 0;\n        if (!hasGoals) {\n            cy.log('No goals found to complete, creating a test goal first');\n            // Create a test goal first\n            page_objects_1.learningPathPage.createGoal({\n                title: \"Test Goal to Complete \".concat(Date.now()),\n                description: 'This goal will be marked as completed'\n            });\n        }\n        // Mark the first goal as completed\n        page_objects_1.learningPathPage.completeFirstGoal();\n        // Verify goal was marked as completed\n        page_objects_1.learningPathPage.hasSuccessNotification().then(function (hasSuccess) {\n            if (hasSuccess) {\n                cy.log('Goal marked as completed successfully');\n            }\n            else {\n                cy.log('No success notification displayed after completing goal');\n            }\n        });\n        // Verify the goal shows a completed badge\n        cy.get('[data-testid=\"goal-item\"]').first().within(function () {\n            cy.get('[data-testid=\"completed-badge\"]').should('exist');\n        });\n    });\n});",
+              "err": {},
+              "uuid": "bd1c0738-bc90-42ff-8c2f-f11de4718656",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow creating a new milestone",
+              "fullTitle": "Learning Path Management should allow creating a new milestone",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Navigate to milestones tab\n    page_objects_1.learningPathPage.goToMilestonesTab();\n    page_objects_1.learningPathPage.takeScreenshot('milestones-tab');\n    // Create a new milestone with unique title\n    var milestoneTitle = \"Test Milestone \".concat(Date.now());\n    // Check if add milestone button exists\n    cy.get('body').then(function ($body) {\n        var hasAddMilestoneButton = $body.find('[data-testid=\"add-milestone\"]').length > 0;\n        if (hasAddMilestoneButton) {\n            page_objects_1.learningPathPage.createMilestone({\n                title: milestoneTitle,\n                description: 'This is a test milestone created by Cypress',\n                targetDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days from now\n                verificationMethod: 'Cypress Test',\n                selectFirstResource: true\n            });\n            // Verify milestone was created successfully\n            page_objects_1.learningPathPage.hasSuccessNotification().then(function (hasSuccess) {\n                if (hasSuccess) {\n                    cy.log('Milestone created successfully');\n                    // Verify milestone appears in the list\n                    cy.get('[data-testid=\"milestones-list\"]').contains(milestoneTitle).should('exist');\n                }\n                else {\n                    cy.log('No success notification displayed after creating milestone');\n                }\n            });\n        }\n        else {\n            cy.log('Add milestone button not found, skipping milestone creation');\n            page_objects_1.learningPathPage.takeScreenshot('no-add-milestone-button');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "1a686bf2-293f-4e3d-8f04-a7383f057c68",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow editing the roadmap",
+              "fullTitle": "Learning Path Management should allow editing the roadmap",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Navigate to roadmap tab\n    page_objects_1.learningPathPage.goToRoadmapTab();\n    page_objects_1.learningPathPage.takeScreenshot('roadmap-tab');\n    // Check if edit roadmap button exists\n    cy.get('body').then(function ($body) {\n        var hasEditRoadmapButton = $body.find('[data-testid=\"edit-roadmap\"]').length > 0;\n        if (hasEditRoadmapButton) {\n            // Edit the roadmap with unique title\n            var updatedTitle_1 = \"Updated Roadmap \".concat(Date.now());\n            page_objects_1.learningPathPage.editRoadmap({\n                title: updatedTitle_1,\n                description: 'This roadmap was updated by Cypress',\n                addPhase: true,\n                phaseTitle: 'Phase 1: Testing',\n                phaseDescription: 'First phase of testing',\n                addPhaseItem: true,\n                phaseItemTitle: 'Learn Cypress'\n            });\n            // Verify roadmap was updated successfully\n            page_objects_1.learningPathPage.hasSuccessNotification().then(function (hasSuccess) {\n                if (hasSuccess) {\n                    cy.log('Roadmap updated successfully');\n                    // Verify updated roadmap appears\n                    cy.get('[data-testid=\"roadmap-title\"]').contains(updatedTitle_1).should('exist');\n                }\n                else {\n                    cy.log('No success notification displayed after updating roadmap');\n                }\n            });\n        }\n        else {\n            cy.log('Edit roadmap button not found, skipping roadmap editing');\n            page_objects_1.learningPathPage.takeScreenshot('no-edit-roadmap-button');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "b6bb853e-0d37-4676-b89a-cdc45e37c1ab",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should display learning path progress",
+              "fullTitle": "Learning Path Management should display learning path progress",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Navigate to progress tab\n    page_objects_1.learningPathPage.goToProgressTab();\n    page_objects_1.learningPathPage.takeScreenshot('progress-tab');\n    // Check if progress charts are visible\n    page_objects_1.learningPathPage.areProgressChartsVisible().then(function (isVisible) {\n        if (isVisible) {\n            cy.log('Progress charts are visible');\n            // Test date range filter\n            page_objects_1.learningPathPage.filterProgressByLastMonth();\n            // Verify charts are still visible after filtering\n            page_objects_1.learningPathPage.areProgressChartsVisible().then(function (isStillVisible) {\n                cy.wrap(isStillVisible).should('be.true');\n            });\n        }\n        else {\n            cy.log('Progress charts are not visible');\n        }\n    });\n});",
+              "err": {},
+              "uuid": "89cf9fb7-8fd1-4e4b-88ba-6cb14d735c27",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": true
+            },
+            {
+              "title": "should allow deleting a goal",
+              "fullTitle": "Learning Path Management should allow deleting a goal",
+              "timedOut": null,
+              "duration": 0,
+              "state": "skipped",
+              "speed": null,
+              "pass": false,
+              "fail": false,
+              "pending": false,
+              "context": null,
+              "code": "// Check if learning path page loaded properly\npage_objects_1.learningPathPage.isLearningPathLoaded().then(function (isLoaded) {\n    if (!isLoaded) {\n        cy.log('Learning Path page not loaded properly, skipping test');\n        page_objects_1.learningPathPage.takeScreenshot('learning-path-not-loaded');\n        return;\n    }\n    // Check if goals exist before trying to delete\n    cy.get('body').then(function ($body) {\n        var hasGoals = $body.find('[data-testid=\"goal-item\"]').length > 0;\n        if (!hasGoals) {\n            cy.log('No goals found to delete, creating a test goal first');\n            // Create a test goal first\n            page_objects_1.learningPathPage.createGoal({\n                title: \"Test Goal to Delete \".concat(Date.now()),\n                description: 'This goal will be deleted'\n            });\n        }\n        // Get the title of the first goal before deleting\n        var goalTitle;\n        cy.get('[data-testid=\"goal-title\"]').first().invoke('text').then(function (text) {\n            goalTitle = text;\n            // Delete the first goal\n            page_objects_1.learningPathPage.deleteFirstGoal();\n            // Verify goal was deleted successfully\n            page_objects_1.learningPathPage.hasSuccessNotification().then(function (hasSuccess) {\n                if (hasSuccess) {\n                    cy.log('Goal deleted successfully');\n                    // Verify the goal no longer appears in the list\n                    if (goalTitle) {\n                        page_objects_1.learningPathPage.goalExists(goalTitle).then(function (exists) {\n                            cy.wrap(exists).should('be.false');\n                        });\n                    }\n                }\n                else {\n                    cy.log('No success notification displayed after deleting goal');\n                }\n            });\n        });\n    });\n});",
+              "err": {},
+              "uuid": "5c33946f-be1e-4deb-add3-9b10933012b0",
+              "parentUUID": "e9bbf62d-6b15-4c12-8e88-745682ed6639",
+              "isHook": false,
+              "skipped": true
+            }
+          ],
+          "suites": [],
+          "passes": [],
+          "failures": [
+            "e7a58ef8-6bf4-4d36-93eb-4bb12585c98e"
+          ],
+          "pending": [],
+          "skipped": [
+            "6fef65a9-18ab-4fcb-9ef4-9fa0535975d7",
+            "c6a2ae3c-34c2-4080-a8e5-361952a57dd9",
+            "bd1c0738-bc90-42ff-8c2f-f11de4718656",
+            "1a686bf2-293f-4e3d-8f04-a7383f057c68",
+            "b6bb853e-0d37-4676-b89a-cdc45e37c1ab",
+            "89cf9fb7-8fd1-4e4b-88ba-6cb14d735c27",
+            "5c33946f-be1e-4deb-add3-9b10933012b0"
+          ],
+          "duration": 1097,
+          "root": false,
+          "rootEmpty": false,
+          "_timeout": 2000
+        }
+      ],
+      "passes": [],
+      "failures": [],
+      "pending": [],
+      "skipped": [],
+      "duration": 0,
+      "root": true,
+      "rootEmpty": true,
+      "_timeout": 2000
+    }
+  ],
+  "meta": {
+    "mocha": {
+      "version": "7.0.1"
+    },
+    "mochawesome": {
+      "options": {
+        "quiet": false,
+        "reportFilename": "mochawesome",
+        "saveHtml": false,
+        "saveJson": true,
+        "consoleReporter": "spec",
+        "useInlineDiffs": false,
+        "code": true
+      },
+      "version": "7.1.3"
+    },
+    "marge": {
+      "options": {
+        "id": "default",
+        "reportDir": "e2e-testing/reports/mochawesome/.jsons",
+        "charts": true,
+        "reportPageTitle": "Learning Platform E2E Tests",
+        "embeddedScreenshots": true,
+        "inlineAssets": true,
+        "overwrite": false,
+        "html": false,
+        "json": true
+      },
+      "version": "6.2.0"
+    }
+  }
+}
