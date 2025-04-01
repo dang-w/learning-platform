@@ -23,8 +23,8 @@ export interface RegisterData {
   username: string;
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  confirmPassword: string;
+  fullName: string;
 }
 
 export interface UserStatistics {
@@ -55,18 +55,18 @@ export function redirectToLogin(returnUrl?: string) {
 }
 
 const authApi = {
-  async login(credentials: LoginCredentials): Promise<{token: string, refreshToken?: string}> {
+  async login(credentials: LoginCredentials): Promise<{token: string}> {
     try {
-      const response = await apiClient.post('/auth/login', credentials);
+      console.log("[authApi.login] Calling POST /auth/token with credentials:", { username: credentials.username });
+      const response = await apiClient.post('/auth/token', credentials);
 
-      if (!response.data.token) {
-        console.error('No token in response:', response.data);
-        throw new Error('Invalid login response - no token received');
+      if (!response.data.access_token) {
+        console.error('No access_token in response:', response.data);
+        throw new Error('Invalid login response - no access_token received');
       }
 
       return {
-        token: response.data.token,
-        refreshToken: response.data.refreshToken
+        token: response.data.access_token,
       };
     } catch (error) {
       console.error('Login error:', error);
@@ -75,30 +75,52 @@ const authApi = {
   },
 
   async register(data: RegisterData): Promise<void> {
-    const response = await apiClient.post('/auth/register', data);
+    console.log("[authApi.register] Calling POST /auth/register with data:", { username: data.username, email: data.email });
 
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Registration failed');
+    // Map frontend data (fullName) to backend expected data (full_name)
+    const backendData = {
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      confirm_password: data.confirmPassword,
+      full_name: data.fullName
+    };
+
+    // Pass the mapped data to the backend
+    const response = await apiClient.post('/auth/register', backendData);
+
+    // Check for successful backend response (adjust based on actual backend response)
+    // The backend /register route now returns { access_token, token_type } on success
+    if (!response || response.status < 200 || response.status >= 300 || !response.data.access_token) {
+      const errorMessage = response?.data?.detail || 'Registration failed';
+      console.error(`Registration failed: Status ${response?.status}, Message: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
+
+    // Optionally, handle the returned access_token if needed immediately after register
+    // For now, we assume the caller (auth-store) will handle login separately
+    console.log("[authApi.register] Registration successful, backend returned token.");
+    // No explicit return needed as function is Promise<void>
   },
 
   async logout(): Promise<void> {
+    console.log("[authApi.logout] Calling POST /auth/logout");
     try {
       await apiClient.post('/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
-      // Clear tokens before throwing
       tokenService.clearTokens();
       throw error;
     }
-    // Clear tokens on success
     tokenService.clearTokens();
   },
 
   async getCurrentUser(): Promise<User> {
     let handledAs401 = false; // Flag to track if 401 logic ran
+    console.log("[authApi.getCurrentUser] Calling GET /auth/me (Attempt 1)");
     try {
       const response = await apiClient.get('/auth/me');
+      console.log("[authApi.getCurrentUser] Received data from /auth/me:", response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching current user:', error);
@@ -109,7 +131,9 @@ const authApi = {
           const refreshResult = await tokenService.startTokenRefresh();
           if (refreshResult) {
             // Retry success: Return data and exit function
+            console.log("[authApi.getCurrentUser] Calling GET /auth/me (Attempt 2 after refresh)");
             const retryResponse = await apiClient.get('/auth/me');
+            console.log("[authApi.getCurrentUser] Received data from /auth/me on retry:", retryResponse.data);
             return retryResponse.data;
           }
           // Refresh resolved null: Clear tokens and re-throw original 401
@@ -134,8 +158,9 @@ const authApi = {
   },
 
   async updateProfile(data: Partial<User>): Promise<User> {
+    console.log("[authApi.updateProfile] Calling PATCH /api/users/me with data:", data);
     try {
-      const response = await apiClient.put('/auth/profile', data);
+      const response = await apiClient.patch('/api/users/me', data);
       return response.data;
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -144,6 +169,7 @@ const authApi = {
   },
 
   async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    console.log("[authApi.changePassword] Calling POST /auth/change-password");
     try {
       await apiClient.post('/auth/change-password', {
         oldPassword,
@@ -156,6 +182,7 @@ const authApi = {
   },
 
   async getUserStatistics(): Promise<UserStatistics> {
+    console.log("[authApi.getUserStatistics] Calling GET /auth/statistics");
     try {
       const response = await apiClient.get('/auth/statistics');
       return response.data;
@@ -166,8 +193,9 @@ const authApi = {
   },
 
   async getNotificationPreferences(): Promise<NotificationPreferences> {
+    console.log("[authApi.getNotificationPreferences] Calling GET /auth/notification-preferences");
     try {
-      const response = await apiClient.get('/auth/preferences/notifications');
+      const response = await apiClient.get('/auth/notification-preferences');
       return response.data;
     } catch (error) {
       console.error('Error fetching notification preferences:', error);
@@ -176,8 +204,9 @@ const authApi = {
   },
 
   async updateNotificationPreferences(preferences: NotificationPreferences): Promise<void> {
+    console.log("[authApi.updateNotificationPreferences] Calling PUT /auth/notification-preferences with data:", preferences);
     try {
-      await apiClient.put('/auth/preferences/notifications', preferences);
+      await apiClient.put('/auth/notification-preferences', preferences);
     } catch (error) {
       console.error('Error updating notification preferences:', error);
       throw error;
@@ -185,6 +214,7 @@ const authApi = {
   },
 
   async exportUserData(): Promise<Blob> {
+    console.log("[authApi.exportUserData] Calling GET /auth/export");
     try {
       const response = await apiClient.get('/auth/export', {
         responseType: 'blob'
@@ -197,6 +227,7 @@ const authApi = {
   },
 
   async deleteAccount(): Promise<void> {
+    console.log("[authApi.deleteAccount] Calling DELETE /auth/account");
     try {
       await apiClient.delete('/auth/account');
     } catch (error) {

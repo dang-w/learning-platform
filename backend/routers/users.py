@@ -13,7 +13,9 @@ import os
 from database import db
 from auth import get_current_active_user, get_password_hash
 from utils.validators import validate_email, validate_password_strength
-from utils.rate_limiter import rate_limit_dependency
+from utils.rate_limiter import rate_limit_dependency_with_logging, create_user_rate_limit
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +27,8 @@ class UserBase(BaseModel):
     username: constr(min_length=3, max_length=50)
     email: EmailStr
     full_name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
 
 class UserCreate(UserBase):
     password: constr(min_length=8)
@@ -130,9 +134,24 @@ def normalize_user_data(user_dict: dict) -> dict:
     if "created_at" not in user_data:
         user_data["created_at"] = datetime.utcnow()
 
+    # Add logic to split full_name into firstName and lastName
+    if "full_name" in user_data and isinstance(user_data["full_name"], str):
+        parts = user_data["full_name"].strip().split(' ', 1)
+        user_data["firstName"] = parts[0]
+        user_data["lastName"] = parts[1] if len(parts) > 1 else ""
+    else:
+        # Ensure firstName and lastName exist even if full_name doesn't
+        if "firstName" not in user_data:
+            user_data["firstName"] = ""
+        if "lastName" not in user_data:
+            user_data["lastName"] = ""
+
+    # <<< Log the final normalized data >>>
+    logger.info(f"Normalized user data before return: {user_data}")
     return user_data
 
-@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency(limit=10, window=600, key_prefix="user_creation"))])
+@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED,
+            dependencies=[Depends(create_user_rate_limit)])
 async def create_user(user: UserCreate, request: Request):
     """Create a new user."""
     try:

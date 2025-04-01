@@ -47,10 +47,10 @@ export interface NotesListProps {
   notes: Note[];
   onSelectNote: (note: Note) => void;
   selectedNoteId?: string;
-  onDeleteNote: (id: string) => void;
-  onEditNote: (id: string) => void;
+  onDeleteNote: (noteId: string) => Promise<void> | Promise<boolean>;
+  onEditNote: (noteId: string) => void;
   isLoading: boolean;
-  error: string | null;
+  error?: string | null;
 }
 
 export interface NoteEditorProps {

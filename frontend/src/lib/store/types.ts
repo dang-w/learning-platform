@@ -13,7 +13,7 @@ export interface AuthState {
   // Required methods
   initializeFromStorage: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string, fullName: string) => Promise<void>;
+  register: (username: string, email: string, password: string, confirmPassword: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
   clearError: () => void;

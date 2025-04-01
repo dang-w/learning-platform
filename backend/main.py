@@ -59,17 +59,25 @@ from routers.sessions import router as sessions_router
 from routers.lessons import router as lessons_router
 from routers.url_extractor import router as url_extractor_router
 from routers.notes import router as notes_router
-
-# Import RefreshTokenRequest from auth router
-from routers.auth import RefreshTokenRequest
 from routers.users import normalize_user_data
-
-# Load environment variables
-load_dotenv()
+from routers.test_utils import router as test_utils_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load environment variables based on ENVIRONMENT
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+if ENVIRONMENT == "test":
+    print("INFO: Loading .env.test for test environment")
+    load_dotenv(dotenv_path=".env.test", override=True)
+    logger.info(f"Loaded .env.test. Current ENVIRONMENT: {os.getenv('ENVIRONMENT')}") # Log ENVIRONMENT after potential override
+    logger.info(f"ALLOW_DB_RESET value after loading .env.test: {os.getenv('ALLOW_DB_RESET')}") # Log ALLOW_DB_RESET value
+else:
+    print(f"INFO: Loading default .env for {ENVIRONMENT} environment")
+    load_dotenv() # Loads .env by default
+    logger.info(f"Loaded default .env. Current ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
+    logger.info(f"ALLOW_DB_RESET value after loading .env: {os.getenv('ALLOW_DB_RESET')}")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -77,6 +85,7 @@ app = FastAPI(
     description="API for managing learning resources, tracking progress, and facilitating spaced repetition learning",
     version="1.0.0",
 )
+logger.info("FastAPI app initialized.") # Log app initialization
 
 # Configure CORS
 app.add_middleware(
@@ -98,9 +107,12 @@ app.include_router(reviews_router, prefix="/api/reviews", tags=["reviews"])
 app.include_router(lessons_router, prefix="/api/lessons", tags=["lessons"])
 app.include_router(sessions_router, prefix="/api/sessions", tags=["sessions"])
 app.include_router(notes_router, prefix="/api/notes", tags=["notes"])
+app.include_router(test_utils_router, prefix="/api/test-utils", tags=["test_utils"])
+logger.info("Included test_utils_router.") # Log router inclusion
 
 # Import and include URL extractor router
 app.include_router(url_extractor_router, prefix="/api/url-extractor", tags=["url_extractor"])
+logger.info("Included url_extractor_router.") # Log router inclusion
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
@@ -255,7 +267,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
 
     # Strict Transport Security (only enable in production)
-    if os.getenv("ENVIRONMENT", "development") == "production":
+    if ENVIRONMENT == "production":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
     return response
@@ -280,7 +292,7 @@ async def metrics_endpoint():
     return get_metrics()
 
 # Add this in the API router section
-if os.getenv("ENVIRONMENT", "development").lower() == "development":
+if ENVIRONMENT.lower() == "development":
     @app.post("/api/dev/reset-rate-limit")
     async def reset_rate_limit_endpoint(
         key_prefix: str = "user_creation",

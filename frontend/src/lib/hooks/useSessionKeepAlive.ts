@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import authApi from '../api/auth';
 import { useAuthStore } from '../store/auth-store';
 
 /**
@@ -17,11 +16,13 @@ export function useSessionKeepAlive(intervalMs = 5 * 60 * 1000) {
     // Only set up the timer if the user is authenticated
     if (isAuthenticated) {
       // Update session activity immediately
-      authApi.updateSessionActivity();
+      // TODO: Re-evaluate if session keep-alive ping is needed and implement backend endpoint + authApi function
+      // authApi.updateSessionActivity();
 
       // Set up interval to update session activity
       timerRef.current = setInterval(async () => {
-        await authApi.updateSessionActivity();
+        // TODO: Re-evaluate if session keep-alive ping is needed and implement backend endpoint + authApi function
+        // await authApi.updateSessionActivity();
       }, intervalMs);
     }
 

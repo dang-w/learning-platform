@@ -1,10 +1,10 @@
 """Authentication related routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Optional, Dict, Any
 import logging
 from datetime import datetime, timedelta
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 import os
 from jose import jwt, JWTError
 
@@ -13,11 +13,21 @@ from auth import (
     authenticate_user, create_access_token, create_refresh_token,
     get_current_active_user, get_current_user, verify_refresh_token,
     ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash,
-    SECRET_KEY, ALGORITHM
+    SECRET_KEY, ALGORITHM, oauth2_scheme
 )
-from utils.rate_limiter import rate_limit_dependency
-from utils.error_handlers import AuthenticationError
+# Use relative import for modules within the same package
+from .users import create_user
+# Import specific rate limit instances
+from utils.rate_limiter import (
+    register_rate_limit,
+    token_rate_limit,
+    refresh_rate_limit,
+    reset_rate_limit # Keep reset_rate_limit if used elsewhere, otherwise remove if unused
+)
+from utils.error_handlers import AuthenticationError, ValidationError
 from database import get_db
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,8 +48,17 @@ def get_username_from_user(current_user) -> str:
 
     return username
 
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+# --- Input Models ---
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    confirm_password: str
+    full_name: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 class NotificationPreferences(BaseModel):
     """User notification preferences model."""
@@ -49,18 +68,102 @@ class NotificationPreferences(BaseModel):
     achievement_notifications: bool = True
     newsletter: bool = True
 
-@router.post("/token", response_model=Token)
-async def login_for_access_token(
+# --- Constants ---
+# Determine cookie security based on environment
+# Default to True (secure) if ENVIRONMENT is 'production', otherwise False
+COOKIE_SECURE = os.getenv("ENVIRONMENT", "development") == "production"
+COOKIE_SAMESITE = "lax" # Use 'lax' for better cross-site compatibility if needed, 'strict' is more secure
+REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
+
+# --- Helper Functions ---
+
+def set_refresh_token_cookie(response: Response, token: str):
+    """Sets the refresh token cookie in the response."""
+    refresh_token_expires = timedelta(days=7) # Example expiry for refresh token
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=COOKIE_SECURE, # Set based on environment
+        samesite=COOKIE_SAMESITE,
+        max_age=int(refresh_token_expires.total_seconds()),
+        path="/" # Ensure path is appropriate for your app
+    )
+
+def clear_refresh_token_cookie(response: Response):
+    """Clears the refresh token cookie in the response."""
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        path="/"
+    )
+
+# --- Routes ---
+
+@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED,
+             # Use the specific instance directly
+             dependencies=[Depends(register_rate_limit)])
+async def register(
+    response: Response,
+    register_data: RegisterRequest,
     request: Request,
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    _: None = Depends(rate_limit_dependency(limit=20, window=300, key_prefix="auth"))
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ):
     """
-    OAuth2 compatible token login endpoint.
-    Returns both access and refresh tokens.
+    Register a new user.
     """
     try:
-        user = await authenticate_user(form_data.username, form_data.password)
+        # Validate input
+        if register_data.password != register_data.confirm_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password and confirmation password do not match"
+            )
+
+        # Create user in database
+        user = await create_user(register_data, request)
+
+        # Generate tokens
+        access_token = create_access_token(data={"sub": user.username})
+        refresh_token = create_refresh_token(data={"sub": user.username})
+
+        # Set refresh token cookie
+        set_refresh_token_cookie(response, refresh_token)
+
+        # Return access token in body
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+
+    except HTTPException as http_exc:
+        raise
+    except Exception as e:
+        logger.error(f"Error during registration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during registration"
+        )
+
+@router.post("/token", response_model=Token,
+             # Use the specific instance directly
+             dependencies=[Depends(token_rate_limit)])
+async def login_for_access_token(
+    response: Response,
+    request: Request,
+    login_data: LoginRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Login endpoint accepting JSON credentials.
+    Returns access token in body and refresh token in HttpOnly cookie.
+    """
+    try:
+        # Authenticate using data from the JSON body model
+        user = await authenticate_user(login_data.username, login_data.password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,8 +177,12 @@ async def login_for_access_token(
         )
         refresh_token = create_refresh_token(data={"sub": user["username"]})
 
-        logger.info(f"User {user['username']} logged in successfully")
+        # Set the refresh token as an HttpOnly cookie
+        set_refresh_token_cookie(response, refresh_token)
 
+        logger.info(f"User {user['username']} logged in successfully. Refresh token set in cookie.")
+
+        # Return access and refresh token in the body to match Token model
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -91,20 +198,39 @@ async def login_for_access_token(
             detail="An unexpected error occurred during authentication"
         )
 
-@router.post("/token/refresh", response_model=Token)
+@router.post("/token/refresh", response_model=Token,
+             # Use the specific instance directly
+             dependencies=[Depends(refresh_rate_limit)])
 async def refresh_access_token(
     request: Request,
-    refresh_data: RefreshTokenRequest,
-    _: None = Depends(rate_limit_dependency(limit=5, window=300, key_prefix="auth"))
+    response: Response,
+    background_tasks: BackgroundTasks
 ):
     """
-    Refresh the access token using a valid refresh token.
-    Returns both new access and refresh tokens.
+    Refresh the access token using a valid refresh token from an HttpOnly cookie.
+    Returns a new access token in the body and sets a new refresh token cookie.
     """
+    logger.info(f"--- ENTERING /token/refresh ---")
+    logger.info(f"Request Headers: {request.headers}")
+    logger.info(f"Request Cookies: {request.cookies}")
     try:
+        # Get the refresh token from the HttpOnly cookie
+        refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
+        logger.info(f"Refresh token from cookie: {'Present' if refresh_token else 'MISSING'}")
+        if not refresh_token:
+            logger.warning("Refresh attempt failed: No refresh token cookie found.")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token cookie not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Verify the refresh token
-        payload = verify_refresh_token(refresh_data.refresh_token)
+        payload = verify_refresh_token(refresh_token)
         if not payload:
+            logger.warning("Refresh attempt failed: Invalid or expired refresh token from cookie.")
+            # Clear potentially invalid cookie on verification failure
+            clear_refresh_token_cookie(response)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired refresh token",
@@ -126,18 +252,28 @@ async def refresh_access_token(
         )
         new_refresh_token = create_refresh_token(data={"sub": username})
 
-        logger.info(f"Token refreshed for user {username}")
+        # Set the new refresh token as an HttpOnly cookie
+        set_refresh_token_cookie(response, new_refresh_token)
 
+        logger.info(f"Token refreshed for user {username}. New refresh token set in cookie.")
+
+        # Return the new access and refresh token to match Token model
         return {
             "access_token": access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer"
         }
 
-    except HTTPException:
+    except HTTPException as http_exc:
+        # If the exception already clears the cookie (e.g., verification failed), don't clear again
+        if http_exc.status_code != 401 or "Invalid or expired refresh token" not in http_exc.detail:
+            # Clear cookie on other potential auth errors during refresh
+            clear_refresh_token_cookie(response)
         raise
     except Exception as e:
         logger.error(f"Error refreshing token: {str(e)}")
+        # Clear cookie on unexpected errors
+        clear_refresh_token_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error refreshing token"
@@ -199,28 +335,42 @@ async def debug_auth_status(request: Request):
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     request: Request,
-    current_user: dict = Depends(get_current_active_user)
+    response: Response,
+    current_user: dict = Depends(get_current_active_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ):
-    """Logout the user by invalidating their current session"""
+    """Logout the user by invalidating their current session and clearing the refresh token cookie."""
     try:
-        # Get session ID from header or query param
+        username = get_username_from_user(current_user)
         session_id = request.headers.get("x-session-id") or request.query_params.get("session_id")
 
+        # Session invalidation (optional, keep if you use server-side sessions)
         if session_id:
-            # Import sessions module
-            from routers.sessions import delete_session
+            try:
+                from routers.sessions import delete_session
+                await delete_session(session_id, username)
+                logger.info(f"Invalidated session {session_id} for user {username}")
+            except ImportError:
+                logger.warning("Sessions module not found, skipping session invalidation.")
+            except Exception as session_err:
+                logger.error(f"Error invalidating session {session_id} for user {username}: {session_err}")
 
-            # Delete the session
-            await delete_session(session_id, current_user)
-            logger.info(f"Logged out user {current_user['username']} and invalidated session {session_id}")
+        # Always clear the refresh token cookie on logout
+        clear_refresh_token_cookie(response)
+        logger.info(f"Cleared refresh token cookie for user {username} during logout.")
 
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        # Return No Content response
+        return response
+
     except Exception as e:
-        logger.error(f"Error during logout: {str(e)}")
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        # Log error but still attempt to clear cookie and return success
+        logger.error(f"Error during logout for user potentially {current_user.get('username', 'unknown')}: {str(e)}")
+        clear_refresh_token_cookie(response)
+        return response
 
-@router.get("/me", response_model=User)
-async def get_current_user_info(current_user: dict = Depends(get_current_active_user)):
+@router.get("/me", response_model=User,
+            dependencies=[Depends(get_current_active_user)])
+async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """
     Get the current authenticated user's information.
     This endpoint is useful for client applications to retrieve user data after authentication.

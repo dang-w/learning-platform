@@ -38,7 +38,6 @@ const originalGetNotificationPreferences = authApi.getNotificationPreferences;
 
 // --- Store original Token Service methods ---
 const originalTokenGetToken = tokenService.getToken;
-const originalTokenGetRefreshToken = tokenService.getRefreshToken;
 const originalTokenSetTokens = tokenService.setTokens;
 const originalTokenClearTokens = tokenService.clearTokens;
 const originalTokenStartTokenRefresh = tokenService.startTokenRefresh;
@@ -52,7 +51,6 @@ let mockGetNotificationPreferences: jest.MockedFunction<typeof originalGetNotifi
 
 // --- Declare Token Service mock variables ---
 let mockTokenGetToken: jest.MockedFunction<typeof originalTokenGetToken>;
-let mockTokenGetRefreshToken: jest.MockedFunction<typeof originalTokenGetRefreshToken>;
 let mockTokenSetTokens: jest.MockedFunction<typeof originalTokenSetTokens>;
 let mockTokenClearTokens: jest.MockedFunction<typeof originalTokenClearTokens>;
 let mockTokenStartTokenRefresh: jest.MockedFunction<typeof originalTokenStartTokenRefresh>;
@@ -61,6 +59,20 @@ let mockTokenShouldRefreshToken: jest.MockedFunction<typeof originalTokenShouldR
 // Define spy variable for authApi.logout
 // Use jest.SpiedFunction for modern Jest type compatibility
 let logoutSpy: jest.SpiedFunction<typeof authApi.logout>;
+
+// Mock TokenService methods
+jest.mock('@/lib/services/token-service', () => ({
+  tokenService: {
+    getInstance: jest.fn().mockReturnThis(),
+    setTokens: mockTokenSetTokens,
+    getToken: mockTokenGetToken,
+    clearTokens: mockTokenClearTokens,
+    startTokenRefresh: mockTokenStartTokenRefresh,
+    shouldRefreshToken: mockTokenShouldRefreshToken,
+    isTokenExpired: jest.fn(), // Keep a simple mock for isTokenExpired if needed
+    onTokenChange: jest.fn(),
+  },
+}));
 
 describe('AuthStore', () => {
   let store: AuthState;
@@ -94,12 +106,10 @@ describe('AuthStore', () => {
 
     // --- Create fresh Token Service mocks ---
     mockTokenGetToken = jest.fn().mockReturnValue(undefined) as jest.MockedFunction<typeof originalTokenGetToken>;
-    mockTokenGetRefreshToken = jest.fn().mockReturnValue(undefined) as jest.MockedFunction<typeof originalTokenGetRefreshToken>;
     mockTokenSetTokens = jest.fn();
     mockTokenClearTokens = jest.fn(() => {
       // When clearTokens is called, make getters return null
       mockTokenGetToken.mockReturnValue(null);
-      mockTokenGetRefreshToken.mockReturnValue(null);
     }) as jest.MockedFunction<typeof originalTokenClearTokens>;
     mockTokenStartTokenRefresh = jest.fn();
     mockTokenShouldRefreshToken = jest.fn();
@@ -112,7 +122,6 @@ describe('AuthStore', () => {
 
     // --- Assign Token Service mocks ---
     tokenService.getToken = mockTokenGetToken;
-    tokenService.getRefreshToken = mockTokenGetRefreshToken;
     tokenService.setTokens = mockTokenSetTokens;
     tokenService.clearTokens = mockTokenClearTokens;
     tokenService.startTokenRefresh = mockTokenStartTokenRefresh;
@@ -129,6 +138,11 @@ describe('AuthStore', () => {
       // If the original authApi.logout also cleared tokens, we'd call mockTokenClearTokens() here.
       return Promise.resolve(); // Simulate successful API call
     });
+
+    // Set initial state before each test
+    store.reset();
+    // Ensure token mocks reflect the initial state
+    mockTokenGetToken.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -143,18 +157,22 @@ describe('AuthStore', () => {
 
     // Restore original Token Service methods
     tokenService.getToken = originalTokenGetToken;
-    tokenService.getRefreshToken = originalTokenGetRefreshToken;
     tokenService.setTokens = originalTokenSetTokens;
     tokenService.clearTokens = originalTokenClearTokens;
     tokenService.startTokenRefresh = originalTokenStartTokenRefresh;
     tokenService.shouldRefreshToken = originalTokenShouldRefreshToken;
+
+    store.setDirectAuthState('test-token', true); // Use helper if available or set state directly
+    useAuthStore.setState({ user: mockUser }); // Ensure user is set for logout logic if needed
+    // Make sure token exists for clearTokens mock
+    mockTokenGetToken.mockReturnValue('test-token');
   });
 
   describe('login', () => {
     it('should handle successful login', async () => {
       // Arrange Mocks
       const credentials: LoginCredentials = { username: 'test', password: 'password' };
-      const mockApiResponse = { token: 'test-token', refreshToken: 'refresh-token' };
+      const mockApiResponse = { token: 'test-token' };
       mockLogin.mockResolvedValue(mockApiResponse);
       mockGetCurrentUser.mockResolvedValue(mockUser);
 
@@ -182,7 +200,7 @@ describe('AuthStore', () => {
 
       // Assert Mocks
       expect(mockLogin).toHaveBeenCalledWith(credentials);
-      expect(mockTokenSetTokens).toHaveBeenCalledWith(mockApiResponse.token, mockApiResponse.refreshToken);
+      expect(mockTokenSetTokens).toHaveBeenCalledWith(mockApiResponse.token);
       expect(mockGetCurrentUser).toHaveBeenCalledTimes(1);
 
       // Assert State

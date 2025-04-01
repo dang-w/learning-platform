@@ -45,13 +45,14 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
   const trackTransition = (trigger: string, newState: Partial<AuthState>) => {
     if (!options.trackStateTransitions) return;
 
-    const currentState = {
+    const currentState: Partial<AuthState> = {
       user: mockStore.user,
       isAuthenticated: mockStore.isAuthenticated,
       isLoading: mockStore.isLoading,
       error: mockStore.error,
-      refreshToken: mockStore.refreshToken,
-      _inRefreshCycle: mockStore._inRefreshCycle
+      statistics: mockStore.statistics,
+      notificationPreferences: mockStore.notificationPreferences,
+      validationErrors: mockStore.validationErrors
     };
 
     stateTransitions.push({
@@ -70,7 +71,7 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
     error: options.error || null,
     statistics: null,
     notificationPreferences: null,
-    refreshToken: null,
+    validationErrors: options.validationErrors,
 
     // Required methods
     initializeFromStorage: jest.fn().mockImplementation(async () => {
@@ -115,7 +116,7 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
         mockStore.user = null;
         mockStore.isLoading = false;
         trackTransition('login_error', { isLoading: false, error, isAuthenticated: false, user: null });
-        throw new Error(error);
+        return;
       }
 
       if (options.loginBehavior === 'loading') {
@@ -191,7 +192,7 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
           isAuthenticated: false,
           user: null
         });
-        throw new Error(error);
+        return;
       }
 
       if (options.registerBehavior === 'loading') {
@@ -237,15 +238,19 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
 
       mockStore.isAuthenticated = false;
       mockStore.user = null;
-      mockStore.refreshToken = null;
       mockStore.error = null;
+      mockStore.statistics = null;
+      mockStore.notificationPreferences = null;
+      mockStore.validationErrors = undefined;
 
       trackTransition('logout_complete', {
         isLoading: false,
         isAuthenticated: false,
         user: null,
-        refreshToken: null,
-        error: null
+        error: null,
+        statistics: null,
+        notificationPreferences: null,
+        validationErrors: undefined
       });
     }),
 
@@ -309,30 +314,23 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
     exportUserData: jest.fn().mockResolvedValue(new Blob()),
     deleteAccount: jest.fn().mockResolvedValue(undefined),
 
-    reset: jest.fn().mockImplementation(() => {
-      trackTransition('reset_start', { isLoading: true });
-
-      mockStore.isAuthenticated = false;
+    reset: jest.fn(() => {
+      trackTransition('reset_start', {});
       mockStore.user = null;
-      mockStore.refreshToken = null;
+      mockStore.isAuthenticated = false;
+      mockStore.isLoading = false;
       mockStore.error = null;
-      mockStore._lastTokenRefresh = 0;
-      mockStore._refreshAttempts = 0;
-      mockStore._lastRefreshTimestamp = null;
-      mockStore._inRefreshCycle = false;
-      mockStore._refreshPromise = null;
-
+      mockStore.statistics = null;
+      mockStore.notificationPreferences = null;
+      mockStore.validationErrors = undefined;
       trackTransition('reset_complete', {
-        isLoading: false,
-        isAuthenticated: false,
         user: null,
-        refreshToken: null,
+        isAuthenticated: false,
+        isLoading: false,
         error: null,
-        _lastTokenRefresh: 0,
-        _refreshAttempts: 0,
-        _lastRefreshTimestamp: null,
-        _inRefreshCycle: false,
-        _refreshPromise: null
+        statistics: null,
+        notificationPreferences: null,
+        validationErrors: undefined
       });
     }),
 
@@ -364,9 +362,9 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
       isAuthenticated: mockStore.isAuthenticated,
       isLoading: mockStore.isLoading,
       error: mockStore.error,
-      refreshToken: mockStore.refreshToken,
-      _inRefreshCycle: mockStore._inRefreshCycle,
-      _lastRefreshTimestamp: mockStore._lastRefreshTimestamp
+      statistics: mockStore.statistics,
+      notificationPreferences: mockStore.notificationPreferences,
+      validationErrors: mockStore.validationErrors
     }),
     cleanup: () => {
       // Implementation of cleanup method

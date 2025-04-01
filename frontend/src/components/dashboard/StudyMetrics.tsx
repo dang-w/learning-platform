@@ -171,7 +171,7 @@ export function StudyMetrics() {
   }
 
   return (
-    <Card className="col-span-2">
+    <Card className="col-span-2" data-testid="study-metrics">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Study Metrics</CardTitle>
         <div className="flex space-x-2">

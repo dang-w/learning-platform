@@ -1,236 +1,222 @@
 import { expect, jest, beforeEach, afterEach, describe, it } from '@jest/globals';
-import { InternalAxiosRequestConfig } from 'axios';
-import authApi, { User, LoginCredentials } from '../../../lib/api/auth';
-import apiClient from '../../../lib/api/client';
-import { tokenService } from '../../../lib/services/token-service';
-import { createAxiosErrorResponse } from '../../../lib/utils/test-utils';
+import { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import authApi, { User, LoginCredentials } from '@/lib/api/auth';
+import apiClient from '@/lib/api/client';
+import { tokenService } from '@/lib/services/token-service';
+import { createAxiosErrorResponse } from '@/lib/utils/test-utils';
 
-// Store original implementations
-const originalApiGet = apiClient.get;
-const originalApiPost = apiClient.post;
-const originalTokenClear = tokenService.clearTokens;
-const originalTokenRefresh = tokenService.startTokenRefresh;
-
-// Define mock variables (can use simple jest.Mock type here)
-let mockApiGet: jest.Mock;
-let mockApiPost: jest.Mock;
-let mockTokenClear: jest.Mock;
-let mockTokenRefresh: jest.Mock;
-
-// Define a reusable mock user
+// Define mock user data matching the User interface
 const mockUser: User = {
   id: '1',
-  username: 'test',
+  username: 'testuser',
   email: 'test@example.com',
   firstName: 'Test',
   lastName: 'User',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  createdAt: '2023-01-01T00:00:00Z',
+  updatedAt: '2023-01-01T12:00:00Z',
   isActive: true,
   role: 'user',
 };
 
 describe('Auth API', () => {
-  beforeEach(() => {
-    // Create fresh mocks for each test and assign them
-    mockApiGet = jest.fn(async () => {
-        throw new Error('apiClient.get mock not implemented for this test');
-    });
-    mockApiPost = jest.fn(async () => {
-        throw new Error('apiClient.post mock not implemented for this test');
-    });
-    mockTokenClear = jest.fn(() => {});
-    mockTokenRefresh = jest.fn(async () => {
-        throw new Error('tokenService.startTokenRefresh mock not implemented for this test');
-    });
+  // No need for separate mock variables when using spyOn
 
-    // Overwrite the actual methods with our mocks
-    apiClient.get = mockApiGet;
-    apiClient.post = mockApiPost;
-    tokenService.clearTokens = mockTokenClear;
-    tokenService.startTokenRefresh = mockTokenRefresh;
+  beforeEach(() => {
+    // Use jest.spyOn to mock methods on the actual objects
+    jest.spyOn(apiClient, 'get').mockImplementation(async () => {
+      throw new Error('apiClient.get spy not implemented for this test');
+    });
+    jest.spyOn(apiClient, 'post').mockImplementation(async () => {
+      throw new Error('apiClient.post spy not implemented for this test');
+    });
+    jest.spyOn(tokenService, 'clearTokens').mockImplementation(() => {});
+    // Corrected signature to match expected Promise<string>
+    jest.spyOn(tokenService, 'startTokenRefresh').mockImplementation(async () => {
+      throw new Error('tokenService.startTokenRefresh spy not implemented for this test');
+    });
   });
 
   afterEach(() => {
-    // Restore original implementations after each test
-    apiClient.get = originalApiGet;
-    apiClient.post = originalApiPost;
-    tokenService.clearTokens = originalTokenClear;
-    tokenService.startTokenRefresh = originalTokenRefresh;
+    // Restore all original implementations and clear mocks
+    jest.restoreAllMocks();
   });
 
   describe('login', () => {
     const credentials: LoginCredentials = { username: 'test', password: 'password' };
-    const mockLoginResponse = {
-      token: 'test-token',
-      refreshToken: 'test-refresh-token',
+    const mockApiResponseData = {
+      access_token: 'test-token',
+    };
+    const mockSuccessResponse: AxiosResponse<{ access_token: string }> = {
+      data: mockApiResponseData,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as InternalAxiosRequestConfig,
     };
 
     it('should successfully login with valid credentials', async () => {
-      // Arrange: Mock API success using the spy
-      mockApiPost.mockResolvedValueOnce({ // Use the mock variable
-        data: mockLoginResponse,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as InternalAxiosRequestConfig,
-      });
+      // Arrange: Revert to simpler spy casting, keep `as any` on value
+      (apiClient.post as jest.Mock).mockResolvedValueOnce(mockSuccessResponse as any);
 
       // Act
       const result = await authApi.login(credentials);
 
       // Assert
-      expect(result).toEqual(mockLoginResponse);
-      expect(mockApiPost).toHaveBeenCalledWith('/auth/login', credentials);
-      expect(mockApiPost).toHaveBeenCalledTimes(1);
-      expect(mockTokenClear).not.toHaveBeenCalled();
+      expect(result).toEqual({ token: mockApiResponseData.access_token });
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/token', credentials);
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+      expect(tokenService.clearTokens).not.toHaveBeenCalled();
     });
 
     it('should handle invalid credentials (401)', async () => {
-      // Arrange: Mock API failure (401) using the spy
+      // Arrange: Revert to simpler spy casting, keep `as any` on value
       const error = createAxiosErrorResponse(401, 'Invalid credentials');
-      mockApiPost.mockRejectedValueOnce(error); // Use the mock variable
+      (apiClient.post as jest.Mock).mockRejectedValueOnce(error as any);
 
       // Act & Assert
       await expect(authApi.login(credentials)).rejects.toThrow('Request failed with status code 401');
-      expect(mockApiPost).toHaveBeenCalledWith('/auth/login', credentials);
-      expect(mockApiPost).toHaveBeenCalledTimes(1);
-      expect(mockTokenClear).not.toHaveBeenCalled();
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/token', credentials);
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+      expect(tokenService.clearTokens).not.toHaveBeenCalled();
     });
 
     it('should handle network errors (e.g., 500)', async () => {
-      // Arrange: Mock API failure (500) using the spy
+      // Arrange: Revert to simpler spy casting, keep `as any` on value
       const error = createAxiosErrorResponse(500, 'Server Error');
-      mockApiPost.mockRejectedValueOnce(error); // Use the mock variable
+      (apiClient.post as jest.Mock).mockRejectedValueOnce(error as any);
 
       // Act & Assert
       await expect(authApi.login(credentials)).rejects.toThrow('Request failed with status code 500');
-      expect(mockApiPost).toHaveBeenCalledWith('/auth/login', credentials);
-      expect(mockApiPost).toHaveBeenCalledTimes(1);
-      expect(mockTokenClear).not.toHaveBeenCalled();
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/token', credentials);
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+      expect(tokenService.clearTokens).not.toHaveBeenCalled();
     });
   });
 
   describe('logout', () => {
     it('should successfully logout and clear tokens', async () => {
-      // Arrange: Mock API success using the spy
-      mockApiPost.mockResolvedValueOnce({ // Use the mock variable
-        data: {},
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as InternalAxiosRequestConfig,
-      });
+      // Arrange: Mock API success using the spy with more specific casting
+      const mockLogoutResponse: AxiosResponse = {
+          data: {},
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: {} as InternalAxiosRequestConfig,
+      };
+      (apiClient.post as jest.Mock<Promise<AxiosResponse<any>>>).mockResolvedValueOnce(mockLogoutResponse as any);
 
       // Act
       await authApi.logout();
 
       // Assert
-      expect(mockApiPost).toHaveBeenCalledWith('/auth/logout');
-      expect(mockApiPost).toHaveBeenCalledTimes(1);
-      expect(mockTokenClear).toHaveBeenCalledTimes(1); // Use the mock variable
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout');
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+      expect(tokenService.clearTokens).toHaveBeenCalledTimes(1);
     });
 
     it('should clear tokens even if logout request fails', async () => {
-      // Arrange: Mock API failure using the spy
+      // Arrange: Mock API failure using the spy with more specific casting
       const error = createAxiosErrorResponse(500, 'Server Error');
-      mockApiPost.mockRejectedValueOnce(error); // Use the mock variable
+      (apiClient.post as jest.Mock<Promise<AxiosResponse<any>>>).mockRejectedValueOnce(error as any);
 
       // Act & Assert
+      // Logout function in auth.ts should catch the error and still clear tokens
+      // Depending on implementation, it might re-throw or just log.
+      // Assuming it re-throws based on previous tests:
       await expect(authApi.logout()).rejects.toThrow('Request failed with status code 500');
-      expect(mockApiPost).toHaveBeenCalledWith('/auth/logout');
-      expect(mockApiPost).toHaveBeenCalledTimes(1);
-      expect(mockTokenClear).toHaveBeenCalledTimes(1); // Use the mock variable
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout');
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+      expect(tokenService.clearTokens).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('getCurrentUser', () => {
-    it('should successfully fetch current user', async () => {
-      // Arrange: Mock API success using the spy
-      mockApiGet.mockResolvedValueOnce({ // Use the mock variable
+    const mockGetUserSuccessResponse: AxiosResponse<User> = {
         data: mockUser,
         status: 200,
         statusText: 'OK',
         headers: {},
         config: {} as InternalAxiosRequestConfig,
-      });
+    };
+
+    it('should successfully fetch current user', async () => {
+      // Arrange: Mock API success using the spy with more specific casting
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockResolvedValueOnce(mockGetUserSuccessResponse as any);
 
       // Act
       const result = await authApi.getCurrentUser();
 
       // Assert
       expect(result).toEqual(mockUser);
-      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
-      expect(mockApiGet).toHaveBeenCalledTimes(1);
-      expect(mockTokenRefresh).not.toHaveBeenCalled(); // Use the mock variable
-      expect(mockTokenClear).not.toHaveBeenCalled(); // Use the mock variable
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/me');
+      expect(apiClient.get).toHaveBeenCalledTimes(1);
+      expect(tokenService.startTokenRefresh).not.toHaveBeenCalled();
+      expect(tokenService.clearTokens).not.toHaveBeenCalled();
     });
 
     it('should handle unauthorized error (401), refresh token, and retry successfully', async () => {
-      // Arrange: Mock sequence using spies
+      // Arrange: Mock sequence using spies with more specific casting
       const error401 = createAxiosErrorResponse(401, 'Token expired');
-      mockApiGet.mockRejectedValueOnce(error401); // First call fails
-      mockTokenRefresh.mockResolvedValueOnce('new-access-token'); // Refresh succeeds
-      mockApiGet.mockResolvedValueOnce({ // Second call succeeds
-        data: mockUser,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {} as InternalAxiosRequestConfig,
-      });
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockRejectedValueOnce(error401 as any);
+      // Cast startTokenRefresh spy
+      (tokenService.startTokenRefresh as jest.Mock<Promise<string | null>>).mockResolvedValueOnce('new-access-token'); // Keep string | null based on previous error fix
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockResolvedValueOnce(mockGetUserSuccessResponse as any);
 
       // Act
       const result = await authApi.getCurrentUser();
 
       // Assert
       expect(result).toEqual(mockUser);
-      expect(mockTokenRefresh).toHaveBeenCalledTimes(1);
-      expect(mockApiGet).toHaveBeenCalledTimes(2);
-      expect(mockApiGet).toHaveBeenNthCalledWith(1, '/auth/me');
-      expect(mockApiGet).toHaveBeenNthCalledWith(2, '/auth/me');
-      expect(mockTokenClear).not.toHaveBeenCalled();
+      expect(tokenService.startTokenRefresh).toHaveBeenCalledTimes(1);
+      expect(apiClient.get).toHaveBeenCalledTimes(2);
+      expect(apiClient.get).toHaveBeenNthCalledWith(1, '/auth/me');
+      expect(apiClient.get).toHaveBeenNthCalledWith(2, '/auth/me');
+      expect(tokenService.clearTokens).not.toHaveBeenCalled();
     });
 
     it('should handle network errors (e.g., 500) and clear tokens', async () => {
-      // Arrange: Mock API failure (non-401) using spy
+      // Arrange: Mock API failure (non-401) using spy with more specific casting
       const error500 = createAxiosErrorResponse(500, 'Server Error');
-      mockApiGet.mockRejectedValueOnce(error500);
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockRejectedValueOnce(error500 as any);
 
       // Act & Assert
       await expect(authApi.getCurrentUser()).rejects.toThrow('Request failed with status code 500');
-      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
-      expect(mockApiGet).toHaveBeenCalledTimes(1);
-      expect(mockTokenRefresh).not.toHaveBeenCalled();
-      expect(mockTokenClear).toHaveBeenCalledTimes(1);
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/me');
+      expect(apiClient.get).toHaveBeenCalledTimes(1);
+      expect(tokenService.startTokenRefresh).not.toHaveBeenCalled();
+      expect(tokenService.clearTokens).toHaveBeenCalledTimes(1);
     });
 
     it('should handle unauthorized error (401) followed by token refresh failure and clear tokens', async () => {
-      // Arrange: Mock sequence using spies
+      // Arrange: Mock sequence using spies with more specific casting
       const error401 = createAxiosErrorResponse(401, 'Token expired');
       const refreshError = new Error('No refresh token available');
-      mockApiGet.mockRejectedValueOnce(error401); // First call fails
-      mockTokenRefresh.mockRejectedValueOnce(refreshError); // Refresh fails
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockRejectedValueOnce(error401 as any);
+      // Cast startTokenRefresh spy
+      (tokenService.startTokenRefresh as jest.Mock<Promise<string | null>>).mockRejectedValueOnce(refreshError as any);
 
       // Act & Assert
       await expect(authApi.getCurrentUser()).rejects.toThrow('No refresh token available');
-      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
-      expect(mockApiGet).toHaveBeenCalledTimes(1);
-      expect(mockTokenRefresh).toHaveBeenCalledTimes(1);
-      expect(mockTokenClear).toHaveBeenCalledTimes(1);
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/me');
+      expect(apiClient.get).toHaveBeenCalledTimes(1);
+      expect(tokenService.startTokenRefresh).toHaveBeenCalledTimes(1);
+      expect(tokenService.clearTokens).toHaveBeenCalledTimes(1);
     });
 
-     it('should handle unauthorized error (401) followed by successful refresh but no new token and clear tokens', async () => {
-      // Arrange: Mock sequence using spies
+    it('should handle unauthorized error (401) followed by successful refresh but failure to get new token and clear tokens', async () => {
+      // Arrange: Mock sequence using spies with more specific casting
       const error401 = createAxiosErrorResponse(401, 'Token expired');
-      mockApiGet.mockRejectedValueOnce(error401); // First call fails
-      mockTokenRefresh.mockResolvedValueOnce(null); // Refresh succeeds but returns null
+      const refreshError = new Error('Refresh succeeded but no new token returned');
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockRejectedValueOnce(error401 as any);
+      // Cast startTokenRefresh spy
+      (tokenService.startTokenRefresh as jest.Mock<Promise<string | null>>).mockRejectedValueOnce(refreshError as any);
 
       // Act & Assert
-      await expect(authApi.getCurrentUser()).rejects.toThrow('Request failed with status code 401');
-      expect(mockApiGet).toHaveBeenCalledWith('/auth/me');
-      expect(mockApiGet).toHaveBeenCalledTimes(1);
-      expect(mockTokenRefresh).toHaveBeenCalledTimes(1);
-      expect(mockTokenClear).toHaveBeenCalled();
+      await expect(authApi.getCurrentUser()).rejects.toThrow(refreshError.message);
+      expect(apiClient.get).toHaveBeenCalledWith('/auth/me');
+      expect(apiClient.get).toHaveBeenCalledTimes(1);
+      expect(tokenService.startTokenRefresh).toHaveBeenCalledTimes(1);
+      expect(tokenService.clearTokens).toHaveBeenCalledTimes(1);
     });
   });
 

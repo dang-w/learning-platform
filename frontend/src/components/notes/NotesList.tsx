@@ -10,7 +10,6 @@ const NotesList: React.FC<NotesListProps> = ({
   onDeleteNote,
   onEditNote,
   isLoading,
-  error,
 }) => {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -55,14 +54,6 @@ const NotesList: React.FC<NotesListProps> = ({
     setConfirmDelete(null);
   };
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-red-500">
-        <p className="text-lg font-medium">{error}</p>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64" role="status">
@@ -81,7 +72,7 @@ const NotesList: React.FC<NotesListProps> = ({
   }
 
   return (
-    <div className="space-y-4 overflow-auto pr-2 max-h-[calc(100vh-250px)]">
+    <div className="space-y-4 overflow-auto pr-2 max-h-[calc(100vh-250px)]" data-testid="notes-list">
       {notes.map((note) => (
         <div
           key={note.id}

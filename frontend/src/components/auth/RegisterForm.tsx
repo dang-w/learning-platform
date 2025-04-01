@@ -10,6 +10,7 @@ export default function RegisterForm() {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log('[RegisterForm START] handleSubmit triggered.');
 
     // Set validation errors synchronously
     const errors: Record<string, string> = {};
@@ -32,6 +34,11 @@ export default function RegisterForm() {
     if (!email) errors.email = 'Email is required';
     if (!fullName) errors.fullname = 'Full name is required';
     if (!password) errors.password = 'Password is required';
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Confirm Password is required';
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
 
     // If there are validation errors, set them and return early
     if (Object.keys(errors).length > 0) {
@@ -43,16 +50,22 @@ export default function RegisterForm() {
     clearError();
 
     try {
-      await register(username, email, password, fullName);
+      console.log('[RegisterForm STEP] Calling authStore.register...', { username, email });
+      await register(username, email, password, confirmPassword, fullName);
+      console.log('[RegisterForm SUCCESS] authStore.register completed. Attempting login...');
       try {
+        console.log('[RegisterForm STEP] Calling authStore.login...', { username });
         await login(username, password);
+        console.log('[RegisterForm SUCCESS] authStore.login completed. Navigating to dashboard...');
         router.push('/dashboard');
       } catch {
+        console.log('[RegisterForm INFO] Post-registration login failed. Navigating to login page.');
         router.push('/auth/login?registered=true');
       }
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('[RegisterForm ERROR] Error during registration call:', error);
     } finally {
+      console.log('[RegisterForm END] handleSubmit finished.');
       setIsSubmitting(false);
     }
   };
@@ -145,7 +158,7 @@ export default function RegisterForm() {
               value={password}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setPassword(e.target.value);
-                setValidationErrors(prev => ({ ...prev, password: '' }));
+                setValidationErrors(prev => ({ ...prev, password: '', confirmPassword: '' }));
               }}
               disabled={isLoading}
               required
@@ -156,6 +169,28 @@ export default function RegisterForm() {
             {currentValidationErrors.password && (
               <p className="text-red-500 text-sm mt-1 error-message" data-testid="error-password">
                 {currentValidationErrors.password}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setConfirmPassword(e.target.value);
+                setValidationErrors(prev => ({ ...prev, confirmPassword: '' }));
+              }}
+              disabled={isLoading}
+              required
+              className="w-full p-2 border rounded"
+              data-testid="confirm-password-input"
+              aria-invalid={!!currentValidationErrors.confirmPassword}
+            />
+            {currentValidationErrors.confirmPassword && (
+              <p className="text-red-500 text-sm mt-1 error-message" data-testid="error-confirm-password">
+                {currentValidationErrors.confirmPassword}
               </p>
             )}
           </div>
