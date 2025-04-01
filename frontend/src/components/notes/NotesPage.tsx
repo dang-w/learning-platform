@@ -11,7 +11,6 @@ const NotesPage: React.FC = () => {
     filteredNotes,
     selectedNote,
     isLoading,
-    error,
     activeTag,
     fetchNotes,
     setSelectedNote,
@@ -19,39 +18,20 @@ const NotesPage: React.FC = () => {
     updateNote,
     deleteNote,
     setSearchTerm,
-    setActiveTag
+    setActiveTag,
+    successMessage,
+    errorMessage,
+    clearMessages
   } = useNotesStore();
 
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [localSearchTerm, setLocalSearchTerm] = useState('');
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
 
   // Load notes on component mount
   useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
-
-  // Clear success message after 3 seconds
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
-
-  // Clear form error after 3 seconds
-  useEffect(() => {
-    if (formError) {
-      const timer = setTimeout(() => {
-        setFormError(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [formError]);
 
   // Extract all unique tags from notes
   useEffect(() => {
@@ -98,30 +78,33 @@ const NotesPage: React.FC = () => {
 
   // Handle save (both for new notes and updates)
   const handleSaveNote = async (formData: NoteCreateInput | NoteUpdateInput) => {
+    clearMessages();
     try {
-      console.log('Form data:', formData);
-
       if (!formData?.title?.trim() || !formData?.content?.trim()) {
         console.log('Form validation failed');
-        setFormError('Title and content are required');
         return;
       }
 
+      let result;
       if (isCreatingNew) {
         console.log('Creating new note');
-        await createNote(formData as NoteCreateInput);
-        console.log('Note created');
-        setSuccessMessage('Note created successfully');
-        setIsCreatingNew(false);
+        result = await createNote(formData as NoteCreateInput);
+        if (result) {
+          console.log('Note created');
+          setIsCreatingNew(false);
+        }
       } else if (selectedNote) {
         console.log('Updating note');
-        await updateNote(selectedNote.id, formData as NoteUpdateInput);
-        console.log('Note updated');
-        setSuccessMessage('Note updated successfully');
+        result = await updateNote(selectedNote.id, formData as NoteUpdateInput);
+        if (result) {
+          console.log('Note updated');
+        }
+      }
+      if (!result) {
+        console.log('Save operation failed (handled by store)');
       }
     } catch (err) {
-      console.error('Error saving note:', err);
-      setFormError('Failed to save note');
+      console.error('Unexpected error during save:', err);
     }
   };
 
@@ -162,15 +145,16 @@ const NotesPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications - Read from store */}
         {successMessage && (
           <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md" data-testid="success-notification">
             <p className="text-green-700">{successMessage}</p>
           </div>
         )}
-        {formError && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md" data-testid="form-error">
-            <p className="text-red-700">{formError}</p>
+        {/* Display error message from store */}
+        {errorMessage && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md" data-testid="error-notification">
+            <p className="text-red-700">{errorMessage}</p>
           </div>
         )}
 
@@ -227,7 +211,7 @@ const NotesPage: React.FC = () => {
               </div>
             )}
 
-            {/* Notes list */}
+            {/* Notes list - Pass storeError */}
             <NotesList
               notes={filteredNotes}
               onSelectNote={handleSelectNote}
@@ -235,7 +219,6 @@ const NotesPage: React.FC = () => {
               onDeleteNote={deleteNote}
               onEditNote={handleEditNote}
               isLoading={isLoading}
-              error={error}
             />
           </div>
 
@@ -276,13 +259,6 @@ const NotesPage: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* Error display */}
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md" data-testid="error-notification">
-            <p className="text-red-700">Error: {error}</p>
-          </div>
-        )}
       </div>
     </div>
   );

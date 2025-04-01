@@ -70,12 +70,11 @@ async def test_auth_rate_limit():
             # This request should hit the rate limit
             response = await client.post(
                 "/api/auth/token",
-                data={
+                json={
                     "username": "test",
                     "password": "test"
                 },
                 headers={
-                    "Content-Type": "application/x-www-form-urlencoded",
                     "User-Agent": "test-user-agent",
                     "X-Forwarded-For": "test-client"
                 }

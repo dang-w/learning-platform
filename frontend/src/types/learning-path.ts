@@ -6,7 +6,7 @@ export interface Goal {
   id: string;
   title: string;
   description: string;
-  priority: number;
+  priority: GoalPriority;
   category: string;
   completed: boolean;
   completion_date: string | null;
@@ -16,6 +16,8 @@ export interface Goal {
     date: string;
     progress: number;
   }[];
+  status: GoalStatus;
+  target_date: string;
 }
 
 export interface Milestone {
@@ -29,6 +31,8 @@ export interface Milestone {
   completion_date: string | null;
   notes: string;
   progress: number;
+  goal_id: string;
+  status: MilestoneStatus;
 }
 
 export interface Resource {

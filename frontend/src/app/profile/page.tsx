@@ -41,7 +41,6 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
     user,
     isAuthenticated,
     isLoading,
-    initializeFromStorage,
     updateProfile,
     changePassword,
     clearError,
@@ -71,11 +70,12 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
     register: registerProfile,
     handleSubmit: handleProfileSubmit,
     formState: { errors: profileErrors },
+    reset: resetProfileForm,
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      email: user?.email || '',
-      fullName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
+      email: '',
+      fullName: '',
     },
   });
 
@@ -87,11 +87,6 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
   } = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
   });
-
-  useEffect(() => {
-    // Initialize auth state from storage
-    initializeFromStorage();
-  }, [initializeFromStorage]);
 
   useEffect(() => {
     const initializeProfile = async () => {
@@ -127,6 +122,16 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
 
     initializeProfile();
   }, [isAuthenticated, isLoading, user, router, setStatistics, setNotificationPreferences]);
+
+  useEffect(() => {
+    if (user) {
+      console.log('User data for form reset:', user);
+      resetProfileForm({
+        email: user.email || '',
+        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      });
+    }
+  }, [user, resetProfileForm]);
 
   const onProfileSubmit = async (data: ProfileFormValues) => {
     setIsProfileLoading(true);
@@ -198,6 +203,8 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
       console.error('Delete account error:', error);
     }
   };
+
+  console.log('Profile loading state:', isProfileLoading);
 
   if (isLoading || isPageLoading) {
     return (
@@ -536,12 +543,16 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
                     </div>
 
                     <button
-                      data-testid="save-profile-button"
                       type="submit"
                       disabled={isProfileLoading}
-                      className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                      data-testid="save-profile-button"
+                      className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                     >
-                      {isProfileLoading ? 'Saving...' : 'Save Changes'}
+                      {isProfileLoading ? (
+                        <div className="animate-spin h-5 w-5 mr-3 text-white"></div>
+                      ) : (
+                        'Save Changes'
+                      )}
                     </button>
                   </form>
                   {formError && (

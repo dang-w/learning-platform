@@ -37,21 +37,23 @@ export const useAuthStore = create<AuthState>()(
 
       initializeFromStorage: async () => {
         const state = get();
-        console.log('[AuthStore] Initializing from storage...');
+        console.log('[AuthStore START] Initializing from storage...');
 
         // Prevent concurrent initialization
         if (state.isLoading) {
-          console.log('[AuthStore] Initialization skipped - already in progress.');
+          console.log('[AuthStore SKIP] Initialization skipped - already in progress.');
           return;
         }
 
+        console.log('[AuthStore STEP] Setting loading state.');
         set({ isLoading: true, error: null });
 
         try {
+          console.log('[AuthStore STEP] Attempting to get token from tokenService.');
           const token = activeTokenService.getToken();
 
           if (!token) {
-            console.log('[AuthStore] No token found. Setting unauthenticated state.');
+            console.log('[AuthStore FAIL] No token found. Clearing tokens and setting unauthenticated state.');
             // Ensure tokens are cleared if none found during init
             activeTokenService.clearTokens();
             set({
@@ -66,10 +68,10 @@ export const useAuthStore = create<AuthState>()(
           }
 
           // Token exists, try fetching user data. Interceptor handles refresh.
-          console.log('[AuthStore] Token found. Attempting to fetch user data...');
+          console.log('[AuthStore STEP] Token found. Attempting to fetch user data via authApi.getCurrentUser...');
           try {
             const user = await authApi.getCurrentUser();
-            console.log('[AuthStore] User data fetched successfully.');
+            console.log('[AuthStore SUCCESS] User data fetched successfully via getCurrentUser. Setting authenticated state.', { userId: user?.id });
             set({
               user,
               isAuthenticated: true,
@@ -89,7 +91,7 @@ export const useAuthStore = create<AuthState>()(
           } catch (error: unknown) {
             // This catch block handles errors from getCurrentUser,
             // including potential ERR_AUTH_REFRESH_FAILED from the interceptor
-            console.error('[AuthStore] Failed to fetch user during initialization:', error);
+            console.error('[AuthStore ERROR] Failed to fetch user during initialization (in getCurrentUser try-catch): Clearing tokens and setting unauthenticated state.', error);
             activeTokenService.clearTokens(); // Critical: Clear tokens on auth failure
             set({
               user: null,
@@ -102,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           // Catch unexpected errors during the init process itself
-          console.error('[AuthStore] Unexpected error during initialization:', error);
+          console.error('[AuthStore ERROR] Unexpected error during initialization (outer try-catch): Clearing tokens and setting unauthenticated state.', error);
           activeTokenService.clearTokens(); // Ensure clean state
           set({
             user: null,
@@ -113,6 +115,7 @@ export const useAuthStore = create<AuthState>()(
             notificationPreferences: null,
           });
         }
+        console.log('[AuthStore END] Initialization finished.');
       },
 
       setDirectAuthState: (token: string, isAuth: boolean) => {
@@ -130,9 +133,10 @@ export const useAuthStore = create<AuthState>()(
           const response = await authApi.login({ username, password });
           console.log('[AuthStore] Login API call successful.');
 
-          // Set tokens using TokenService
-          activeTokenService.setTokens(response.token, response.refreshToken);
-          console.log('[AuthStore] Tokens set via TokenService.');
+          // Set ONLY the access token using TokenService
+          // Refresh token is handled by HttpOnly cookie set by backend
+          activeTokenService.setTokens(response.token);
+          console.log('[AuthStore] Access token set via TokenService.');
 
           // Fetch user data immediately after successful login and token setting
           await get().fetchUser(); // fetchUser handles setting isAuthenticated
@@ -164,7 +168,7 @@ export const useAuthStore = create<AuthState>()(
           console.error('[AuthStore] Logout API call failed, proceeding with client logout:', error);
         } finally {
           // Always clear tokens and reset state
-          activeTokenService.clearTokens();
+          activeTokenService.clearTokens(); // Ensure token service state is also cleared
           set({
             user: null,
             isAuthenticated: false,
@@ -186,6 +190,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const user = await authApi.getCurrentUser();
           console.log('[AuthStore] User data fetched successfully via fetchUser.');
+          console.log('[AuthStore fetchUser] User object received:', user);
           set({
             user,
             isAuthenticated: true,
@@ -220,17 +225,29 @@ export const useAuthStore = create<AuthState>()(
         set({ error: null });
       },
 
-      register: async (username: string, email: string, password: string, fullName: string) => {
+      register: async (username: string, email: string, password: string, confirmPassword: string, fullName: string) => {
         console.log('[AuthStore] Registration attempt started.');
         set({ isLoading: true, error: null });
         try {
-          // Split fullName into firstName and lastName
-          const nameParts = fullName.trim().split(/\s+/);
-          const firstName = nameParts[0] || '';
-          const lastName = nameParts.slice(1).join(' ') || '';
+          // Basic validation (can be enhanced)
+          if (password !== confirmPassword) {
+            throw new Error("Passwords do not match");
+          }
 
-          // Call register API with correct signature
-          await authApi.register({ username, email, password, firstName, lastName });
+          // Remove unused splitting logic
+          // const nameParts = fullName.trim().split(/\s+/);
+          // const firstName = nameParts[0] || '';
+          // const lastName = nameParts.slice(1).join(' ') || '';
+
+          // Call register API - ensure it includes confirmPassword if needed by API
+          // Map frontend field names (fullName) to backend names (full_name) in api/auth.ts
+          await authApi.register({
+            username,
+            email,
+            password,
+            confirmPassword, // Pass confirmPassword to the API layer
+            fullName // Pass fullName, let api/auth.ts handle mapping
+          });
           console.log('[AuthStore] Registration API call successful.');
 
           // Registration successful, but user is NOT logged in yet.
@@ -309,36 +326,22 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      setRefreshToken: (refreshToken: string) => {
-        const token = activeTokenService.getToken();
-        if (token) {
-          activeTokenService.setTokens(token, refreshToken);
-        }
-      },
-
       fetchStatistics: async () => {
+        set({ isLoading: true });
         try {
-          set({ isLoading: true, error: null });
-          console.log('Fetching user statistics from backend...');
-
           const statistics = await authApi.getUserStatistics();
-          console.log('Statistics fetched successfully');
-
-          // Only update state if we received valid data (not defaults)
-          const hasRealData = statistics.totalCoursesEnrolled > 0 ||
-                             statistics.completedCourses > 0 ||
-                             statistics.averageScore > 0;
+          console.log('User statistics fetched:', statistics);
 
           set({
             statistics: statistics,
             isLoading: false,
-            // Only set error state if we received defaults due to an error
-            error: hasRealData ? null : 'Unable to load statistics'
+            // Always clear error on successful fetch
+            error: null
           });
         } catch (error) {
           console.error('Failed to fetch user statistics:', error);
-          // Don't update error state to avoid UI disruption
-          set({ isLoading: false });
+          // Set error state ONLY if the API call actually fails
+          set({ isLoading: false, error: 'Failed to load statistics' });
         }
       },
 

@@ -2,14 +2,29 @@ import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'ax
 import { BACKEND_API_URL } from '../config';
 import { tokenService } from '../services/token-service';
 
+// Define a type for the window object that might include Cypress
+interface WindowWithCypress extends Window {
+  Cypress?: unknown; // Use unknown for type safety, we only check for existence
+}
+
+// Check if running in Cypress test environment
+const IS_CYPRESS_TEST = typeof window !== 'undefined' && !!(window as WindowWithCypress).Cypress;
+
 // Create axios instance with default config
 const apiClient = axios.create({
   baseURL: BACKEND_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Important to include cookies in cross-origin requests
+  withCredentials: true, // Ensure this is true to send cookies
 });
+
+// Log the configured base URL at runtime
+console.log(`[apiClient] Initialized with baseURL: ${apiClient.defaults.baseURL}`);
+// Log if the skip header is being added
+if (IS_CYPRESS_TEST) {
+  console.log('[apiClient] Cypress environment detected, adding X-Skip-Rate-Limit header.');
+}
 
 // Type for request with retry flag
 interface RetryableRequest extends InternalAxiosRequestConfig {
@@ -83,32 +98,55 @@ export function getStandardizedUrl(url: string): string {
   return `/api/${cleanUrl.replace(/^\//, '')}`;
 }
 
-// Request interceptor to standardize URLs and add retry count
+// Request interceptor to standardize URLs, add retry count, AND add skip header
 apiClient.interceptors.request.use((config: RetryableRequest) => {
   if (config.url) {
+    const originalUrl = config.url;
     config.url = getStandardizedUrl(config.url);
+    console.log(`[apiClient Request Interceptor 1] Standardized URL: ${originalUrl} -> ${config.url}`);
   }
   config._retryCount = config._retryCount || 0;
+
+  // Add skip header dynamically just before the request if in Cypress
+  if (IS_CYPRESS_TEST) {
+    config.headers = config.headers || {};
+    config.headers['X-Skip-Rate-Limit'] = 'true';
+    console.log(`[apiClient Request Interceptor 1] Added X-Skip-Rate-Limit header for Cypress: ${config.url}`);
+  }
+
   return config;
 });
 
 // Add request interceptor to add Authorization header
 apiClient.interceptors.request.use(
   async (config: RetryableRequest) => {
-    // Don't add auth headers or attempt refresh for the token refresh endpoint itself
-    if (config.url?.includes('token/refresh')) {
+    const url = config.url || '';
+
+    // List of public paths that don't require authentication/token refresh
+    const publicPaths = [
+      '/auth/login',
+      '/auth/token',
+      '/auth/register',
+      // Add other public paths if needed (e.g., '/password-reset')
+    ];
+
+    // Don't add auth headers or attempt refresh for the token refresh endpoint itself OR other public paths
+    if (url.includes('token/refresh') || publicPaths.some(path => url.includes(path))) {
+      console.log(`[apiClient Request Interceptor 2] Skipping auth logic for public/refresh path: ${url}`);
       return config;
     }
 
     try {
       // Get valid token, potentially refreshing if needed
+      console.log(`[apiClient Request Interceptor 2] Attempting to get valid token for: ${url}`);
       const token = await tokenService.getValidAccessToken();
       config.headers = config.headers || {};
       config.headers['Authorization'] = `Bearer ${token}`; // Assuming token is just the token, add Bearer
+      console.log(`[apiClient Request Interceptor 2] Added auth header for: ${url}`);
     } catch (error) {
       // If getValidAccessToken fails (e.g., refresh failed, user needs login),
       // prevent the request from proceeding.
-      console.error('Failed to obtain valid token for request:', config.url, error);
+      console.error('Failed to obtain valid token for request:', url, error);
       // Cancel the request by throwing an error that won't be retried
       // Creating a custom error or using a specific Axios error might be better
       const cancelError = new AxiosError(

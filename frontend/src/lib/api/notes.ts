@@ -17,7 +17,7 @@ const notesApi = {
       params.append('skip', skip.toString());
       params.append('limit', limit.toString());
 
-      const url = `/api/users/notes?${params.toString()}`;
+      const url = `/api/notes?${params.toString()}`;
       const response = await apiClient.get<NotePagination>(url);
       return response.data;
     } catch (error) {
@@ -41,7 +41,7 @@ const notesApi = {
    */
   getNote: async (id: string): Promise<Note> => {
     try {
-      const response = await apiClient.get<Note>(`/api/users/notes/${id}`);
+      const response = await apiClient.get<Note>(`/api/notes/${id}`);
       return response.data;
     } catch (error) {
       console.error('Get note API error:', error);
@@ -64,22 +64,22 @@ const notesApi = {
    */
   createNote: async (note: NoteCreateInput): Promise<Note> => {
     try {
-      const response = await apiClient.post<Note>('/api/users/notes', note);
+      const response = await apiClient.post<Note>('/api/notes', note);
       return response.data;
     } catch (error) {
       console.error('Create note API error:', error);
-
       const axiosError = error as AxiosError<ApiErrorResponse>;
+      let message = 'Failed to create note. Please try again later.'; // Default message
 
-      if (axiosError.response?.status === 400) {
-        throw new Error(`Invalid note data: ${axiosError.response.data?.detail || 'Please check your input'}`);
-      } else if (axiosError.response?.data?.detail) {
-        throw new Error(`Failed to create note: ${axiosError.response.data.detail}`);
+      if (axiosError.response?.data?.detail) {
+        message = `Failed to create note: ${axiosError.response.data.detail}`; // Use backend detail
+      } else if (axiosError.response?.data?.error) {
+        // Fallback if detail is missing but error field exists
+        message = `Failed to create note: ${axiosError.response.data.error}`;
       } else if (axiosError.message) {
-        throw new Error(`Failed to create note: ${axiosError.message}`);
+        message = `Failed to create note: ${axiosError.message}`; // Use Axios message
       }
-
-      throw new Error('Failed to create note. Please try again later.');
+      throw new Error(message); // Throw the refined error message
     }
   },
 
@@ -90,24 +90,20 @@ const notesApi = {
    */
   updateNote: async (id: string, note: NoteUpdateInput): Promise<Note> => {
     try {
-      const response = await apiClient.put<Note>(`/api/users/notes/${id}`, note);
+      const response = await apiClient.put<Note>(`/api/notes/${id}`, note);
       return response.data;
     } catch (error) {
       console.error('Update note API error:', error);
-
       const axiosError = error as AxiosError<ApiErrorResponse>;
-
-      if (axiosError.response?.status === 400) {
-        throw new Error(`Invalid note data: ${axiosError.response.data?.detail || 'Please check your input'}`);
-      } else if (axiosError.response?.status === 404) {
-        throw new Error(`Note not found: ${axiosError.response.data?.detail || 'The note may have been deleted'}`);
-      } else if (axiosError.response?.data?.detail) {
-        throw new Error(`Failed to update note: ${axiosError.response.data.detail}`);
+      let message = 'Failed to update note. Please try again later.';
+      if (axiosError.response?.data?.detail) {
+        message = `Failed to update note: ${axiosError.response.data.detail}`;
+      } else if (axiosError.response?.data?.error) {
+        message = `Failed to update note: ${axiosError.response.data.error}`;
       } else if (axiosError.message) {
-        throw new Error(`Failed to update note: ${axiosError.message}`);
+        message = `Failed to update note: ${axiosError.message}`;
       }
-
-      throw new Error('Failed to update note. Please try again later.');
+      throw new Error(message);
     }
   },
 
@@ -117,21 +113,19 @@ const notesApi = {
    */
   deleteNote: async (id: string): Promise<void> => {
     try {
-      await apiClient.delete(`/api/users/notes/${id}`);
+      await apiClient.delete(`/api/notes/${id}`);
     } catch (error) {
       console.error('Delete note API error:', error);
-
       const axiosError = error as AxiosError<ApiErrorResponse>;
-
-      if (axiosError.response?.status === 404) {
-        throw new Error(`Note not found: ${axiosError.response.data?.detail || 'The note may have been deleted already'}`);
-      } else if (axiosError.response?.data?.detail) {
-        throw new Error(`Failed to delete note: ${axiosError.response.data.detail}`);
+      let message = 'Failed to delete note. Please try again later.';
+      if (axiosError.response?.data?.detail) {
+        message = `Failed to delete note: ${axiosError.response.data.detail}`;
+      } else if (axiosError.response?.data?.error) {
+        message = `Failed to delete note: ${axiosError.response.data.error}`;
       } else if (axiosError.message) {
-        throw new Error(`Failed to delete note: ${axiosError.message}`);
+        message = `Failed to delete note: ${axiosError.message}`;
       }
-
-      throw new Error('Failed to delete note. Please try again later.');
+      throw new Error(message);
     }
   }
 };

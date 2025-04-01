@@ -2,7 +2,8 @@
  * Cookie utility functions for managing browser cookies
  */
 
-interface CookieOptions {
+// Export the CookieOptions interface
+export interface CookieOptions {
   path?: string;
   expires?: Date;
   secure?: boolean;
@@ -34,9 +35,6 @@ export const cookieUtils = {
     if (options.sameSite) {
       cookie += `; samesite=${options.sameSite}`;
     }
-    if (options.httpOnly) {
-      cookie += '; httponly';
-    }
     document.cookie = cookie;
   },
 
@@ -51,9 +49,6 @@ export const cookieUtils = {
     }
     if (options.sameSite) {
       cookie += `; samesite=${options.sameSite}`;
-    }
-    if (options.httpOnly) {
-      cookie += '; httponly';
     }
     document.cookie = cookie;
   }
