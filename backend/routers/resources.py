@@ -435,7 +435,7 @@ async def update_resource(
 
     return resources[resource_index]
 
-@router.post("/{resource_type}/{resource_id}/complete", response_model=Resource)
+@router.patch("/{resource_type}/{resource_id}/complete", response_model=Resource)
 async def mark_resource_completed(
     resource_type: str,
     resource_id: int,

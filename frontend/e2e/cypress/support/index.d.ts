@@ -1,5 +1,7 @@
 /// <reference types="cypress" />
 
+import { Resource, ResourceCreatePayload, UserCredentials, UserRegistrationData } from './types';
+
 declare namespace Cypress {
   interface Chainable {
     /**
@@ -36,7 +38,7 @@ declare namespace Cypress {
      * Custom command to navigate to a protected route and verify access
      * @example cy.visitProtectedRoute('/dashboard')
      */
-    visitProtectedRoute(route: string): Chainable<void>;
+    visitProtectedRoute(url: string): Chainable<void>;
 
     /**
      * Custom command to logout
@@ -55,6 +57,17 @@ declare namespace Cypress {
      * @example cy.get('[data-testid="file-input"]').selectFile('cypress/fixtures/example.json')
      */
     selectFile(filePath: string, options?: Partial<Cypress.SelectFileOptions>): Chainable<JQuery<HTMLElement>>;
+
+    /**
+     * Custom command to register a user via API task.
+     * Returns the Cypress response object.
+     */
+    registerUserApi(userData: UserRegistrationData): Chainable<Response<any>>;
+
+    /**
+     * Custom command to create a resource via API task.
+     */
+    createResourceApi(resourceData: ResourceCreatePayload, userCredentials: UserCredentials): Chainable<Resource>;
   }
 
   interface SelectFileOptions {
@@ -67,4 +80,14 @@ declare namespace Cypress {
      */
     action?: 'select' | 'drag-drop';
   }
+
+  interface AUTWindow {
+    __NOTES_STORE__?: { getState: () => any };
+  }
+
+  interface Response<T> {
+    body: T & { detail?: string };
+  }
 }
+
+export {};

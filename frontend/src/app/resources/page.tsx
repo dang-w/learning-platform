@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ResourceList } from '@/components/resources/ResourceList'
 import { ResourceForm } from '@/components/resources/ResourceForm'
 import { ResourceType, ResourceCreateInput } from '@/types/resources'
@@ -10,6 +11,13 @@ export default function ResourcesPage() {
   const [selectedType, setSelectedType] = useState<ResourceType>('articles')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const { addResource } = useResources(selectedType)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams?.get('action') === 'add') {
+      setIsFormOpen(true)
+    }
+  }, [searchParams])
 
   const handleCreateResource = async (data: ResourceCreateInput) => {
     await addResource(data)
@@ -30,8 +38,8 @@ export default function ResourcesPage() {
       </div>
 
       {isFormOpen && (
-        <div data-testid="resource-form-modal" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+        <div data-testid="resource-form-modal" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               Add New Resource
             </h2>

@@ -80,7 +80,26 @@ describe('User Profile', () => {
     */
 
     // Other intercepts we may or may not need
-    cy.intercept('PATCH', '/api/users/me', { statusCode: 200 }).as('updateUser');
+    cy.intercept('PATCH', '/api/users/me', (req) => {
+        const updatedData = req.body; // Data sent in the request (e.g., { email: 'new@example.com', firstName: 'NewFirst', lastName: 'NewLast' })
+        // Construct a realistic response based on the request
+        // Assume the backend returns the full user object with updated fields
+        req.reply({
+            statusCode: 200,
+            body: {
+                id: '67ed490a904e6703205773b9', // Keep existing ID
+                username: testUser.username, // Keep existing username
+                email: updatedData.email || testUser.email, // Use updated email or fallback
+                firstName: updatedData.firstName, // Use updated first name
+                lastName: updatedData.lastName,   // Use updated last name
+                createdAt: new Date().toISOString(), // Use a plausible date
+                updatedAt: new Date().toISOString(), // Use current date for updated
+                isActive: true,
+                role: 'user' // Assume a default role
+            }
+        });
+    }).as('updateUser');
+
     cy.intercept('POST', '/api/auth/change-password', { statusCode: 200 }).as('changePassword');
     cy.intercept('GET', '/api/auth/export', { statusCode: 200, body: {} }).as('exportData');
     cy.intercept('DELETE', '/api/auth/account', { statusCode: 200 }).as('deleteAccount');
@@ -164,7 +183,9 @@ describe('User Profile', () => {
     cy.log('Checking save button after typing email...');
     cy.get('[data-testid="save-profile-button"]').should('be.visible');
 
-    cy.get('[data-testid="profile-full-name"]').clear().type('New Name');
+    // Update first and last name fields separately
+    cy.get('[data-testid="profile-first-name"]').clear().type('NewFirst');
+    cy.get('[data-testid="profile-last-name"]').clear().type('NewLast');
     cy.log('Checking save button after typing name...');
     cy.get('[data-testid="save-profile-button"]').should('be.visible');
 
@@ -179,6 +200,11 @@ describe('User Profile', () => {
     cy.get('[data-testid="save-profile-button"]', { timeout: 10000 })
       .should('be.visible') // Ensure button element exists
       .find('.animate-spin').should('not.exist'); // Ensure loading spinner is gone
+
+    // **NEW:** Verify that the input fields retain their new values after saving
+    cy.get('[data-testid="profile-email"]').should('have.value', 'new@example.com');
+    cy.get('[data-testid="profile-first-name"]').should('have.value', 'NewFirst');
+    cy.get('[data-testid="profile-last-name"]').should('have.value', 'NewLast');
 
     // Optional: Verify success message or re-check field values if needed
     // cy.contains('Profile updated successfully!').should('be.visible');
@@ -220,8 +246,14 @@ describe('User Profile', () => {
     // Click on export tab
     cy.get('[data-testid="export-tab"]').scrollIntoView().click();
 
-    // Wait directly for the export button to be visible after clicking tab
-    cy.get('[data-testid="export-data-button"]', { timeout: 10000 }).should('be.visible').scrollIntoView().click();
+    // **NEW:** Wait for the tab button itself to visually appear selected
+    cy.get('[data-testid="export-tab"]').should('have.class', 'text-indigo-600');
+
+    // Now that the tab is confirmed active, target the button within its panel
+    cy.get('[data-testid="export-data-button"]', { timeout: 15000 })
+      .should('be.visible')
+      .scrollIntoView()
+      .click();
 
     // Verify the button text remains as "Export My Data" (we're not actually testing the download)
     cy.get('[data-testid="export-data-button"]').contains('Export My Data');

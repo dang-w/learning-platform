@@ -7,16 +7,15 @@ interface ResourceFormData {
   title: string;
   url: string;
   description?: string;
-  type?: 'article' | 'video' | 'course';
+  type?: 'articles' | 'videos' | 'courses' | 'books';
   difficulty?: string;
-  estimatedTime?: string;
+  estimatedTime?: number | string;
   topics?: string[];
-  notes?: string;
 }
 
 export class ResourcesPage extends BasePage {
-  // Selectors for resource-related elements
-  private selectors = {
+  // Make selectors public for direct use in tests if needed
+  public readonly selectors = {
     // Resource list elements
     resourcesList: '[data-testid="resources-list"]',
     resourceItem: '[data-testid="resource-item"]',
@@ -29,17 +28,16 @@ export class ResourcesPage extends BasePage {
 
     // Resource form elements
     resourceForm: '[data-testid="resource-form"]',
-    titleInput: 'input[name="title"]',
-    urlInput: 'input[name="url"]',
-    descriptionInput: '[data-testid="description-input"]',
-    notesInput: 'textarea[name="notes"]',
-    estimatedTimeInput: 'input[name="estimated_time"]',
-    typeSelect: '[data-testid="resource-type-select"]',
+    titleInput: '[data-testid="resource-title-input"]',
+    urlInput: '[data-testid="resource-url"]',
+    descriptionInput: '[data-testid="resource-description"]',
+    estimatedTimeInput: '[data-testid="resource-estimated-time"]',
+    typeSelect: '[data-testid="resource-type"]',
     typeOption: (type: string) => `[data-testid="resource-type-${type}"]`,
-    difficultySelect: '[data-testid="resource-difficulty-select"]',
+    difficultySelect: '[data-testid="resource-difficulty"]',
     difficultyOption: (difficulty: string) => `[data-testid="resource-difficulty-${difficulty}"]`,
     topicsInput: '[data-testid="resource-topics"]',
-    submitButton: 'button[type="submit"]',
+    submitButton: '[data-testid="submit-button"]',
 
     // Action buttons
     addResourceButton: '[data-testid="add-resource"]',
@@ -66,8 +64,8 @@ export class ResourcesPage extends BasePage {
     errorNotification: '[data-testid="error-notification"]',
 
     // URL metadata extraction elements
-    resourceUrlInput: '[data-testid="resource-url-input"]',
-    extractMetadataButton: '[data-testid="extract-metadata-button"]',
+    resourceUrlInput: '[data-testid="resource-url"]',
+    extractMetadataButton: '[data-testid="extract-metadata"]',
     metadataLoading: '[data-testid="metadata-loading"]',
     metadataError: '[data-testid="metadata-error"]',
     resourceTitleInput: '[data-testid="resource-title-input"]',
@@ -110,13 +108,6 @@ export class ResourcesPage extends BasePage {
   }
 
   /**
-   * Visit the new resource page
-   */
-  visitNewResource(): Cypress.Chainable<void> {
-    return this.visitProtected('/resources/new');
-  }
-
-  /**
    * Check if the URL input field exists
    */
   isUrlInputAvailable(): Cypress.Chainable<boolean> {
@@ -135,8 +126,9 @@ export class ResourcesPage extends BasePage {
    * Click the extract metadata button if it exists
    */
   clickExtractMetadata(): void {
-    this.elementExists(this.selectors.extractMetadataButton).then(exists => {
-      if (exists) {
+    // Use get('body').then to ensure the command runs after potential DOM updates
+    cy.get('body').then($body => {
+      if ($body.find(this.selectors.extractMetadataButton).length) {
         this.click(this.selectors.extractMetadataButton);
       } else {
         cy.log('Extract metadata button not found - feature may not be implemented');
@@ -151,14 +143,6 @@ export class ResourcesPage extends BasePage {
   enterUrlAndExtractMetadata(url: string): void {
     this.enterUrl(url);
     this.clickExtractMetadata();
-
-    // Wait for loading indicator if present
-    this.elementExists(this.selectors.metadataLoading).then(exists => {
-      if (exists) {
-        cy.log('Metadata loading indicator found - waiting for it to complete');
-        cy.wait(5000); // Wait for API to respond
-      }
-    });
   }
 
   /**
@@ -169,16 +153,10 @@ export class ResourcesPage extends BasePage {
   }
 
   /**
-   * Check if form fields are populated with metadata
+   * Check if form fields are populated with metadata (Asserts directly)
    */
-  isMetadataPopulated(): Cypress.Chainable<boolean> {
-    return cy.get('body').then($body => {
-      const hasTitleInput = $body.find(this.selectors.resourceTitleInput).length > 0;
-      const hasValueInTitle = hasTitleInput &&
-        $body.find(this.selectors.resourceTitleInput).val() !== '';
-
-      return hasValueInTitle;
-    });
+  isMetadataPopulated(): Cypress.Chainable<JQuery<HTMLElement>> {
+    return cy.get(this.selectors.resourceTitleInput).should('not.have.value', '');
   }
 
   /**
@@ -187,19 +165,11 @@ export class ResourcesPage extends BasePage {
    * @param description The description to enter
    */
   enterManualDetails(title: string, description: string): void {
-    this.elementExists(this.selectors.resourceTitleInput).then(exists => {
-      if (exists) {
-        cy.get(this.selectors.resourceTitleInput).clear();
-        this.type(this.selectors.resourceTitleInput, title);
-      }
-    });
+    cy.get(this.selectors.resourceTitleInput).clear();
+    this.type(this.selectors.resourceTitleInput, title);
 
-    this.elementExists(this.selectors.resourceDescriptionInput).then(exists => {
-      if (exists) {
-        cy.get(this.selectors.resourceDescriptionInput).clear();
-        this.type(this.selectors.resourceDescriptionInput, description);
-      }
-    });
+    cy.get(this.selectors.resourceDescriptionInput).clear();
+    this.type(this.selectors.resourceDescriptionInput, description);
   }
 
   /**
@@ -207,10 +177,13 @@ export class ResourcesPage extends BasePage {
    * @param type The type to select
    */
   selectResourceType(type: string): void {
-    this.elementExists(this.selectors.typeSelect).then(exists => {
-      if (exists) {
-        this.click(this.selectors.typeSelect);
-        cy.get(this.selectors.typeOption(type)).should('be.visible').click();
+    // Use get('body').then to ensure the command runs after potential DOM updates
+    cy.get('body').then($body => {
+      if ($body.find(this.selectors.typeSelect).length > 0) {
+        // Ensure the select element is visible before interaction
+        cy.get(this.selectors.typeSelect).should('be.visible').select(type);
+      } else {
+        cy.log('Resource type select not found - skipping selection');
       }
     });
   }
@@ -221,57 +194,54 @@ export class ResourcesPage extends BasePage {
    */
   fillResourceForm(resourceData: ResourceFormData): void {
     // Fill title
-    this.type(this.selectors.titleInput, resourceData.title);
+    if (resourceData.title) {
+      this.type(this.selectors.titleInput, resourceData.title);
+    }
 
     // Fill URL
-    this.type(this.selectors.urlInput, resourceData.url);
+    if (resourceData.url) {
+      this.type(this.selectors.urlInput, resourceData.url);
+    }
 
     // Select type if provided
     if (resourceData.type) {
-      cy.get(this.selectors.typeSelect).select(resourceData.type);
+      cy.log(`Selecting resource type: ${resourceData.type}`);
+      // Ensure the select element is visible before selecting
+      cy.get(this.selectors.typeSelect).should('be.visible').select(resourceData.type);
+      // Add a small wait and URL check after selection
+      cy.wait(100);
+      cy.url().should('include', '/resources', 'URL should still be /resources after type selection');
+      cy.log('URL check passed after type selection.');
     }
 
     // Fill description if provided
     if (resourceData.description) {
-      this.elementExists(this.selectors.descriptionInput).then(exists => {
-        if (exists && resourceData.description) {
-          this.type(this.selectors.descriptionInput, resourceData.description);
-        }
-      });
+      // Add URL check before typing into description
+      cy.url().should('include', '/resources', 'URL should still be /resources before typing description');
+      cy.log('URL check passed before typing description.');
+      this.type(this.selectors.descriptionInput, resourceData.description);
     }
 
     // Select difficulty if provided
     if (resourceData.difficulty) {
+      cy.get(this.selectors.difficultySelect).should('exist').and('be.visible');
       cy.get(this.selectors.difficultySelect).select(resourceData.difficulty);
     }
 
     // Fill estimated time if provided
-    if (resourceData.estimatedTime) {
-      this.elementExists(this.selectors.estimatedTimeInput).then(exists => {
-        if (exists && resourceData.estimatedTime) {
-          this.type(this.selectors.estimatedTimeInput, resourceData.estimatedTime);
-        }
-      });
+    if (resourceData.estimatedTime !== undefined) {
+      cy.get(this.selectors.estimatedTimeInput).should('exist').and('be.visible');
+      this.type(this.selectors.estimatedTimeInput, String(resourceData.estimatedTime));
     }
 
     // Add topics if provided
     if (resourceData.topics && resourceData.topics.length > 0) {
-      this.elementExists(this.selectors.topicsInput).then(exists => {
-        if (exists) {
-          const topics = resourceData.topics || [];
-          topics.forEach(topic => {
-            this.type(this.selectors.topicsInput, `${topic}{enter}`);
-          });
-        }
-      });
-    }
-
-    // Fill notes if provided
-    if (resourceData.notes) {
-      this.elementExists(this.selectors.notesInput).then(exists => {
-        if (exists && resourceData.notes) {
-          this.type(this.selectors.notesInput, resourceData.notes);
-        }
+      cy.get(this.selectors.topicsInput).should('exist').and('be.visible');
+      const topics = resourceData.topics || [];
+      topics.forEach(topic => {
+        this.type(this.selectors.topicsInput, `${topic}{enter}`);
+        // Add a small wait to ensure the tag renders before next input
+        cy.wait(100);
       });
     }
   }
@@ -280,30 +250,34 @@ export class ResourcesPage extends BasePage {
    * Submit the resource form
    */
   submitResourceForm(): void {
-    this.click(this.selectors.submitButton);
+    // Scroll the button into view before clicking
+    cy.get(this.selectors.submitButton).scrollIntoView().click();
   }
 
   /**
-   * Verify success notification is displayed
+   * Verify success notification is displayed (Asserts directly)
    */
-  verifySuccessNotification(): Cypress.Chainable<boolean> {
-    return this.elementExists(this.selectors.successNotification).then(exists => {
-      if (exists) {
-        cy.get(this.selectors.successNotification).should('be.visible');
-      }
-      return exists;
-    });
+  verifySuccessNotification(): Cypress.Chainable<JQuery<HTMLElement>> {
+    return cy.get(this.selectors.successNotification).should('be.visible');
   }
 
   /**
    * Get the number of resources displayed
    */
   getResourceCount(): Cypress.Chainable<number> {
+    // Check if the list container exists using the body as a base
     return cy.get('body').then($body => {
-      if ($body.find(this.selectors.resourceItem).length) {
-        return cy.get(this.selectors.resourceItem).its('length');
+      if ($body.find(this.selectors.resourcesList).length > 0) {
+        // If the list exists, find items within it using .find()
+        // and yield its length. .find() operates on the subject.
+        return cy.get(this.selectors.resourcesList)
+                 .should('be.visible') // Ensure the list is visible
+                 .find(this.selectors.resourceItem) // Find items within
+                 .its('length'); // Get the length of the found items
+      } else {
+        // If the list container itself doesn't exist, the count is 0
+        return cy.wrap(0);
       }
-      return cy.wrap(0);
     });
   }
 
@@ -398,25 +372,16 @@ export class ResourcesPage extends BasePage {
    * Get the title of the first resource
    */
   getFirstResourceTitle(): Cypress.Chainable<string | null> {
-    // Using intermediate variable to store the result
-    let titleText: string | null = null;
-
-    // @ts-expect-error: Suppress type checking for this block since it works at runtime
-    return cy
-      .get('body')
-      .then(($body) => {
-        const hasResources = $body.find(this.selectors.resourceItem).length > 0;
-
-        if (hasResources) {
-          titleText = $body
-            .find(this.selectors.resourceItem)
-            .first()
-            .find(this.selectors.resourceTitle)
-            .text()
-            .trim() || null;
-        }
-      })
-      .then(() => titleText);
+    // Use invoke('text') for better handling of text retrieval
+    return cy.get(this.selectors.resourceItem)
+      .first()
+      .find(this.selectors.resourceTitle)
+      .invoke('text')
+      .then(text => {
+        const trimmedText = text.trim();
+        // Return null for empty string, otherwise the trimmed text
+        return trimmedText === '' ? null : trimmedText;
+      }) as Cypress.Chainable<string | null>; // Explicitly cast the result of .then()
   }
 
   /**
@@ -438,41 +403,37 @@ export class ResourcesPage extends BasePage {
   }
 
   /**
-   * Check if a resource exists by title
+   * Check if a resource exists by title (Asserts directly)
    * @param title The title to check for
    */
-  resourceExists(title: string): Cypress.Chainable<boolean> {
-    return cy.get('body').then($body => {
-      return $body.find(this.selectors.resourcesList).text().includes(title);
-    });
+  resourceExists(title: string): Cypress.Chainable<JQuery<HTMLElement>> {
+    // More specific: Find an item containing a title element with the text
+    return cy.get(this.selectors.resourceItem)
+      .find(this.selectors.resourceTitle)
+      .contains(title)
+      .parents(this.selectors.resourceItem); // Assert that the title is within a resource item
   }
 
   /**
    * Mark the first resource as completed
-   * @param notes Optional notes to add when marking as completed
    */
-  markFirstResourceAsCompleted(notes?: string): void {
+  markFirstResourceAsCompleted(): void {
     cy.get(this.selectors.resourceItem)
       .first()
       .find(this.selectors.completeResourceButton)
       .click();
-
-    if (notes) {
-      this.type(this.selectors.notesInput, notes);
-    }
-
-    this.click(this.selectors.submitButton);
   }
 
   /**
    * Check if the first resource is marked as completed
    */
   isFirstResourceCompleted(): Cypress.Chainable<boolean> {
+    // Check for the existence of the badge within the first item
     return cy.get(this.selectors.resourceItem)
       .first()
-      .then($resource => {
-        return $resource.find(this.selectors.completedBadge).length > 0;
-      });
+      .find(this.selectors.completedBadge)
+      .should('exist') // Assert badge exists
+      .then($badge => $badge.length > 0); // Return boolean based on existence
   }
 
   /**
@@ -485,6 +446,13 @@ export class ResourcesPage extends BasePage {
       .click();
 
     // Confirm deletion
+    this.click(this.selectors.confirmDeleteButton);
+  }
+
+  /**
+   * Confirm delete dialog
+   */
+  confirmDelete(): void {
     this.click(this.selectors.confirmDeleteButton);
   }
 }

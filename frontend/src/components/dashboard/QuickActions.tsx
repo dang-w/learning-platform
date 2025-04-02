@@ -11,7 +11,7 @@ const actions = [
   {
     title: 'Add Resource',
     description: 'Add a new learning resource',
-    href: '/resources/new',
+    href: '/resources?action=add',
     icon: PlusIcon,
     color: 'text-blue-600 bg-blue-100',
   },

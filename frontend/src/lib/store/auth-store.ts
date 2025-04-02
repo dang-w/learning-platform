@@ -363,14 +363,16 @@ export const useAuthStore = create<AuthState>()(
       },
 
       exportUserData: async () => {
+        console.log('[AuthStore] Exporting user data...');
         try {
-          set({ isLoading: true, error: null });
-          const data = await authApi.exportUserData();
-          set({ isLoading: false });
-          return data;
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
+          const blob = await authApi.exportUserData();
+          console.log('[AuthStore] User data export successful.');
+          return blob;
+        } catch (error: unknown) {
+          console.error('[AuthStore] Failed to export user data:', error);
+          // Keep error setting if needed for UI feedback
+          set({ error: error instanceof Error ? error.message : 'Failed to export data' });
+          throw error; // Re-throw error so component can catch it
         }
       },
 
