@@ -1,8 +1,6 @@
 /// <reference types="cypress" />
 
 import '@testing-library/cypress/add-commands';
-import { Note, NoteCreateInput, NoteUpdateInput, NotesState } from '@/types/notes';
-import { User } from '@/types/auth';
 
 // Assuming NotesStateWithMessages is exported or reconstruct interface here
 // If not exported, define a minimal interface for the state needed
@@ -51,9 +49,9 @@ declare global {
       /**
        * Register user via API call
        * @param userData User details for registration
-       * @example cy.registerUserApi({ username, email, password, fullName })
+       * @example cy.registerUserApi({ username, email, password, firstName, lastName })
        */
-      registerUserApi(userData: { username: string; email: string; password: string; fullName: string }): Chainable<Cypress.Response<unknown>>;
+      registerUserApi(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<Cypress.Response<unknown>>;
 
       /**
        * Custom command to get the Zustand notes store state
@@ -91,15 +89,15 @@ declare global {
 
       /**
        * Custom command to create a test user
-       * @example cy.createTestUser({ username: 'test', email: 'test@example.com', password: 'password', fullName: 'Test User' })
+       * @example cy.createTestUser({ username: 'test', email: 'test@example.com', password: 'password', firstName: 'Test', lastName: 'User' })
        */
-      createTestUser(userData: { username: string; email: string; password: string; fullName: string }): Chainable<void>;
+      createTestUser(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<void>;
 
       /**
        * Custom command to create a test user with direct MongoDB fallback
-       * @example cy.createTestUserReliably({ username: 'test', email: 'test@example.com', password: 'password', fullName: 'Test User' })
+       * @example cy.createTestUserReliably({ username: 'test', email: 'test@example.com', password: 'password', firstName: 'Test', lastName: 'User' })
        */
-      createTestUserReliably(userData: { username: string; email: string; password: string; fullName: string }): Chainable<void>;
+      createTestUserReliably(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<void>;
 
       /**
        * Custom command to login with token generation
@@ -153,19 +151,19 @@ declare global {
        * Custom command to create and authenticate a test user
        * @example cy.createAndLoginUser('testuser', 'user')
        */
-      createAndLoginUser(username?: string, email?: string, fullName?: string): Chainable<void>;
+      createAndLoginUser(username?: string, email?: string, firstName?: string, lastName?: string): Chainable<void>;
 
       /**
        * Custom command to register a user via API call.
-       * @example cy.registerUserApi({ username: 'apiuser', email: 'api@test.com', password: 'password', fullName: 'API User' })
+       * @example cy.registerUserApi({ username: 'apiuser', email: 'api@test.com', password: 'password', firstName: 'API', lastName: 'User' })
        */
-      registerUserApi(userData: { username: string; email: string; password: string; fullName: string }): Chainable<Cypress.Response<unknown>>;
+      registerUserApi(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<Cypress.Response<unknown>>;
 
       /**
        * Custom command to get the Zustand store state
        * @example cy.getNotesStoreState()
        */
-      getNotesStoreState(): Chainable<any>;
+      getNotesStoreState(): Chainable<TestNotesState>;
     }
   }
 }
@@ -224,7 +222,7 @@ Cypress.Commands.add('loginWithToken', (username: string) => {
 });
 
 // Enhanced test user creation with direct creation
-Cypress.Commands.add('createTestUserReliably', (userData: { username: string, email: string, password: string, fullName: string }) => {
+Cypress.Commands.add('createTestUserReliably', (userData: { username: string, email: string, password: string, firstName: string, lastName: string }) => {
   // First try the backend task for direct creation
   cy.task('createDirectTestUser', userData).then((result) => {
     const typedResult = result as DirectUserCreationResult;
@@ -235,12 +233,13 @@ Cypress.Commands.add('createTestUserReliably', (userData: { username: string, em
       // If direct creation failed, try API endpoints
       cy.log(`Direct user creation failed: ${typedResult.error}. Trying API endpoints.`);
 
-      // Map fullName to full_name as expected by the backend API
+      // Map firstName and lastName to first_name and last_name as expected by the backend API
       const apiUserData = {
         username: userData.username,
         email: userData.email,
         password: userData.password,
-        full_name: userData.fullName
+        first_name: userData.firstName,
+        last_name: userData.lastName
       };
 
       // Define the API endpoints with fallbacks
@@ -295,13 +294,14 @@ Cypress.Commands.add('createTestUserReliably', (userData: { username: string, em
 });
 
 // Original createTestUser command implementation
-Cypress.Commands.add('createTestUser', (userData: { username: string, email: string, password: string, fullName: string }) => {
-  // Map fullName to full_name as expected by the backend API
+Cypress.Commands.add('createTestUser', (userData: { username: string, email: string, password: string, firstName: string, lastName: string }) => {
+  // Map firstName and lastName to first_name and last_name as expected by the backend API
   const apiUserData = {
     username: userData.username,
     email: userData.email,
     password: userData.password,
-    full_name: userData.fullName
+    first_name: userData.firstName,
+    last_name: userData.lastName
   };
 
   // Define the API endpoints with fallbacks
@@ -367,7 +367,8 @@ Cypress.Commands.add('createTestUser', (userData: { username: string, email: str
 //           username: username,
 //           email: `${username}@example.com`,
 //           password: password || 'TestPassword123!',
-//           fullName: username.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+//           firstName: username.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+//           lastName: username.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 //         });
 //       }
 //
@@ -647,10 +648,11 @@ Cypress.Commands.add('getByTestId', (selector: string) => {
 Cypress.Commands.add('createAndLoginUser', (
   username: string = `test_${Date.now()}`,
   email: string = `test_${Date.now()}@example.com`,
-  fullName: string = 'Test User'
+  firstName: string = 'Test',
+  lastName: string = 'User'
 ) => {
   // Create a test user via a task (mocked)
-  cy.task('createDirectTestUser', { username, email, fullName }).then((user) => {
+  cy.task('createDirectTestUser', { username, email, firstName, lastName }).then((user) => {
     // Log the created user info
     cy.log(`Created test user: ${(user as { username: string }).username}`);
 
@@ -660,13 +662,14 @@ Cypress.Commands.add('createAndLoginUser', (
 });
 
 // Custom command to register a user via API
-Cypress.Commands.add('registerUserApi', (userData: { username: string, email: string, password: string, fullName: string }) => {
+Cypress.Commands.add('registerUserApi', (userData: { username: string, email: string, password: string, firstName: string, lastName: string }) => {
   const apiData = {
     username: userData.username,
     email: userData.email,
     password: userData.password,
     confirm_password: userData.password, // Assuming password confirmation is the same
-    full_name: userData.fullName,
+    first_name: userData.firstName,
+    last_name: userData.lastName,
   };
 
   // Log before making the request
@@ -701,9 +704,10 @@ Cypress.Commands.add('registerUserApi', (userData: { username: string, email: st
 
 // Add a command to get the Zustand store state
 Cypress.Commands.add('getNotesStoreState', () => {
-  return cy.window().then((window) => {
+  return cy.window().then((win) => {
     // Access the store assuming it's exposed on the window object for testing
-    const store = window.__NOTES_STORE__;
+    // Need to cast window to access the custom property
+    const store = (win as Cypress.AUTWindow).__NOTES_STORE__;
     if (store && typeof store.getState === 'function') {
       return store.getState();
     }

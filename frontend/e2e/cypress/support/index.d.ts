@@ -22,15 +22,15 @@ declare namespace Cypress {
 
     /**
      * Custom command to create a test user via API
-     * @example cy.createTestUser({ username: 'test', email: 'test@example.com', password: 'password', fullName: 'Test User' })
+     * @example cy.createTestUser({ username: 'test', email: 'test@example.com', password: 'password', firstName: 'Test', lastName: 'User' })
      */
-    createTestUser(userData: { username: string, email: string, password: string, fullName: string }): Chainable<void>;
+    createTestUser(userData: { username: string, email: string, password: string, firstName: string, lastName: string }): Chainable<void>;
 
     /**
      * Custom command to create a test user with direct creation fallback
-     * @example cy.createTestUserReliably({ username: 'test', email: 'test@example.com', password: 'password', fullName: 'Test User' })
+     * @example cy.createTestUserReliably({ username: 'test', email: 'test@example.com', password: 'password', firstName: 'Test', lastName: 'User' })
      */
-    createTestUserReliably(userData: { username: string, email: string, password: string, fullName: string }): Chainable<void>;
+    createTestUserReliably(userData: { username: string, email: string, password: string, firstName: string, lastName: string }): Chainable<void>;
 
     /**
      * Custom command to navigate to a protected route and verify access

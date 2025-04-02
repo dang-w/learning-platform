@@ -225,7 +225,7 @@ export const useAuthStore = create<AuthState>()(
         set({ error: null });
       },
 
-      register: async (username: string, email: string, password: string, confirmPassword: string, fullName: string) => {
+      register: async (username: string, email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => {
         console.log('[AuthStore] Registration attempt started.');
         set({ isLoading: true, error: null });
         try {
@@ -234,19 +234,15 @@ export const useAuthStore = create<AuthState>()(
             throw new Error("Passwords do not match");
           }
 
-          // Remove unused splitting logic
-          // const nameParts = fullName.trim().split(/\s+/);
-          // const firstName = nameParts[0] || '';
-          // const lastName = nameParts.slice(1).join(' ') || '';
-
           // Call register API - ensure it includes confirmPassword if needed by API
-          // Map frontend field names (fullName) to backend names (full_name) in api/auth.ts
+          // Map frontend field names (firstName, lastName) to backend names (first_name, last_name) in api/auth.ts
           await authApi.register({
             username,
             email,
             password,
             confirmPassword, // Pass confirmPassword to the API layer
-            fullName // Pass fullName, let api/auth.ts handle mapping
+            firstName,
+            lastName
           });
           console.log('[AuthStore] Registration API call successful.');
 

@@ -11,7 +11,8 @@ describe('Authentication Flow', () => {
     username: `test-user-${timestamp}-${randomSuffix}`,
     password: 'TestPassword123!',
     email: `test-user-${timestamp}-${randomSuffix}@example.com`,
-    fullName: 'Test User'
+    firstName: 'Test',
+    lastName: 'User'
   };
 
   beforeEach(() => {
@@ -70,7 +71,9 @@ describe('Authentication Flow', () => {
     authPage.fillRegistrationForm({
       username: 'testuser',
       email: 'invalid-email',
-      password: 'short'
+      password: 'short',
+      firstName: 'Test',
+      lastName: 'User'
     });
 
     authPage.submitForm();
@@ -90,7 +93,8 @@ describe('Authentication Flow', () => {
       username: testUser.username,
       email: testUser.email,
       password: testUser.password,
-      fullName: testUser.fullName
+      firstName: testUser.firstName,
+      lastName: testUser.lastName
     });
 
     cy.log('Waiting for registration request to complete...');
@@ -173,7 +177,8 @@ describe('Authentication Flow', () => {
       username: `logout-user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`, // Ensure uniqueness
       password: 'TestPassword123!',
       email: `logout-user-${Date.now()}@example.com`,
-      fullName: 'Logout Test User'
+      firstName: 'Logout',
+      lastName: 'Test User'
     };
     cy.log('Starting logout test...');
     // 1. Register the user via UI
@@ -183,7 +188,8 @@ describe('Authentication Flow', () => {
       username: logoutUser.username,
       email: logoutUser.email,
       password: logoutUser.password,
-      fullName: logoutUser.fullName
+      firstName: logoutUser.firstName,
+      lastName: logoutUser.lastName
     });
     cy.wait('@registerLogoutUser').its('response.statusCode').should('match', /^20[01]$/);
     cy.log('User registered successfully via UI.');

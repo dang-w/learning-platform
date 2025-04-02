@@ -48,7 +48,8 @@ describe('RegisterPage', () => {
 
     // Wait for validation errors to appear
     await waitFor(() => {
-      expect(screen.getByTestId('error-fullname')).toHaveTextContent('Full name is required');
+      expect(screen.getByTestId('error-first-name')).toHaveTextContent('First name is required');
+      expect(screen.getByTestId('error-last-name')).toHaveTextContent('Last name is required');
       expect(screen.getByTestId('error-username')).toHaveTextContent('Username is required');
       expect(screen.getByTestId('error-email')).toHaveTextContent('Email is required');
       expect(screen.getByTestId('error-password')).toHaveTextContent('Password is required');
@@ -56,7 +57,7 @@ describe('RegisterPage', () => {
       timeout: 5000,
       interval: 50
     });
-  }, 5000);
+  });
 
   it('should disable submit button during form submission', async () => {
     const user = userEvent.setup();
@@ -68,10 +69,12 @@ describe('RegisterPage', () => {
     renderWithProviders(<RegisterPage />);
 
     // Fill in form
-    await user.type(screen.getByTestId('fullname-input'), 'Test User');
+    await user.type(screen.getByTestId('first-name-input'), 'Test');
+    await user.type(screen.getByTestId('last-name-input'), 'User');
     await user.type(screen.getByTestId('username-input'), 'testuser');
     await user.type(screen.getByTestId('email-input'), 'test@example.com');
     await user.type(screen.getByTestId('password-input'), 'password123');
+    await user.type(screen.getByTestId('confirm-password-input'), 'password123');
 
     const submitButton = screen.getByTestId('submit-button');
 
@@ -90,13 +93,16 @@ describe('RegisterPage', () => {
   it('should show form fields with correct attributes', () => {
     renderWithProviders(<RegisterPage />);
 
-    const fullnameInput = screen.getByTestId('fullname-input');
+    const firstNameInput = screen.getByTestId('first-name-input');
+    const lastNameInput = screen.getByTestId('last-name-input');
     const usernameInput = screen.getByTestId('username-input');
     const emailInput = screen.getByTestId('email-input');
     const passwordInput = screen.getByTestId('password-input');
 
-    expect(fullnameInput).toHaveAttribute('type', 'text');
-    expect(fullnameInput).toHaveAttribute('required');
+    expect(firstNameInput).toHaveAttribute('type', 'text');
+    expect(firstNameInput).toHaveAttribute('required');
+    expect(lastNameInput).toHaveAttribute('type', 'text');
+    expect(lastNameInput).toHaveAttribute('required');
     expect(usernameInput).toHaveAttribute('type', 'text');
     expect(usernameInput).toHaveAttribute('required');
     expect(emailInput).toHaveAttribute('type', 'email');
@@ -115,10 +121,12 @@ describe('RegisterPage', () => {
     renderWithProviders(<RegisterPage />);
 
     // Fill in form
-    await user.type(screen.getByTestId('fullname-input'), 'Test User');
+    await user.type(screen.getByTestId('first-name-input'), 'Test');
+    await user.type(screen.getByTestId('last-name-input'), 'User');
     await user.type(screen.getByTestId('username-input'), 'testuser');
     await user.type(screen.getByTestId('email-input'), 'test@example.com');
     await user.type(screen.getByTestId('password-input'), 'password123');
+    await user.type(screen.getByTestId('confirm-password-input'), 'password123');
 
     const submitButton = screen.getByTestId('submit-button');
 

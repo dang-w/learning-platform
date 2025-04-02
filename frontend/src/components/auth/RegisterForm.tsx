@@ -8,7 +8,8 @@ import { LoadingScreen } from '@/components/ui/feedback/loading-screen';
 export default function RegisterForm() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,7 +33,8 @@ export default function RegisterForm() {
     const errors: Record<string, string> = {};
     if (!username) errors.username = 'Username is required';
     if (!email) errors.email = 'Email is required';
-    if (!fullName) errors.fullname = 'Full name is required';
+    if (!firstName) errors.firstName = 'First name is required';
+    if (!lastName) errors.lastName = 'Last name is required';
     if (!password) errors.password = 'Password is required';
     if (!confirmPassword) {
       errors.confirmPassword = 'Confirm Password is required';
@@ -51,7 +53,7 @@ export default function RegisterForm() {
 
     try {
       console.log('[RegisterForm STEP] Calling authStore.register...', { username, email });
-      await register(username, email, password, confirmPassword, fullName);
+      await register(username, email, password, confirmPassword, firstName, lastName);
       console.log('[RegisterForm SUCCESS] authStore.register completed. Attempting login...');
       try {
         console.log('[RegisterForm STEP] Calling authStore.login...', { username });
@@ -88,21 +90,43 @@ export default function RegisterForm() {
           <div>
             <input
               type="text"
-              placeholder="Full Name"
-              value={fullName}
+              placeholder="First Name"
+              value={firstName}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setFullName(e.target.value);
-                setValidationErrors(prev => ({ ...prev, fullname: '' }));
+                setFirstName(e.target.value);
+                setValidationErrors(prev => ({ ...prev, firstName: '' }));
               }}
               disabled={isLoading}
               required
               className="w-full p-2 border rounded"
-              data-testid="fullname-input"
-              aria-invalid={!!currentValidationErrors.fullname}
+              data-testid="first-name-input"
+              aria-invalid={!!currentValidationErrors.firstName}
             />
-            {currentValidationErrors.fullname && (
-              <p className="text-red-500 text-sm mt-1 error-message" data-testid="error-fullname">
-                {currentValidationErrors.fullname}
+            {currentValidationErrors.firstName && (
+              <p className="text-red-500 text-sm mt-1 error-message" data-testid="error-first-name">
+                {currentValidationErrors.firstName}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <input
+              type="text"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setLastName(e.target.value);
+                setValidationErrors(prev => ({ ...prev, lastName: '' }));
+              }}
+              disabled={isLoading}
+              required
+              className="w-full p-2 border rounded"
+              data-testid="last-name-input"
+              aria-invalid={!!currentValidationErrors.lastName}
+            />
+            {currentValidationErrors.lastName && (
+              <p className="text-red-500 text-sm mt-1 error-message" data-testid="error-last-name">
+                {currentValidationErrors.lastName}
               </p>
             )}
           </div>

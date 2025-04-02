@@ -9,7 +9,8 @@ describe('User Profile', () => {
     username: 'test-user-cypress',
     password: 'TestPassword123!',
     email: 'test-user-cypress@example.com',
-    fullName: 'Test User Cypress'
+    firstName: 'Test',
+    lastName: 'User Cypress'
   };
 
   beforeEach(() => {
@@ -30,7 +31,8 @@ describe('User Profile', () => {
         username: testUser.username,
         email: testUser.email,
         password: testUser.password,
-        fullName: testUser.fullName
+        firstName: testUser.firstName,
+        lastName: testUser.lastName
     }).then((response) => {
         if (response.status === 200 || response.status === 201) {
             cy.log(`User ${testUser.username} created or endpoint confirmed existence.`);
@@ -133,17 +135,23 @@ describe('User Profile', () => {
 
     // Log initial form values
     cy.get('[data-testid="profile-email"]').invoke('val').then(emailVal => cy.log(`Initial Email Value: ${emailVal}`));
-    cy.get('[data-testid="profile-full-name"]').invoke('val').then(nameVal => cy.log(`Initial Full Name Value: ${nameVal}`));
+    cy.get('[data-testid="profile-first-name"]').invoke('val').then(firstNameVal => cy.log(`Initial First Name Value: ${firstNameVal}`));
+    cy.get('[data-testid="profile-last-name"]').invoke('val').then(lastNameVal => cy.log(`Initial Last Name Value: ${lastNameVal}`));
   });
 
   it('should display user profile information', () => {
     // Ensure values are checked only after fields are verified visible in beforeEach
     cy.get('[data-testid="profile-email"]').should('have.value', testUser.email);
     // Log value before assertion
-    cy.get('[data-testid="profile-full-name"]').invoke('val').then(nameVal => {
-      cy.log(`Full Name Value before assertion: ${nameVal}`);
+    cy.get('[data-testid="profile-first-name"]').invoke('val').then(firstNameVal => {
+      cy.log(`First Name Value before assertion: ${firstNameVal}`);
       // Assertion
-      cy.get('[data-testid="profile-full-name"]').should('have.value', testUser.fullName);
+      cy.get('[data-testid="profile-first-name"]').should('have.value', testUser.firstName);
+    });
+    cy.get('[data-testid="profile-last-name"]').invoke('val').then(lastNameVal => {
+      cy.log(`Last Name Value before assertion: ${lastNameVal}`);
+      // Assertion
+      cy.get('[data-testid="profile-last-name"]').should('have.value', testUser.lastName);
     });
   });
 

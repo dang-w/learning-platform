@@ -118,7 +118,7 @@ export default defineConfig({
           }
         },
         // Create a direct test user without backend connectivity
-        createDirectTestUser(userData: { username: string; email: string; password: string; fullName: string; }): Promise<{
+        createDirectTestUser(userData: { username: string; email: string; password: string; firstName: string; lastName: string; }): Promise<{
           success: boolean;
           method: string;
           endpoint?: string;
@@ -132,7 +132,8 @@ export default defineConfig({
                 id: `test-${Date.now()}`,
                 username: userData.username,
                 email: userData.email,
-                fullName: userData.fullName,
+                firstName: userData.firstName,
+                lastName: userData.lastName,
                 role: 'user',
                 createdAt: new Date().toISOString(),
                 isTestUser: true

@@ -44,6 +44,9 @@ const mockNotesStore = {
   setSelectedNote: jest.fn(),
   setSearchTerm: jest.fn(),
   setActiveTag: jest.fn(),
+  successMessage: null,
+  errorMessage: null,
+  clearMessages: jest.fn(),
 };
 
 // Mock implementation
