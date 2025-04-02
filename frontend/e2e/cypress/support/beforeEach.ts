@@ -6,7 +6,8 @@ export const testUser = {
   username: 'test-user-cypress',
   password: 'TestPassword123!',
   email: 'test-user-cypress@example.com',
-  fullName: 'Test User Cypress'
+  firstName: 'Test',
+  lastName: 'User Cypress'
 };
 
 /**

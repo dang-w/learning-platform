@@ -22,7 +22,8 @@ describe('Knowledge Management - Spaced Repetition E2E Flow', () => {
         username: username,
         email: `${username}@example.com`,
         password: password,
-        fullName: 'Test User Cypress'
+        firstName: 'Test',
+        lastName: 'User Cypress'
     }).then((response) => {
         if (response.status === 200 || response.status === 201) {
             cy.log(`User ${username} created or endpoint confirmed existence.`);

@@ -156,7 +156,7 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
       trackTransition('login_validate', { isLoading: false, error: null });
     }),
 
-    register: jest.fn().mockImplementation(async (username: string, email: string, password: string, fullName: string) => {
+    register: jest.fn().mockImplementation(async (username: string, email: string, password: string, firstName: string, lastName: string) => {
       mockStore.isLoading = true;
       trackTransition('register_start', { isLoading: true, error: null });
 
@@ -206,8 +206,8 @@ export function createMockAuthStore(options: MockAuthStoreOptions = {}): Enhance
           id: '1',
           username,
           email,
-          firstName: fullName.split(' ')[0],
-          lastName: fullName.split(' ').slice(1).join(' '),
+          firstName,
+          lastName,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           isActive: true,

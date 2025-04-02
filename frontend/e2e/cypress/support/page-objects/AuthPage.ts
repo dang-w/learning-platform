@@ -10,12 +10,14 @@ export class AuthPage extends BasePage {
     emailInput: '[data-testid="email-input"]',
     passwordInput: '[data-testid="password-input"]',
     confirmPasswordInput: '[data-testid="confirm-password-input"]',
-    fullNameInput: '[data-testid="fullname-input"]',
+    firstNameInput: '[data-testid="first-name-input"]',
+    lastNameInput: '[data-testid="last-name-input"]',
     submitButton: '[data-testid="submit-button"]',
     errorUsername: '[data-testid="error-username"]',
     errorEmail: '[data-testid="error-email"]',
     errorPassword: '[data-testid="error-password"]',
-    errorFullName: '[data-testid="error-fullname"]',
+    errorFirstName: '[data-testid="error-first-name"]',
+    errorLastName: '[data-testid="error-last-name"]',
     loginLink: 'a[href*="login"]',
     registerLink: 'a[href*="register"]'
   };
@@ -65,7 +67,8 @@ export class AuthPage extends BasePage {
     username: string;
     email: string;
     password: string;
-    fullName?: string
+    firstName: string;
+    lastName: string;
   }): void {
     this.elementExists(this.selectors.usernameInput).then(hasUsername => {
       if (hasUsername) {
@@ -91,10 +94,18 @@ export class AuthPage extends BasePage {
       }
     });
 
-    if (userData.fullName) {
-      this.elementExists(this.selectors.fullNameInput).then(hasFullName => {
-        if (hasFullName && userData.fullName) {
-          this.type(this.selectors.fullNameInput, userData.fullName);
+    if (userData.firstName) {
+      this.elementExists(this.selectors.firstNameInput).then(hasFirstName => {
+        if (hasFirstName && userData.firstName) {
+          this.type(this.selectors.firstNameInput, userData.firstName);
+        }
+      });
+    }
+
+    if (userData.lastName) {
+      this.elementExists(this.selectors.lastNameInput).then(hasLastName => {
+        if (hasLastName && userData.lastName) {
+          this.type(this.selectors.lastNameInput, userData.lastName);
         }
       });
     }
@@ -137,7 +148,8 @@ export class AuthPage extends BasePage {
     username: string;
     email: string;
     password: string;
-    fullName?: string
+    firstName: string;
+    lastName: string;
   }): void {
     this.visitRegister();
     this.fillRegistrationForm(userData);

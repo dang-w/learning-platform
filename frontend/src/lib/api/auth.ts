@@ -6,8 +6,8 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   createdAt: string;
   updatedAt: string;
   isActive: boolean;
@@ -24,7 +24,8 @@ export interface RegisterData {
   email: string;
   password: string;
   confirmPassword: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
 }
 
 export interface UserStatistics {
@@ -77,13 +78,14 @@ const authApi = {
   async register(data: RegisterData): Promise<void> {
     console.log("[authApi.register] Calling POST /auth/register with data:", { username: data.username, email: data.email });
 
-    // Map frontend data (fullName) to backend expected data (full_name)
+    // Map frontend data (firstName, lastName) to backend expected data (first_name, last_name)
     const backendData = {
       username: data.username,
       email: data.email,
       password: data.password,
       confirm_password: data.confirmPassword,
-      full_name: data.fullName
+      first_name: data.firstName,
+      last_name: data.lastName
     };
 
     // Pass the mapped data to the backend

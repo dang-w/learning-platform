@@ -47,7 +47,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.getNotes();
       expect(result).toEqual(mockResponse.data);
-      expect(mockGet).toHaveBeenCalledWith('/api/users/notes?skip=0&limit=20');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes?skip=0&limit=20');
     });
 
     it('should fetch notes with custom pagination', async () => {
@@ -61,7 +61,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.getNotes(undefined, 10, 5);
       expect(result).toEqual(mockResponse.data);
-      expect(mockGet).toHaveBeenCalledWith('/api/users/notes?skip=10&limit=5');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes?skip=10&limit=5');
     });
 
     it('should fetch notes with tag filter and pagination', async () => {
@@ -75,7 +75,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.getNotes('test', 0, 20);
       expect(result).toEqual(mockResponse.data);
-      expect(mockGet).toHaveBeenCalledWith('/api/users/notes?tag=test&skip=0&limit=20');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes?tag=test&skip=0&limit=20');
     });
 
     it('should handle error when fetching notes', async () => {
@@ -84,7 +84,7 @@ describe('Notes API', () => {
       mockGet.mockRejectedValueOnce(error);
 
       await expect(notesApi.getNotes()).rejects.toThrow(`Failed to get notes: ${errorDetail}`);
-      expect(mockGet).toHaveBeenCalledWith('/api/users/notes?skip=0&limit=20');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes?skip=0&limit=20');
     });
   });
 
@@ -97,7 +97,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.getNote('1');
       expect(result).toEqual(mockResponse.data);
-      expect(mockGet).toHaveBeenCalledWith('/api/users/notes/1');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes/1');
     });
 
     it('should handle invalid note ID format', async () => {
@@ -107,7 +107,7 @@ describe('Notes API', () => {
       mockGet.mockRejectedValueOnce(error);
 
       await expect(notesApi.getNote(noteId)).rejects.toThrow(`Failed to get note: ${errorDetail}`);
-      expect(mockGet).toHaveBeenCalledWith(`/api/users/notes/${noteId}`);
+      expect(mockGet).toHaveBeenCalledWith(`/api/notes/${noteId}`);
     });
 
     it('should handle error when note is not found', async () => {
@@ -117,7 +117,7 @@ describe('Notes API', () => {
       mockGet.mockRejectedValueOnce(error);
 
       await expect(notesApi.getNote(noteId)).rejects.toThrow(`Failed to get note: ${errorDetail}`);
-      expect(mockGet).toHaveBeenCalledWith(`/api/users/notes/${noteId}`);
+      expect(mockGet).toHaveBeenCalledWith(`/api/notes/${noteId}`);
     });
   });
 
@@ -131,7 +131,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.createNote(noteInput);
       expect(result).toEqual(mockResponse.data);
-      expect(mockPost).toHaveBeenCalledWith('/api/users/notes', noteInput);
+      expect(mockPost).toHaveBeenCalledWith('/api/notes', noteInput);
     });
 
     it('should handle validation error when creating a note', async () => {
@@ -140,8 +140,8 @@ describe('Notes API', () => {
       const error = createErrorResponse(errorDetail);
       mockPost.mockRejectedValueOnce(error);
 
-      await expect(notesApi.createNote(noteInput)).rejects.toThrow(`Invalid note data: ${errorDetail}`);
-      expect(mockPost).toHaveBeenCalledWith('/api/users/notes', noteInput);
+      await expect(notesApi.createNote(noteInput)).rejects.toThrow(`Failed to create note: ${errorDetail}`);
+      expect(mockPost).toHaveBeenCalledWith('/api/notes', noteInput);
     });
   });
 
@@ -156,7 +156,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.updateNote(noteId, updateInput);
       expect(result).toEqual(mockResponse.data);
-      expect(mockPut).toHaveBeenCalledWith(`/api/users/notes/${noteId}`, updateInput);
+      expect(mockPut).toHaveBeenCalledWith(`/api/notes/${noteId}`, updateInput);
     });
 
     it('should handle invalid note ID format when updating', async () => {
@@ -166,8 +166,8 @@ describe('Notes API', () => {
       const error = createErrorResponse(errorDetail);
       mockPut.mockRejectedValueOnce(error);
 
-      await expect(notesApi.updateNote(noteId, updateInput)).rejects.toThrow(`Invalid note data: ${errorDetail}`);
-      expect(mockPut).toHaveBeenCalledWith(`/api/users/notes/${noteId}`, updateInput);
+      await expect(notesApi.updateNote(noteId, updateInput)).rejects.toThrow(`Failed to update note: ${errorDetail}`);
+      expect(mockPut).toHaveBeenCalledWith(`/api/notes/${noteId}`, updateInput);
     });
 
     it('should handle error when note is not found for update', async () => {
@@ -177,8 +177,8 @@ describe('Notes API', () => {
       const error = createErrorResponse(errorDetail, 404);
       mockPut.mockRejectedValueOnce(error);
 
-      await expect(notesApi.updateNote(noteId, updateInput)).rejects.toThrow(`Note not found: ${errorDetail}`);
-      expect(mockPut).toHaveBeenCalledWith(`/api/users/notes/${noteId}`, updateInput);
+      await expect(notesApi.updateNote(noteId, updateInput)).rejects.toThrow(`Failed to update note: ${errorDetail}`);
+      expect(mockPut).toHaveBeenCalledWith(`/api/notes/${noteId}`, updateInput);
     });
   });
 
@@ -189,7 +189,7 @@ describe('Notes API', () => {
       mockDelete.mockResolvedValueOnce(mockResponse);
 
       await notesApi.deleteNote(noteId);
-      expect(mockDelete).toHaveBeenCalledWith(`/api/users/notes/${noteId}`);
+      expect(mockDelete).toHaveBeenCalledWith(`/api/notes/${noteId}`);
     });
 
     it('should handle invalid note ID format when deleting', async () => {
@@ -199,7 +199,7 @@ describe('Notes API', () => {
       mockDelete.mockRejectedValueOnce(error);
 
       await expect(notesApi.deleteNote(noteId)).rejects.toThrow(`Failed to delete note: ${errorDetail}`);
-      expect(mockDelete).toHaveBeenCalledWith(`/api/users/notes/${noteId}`);
+      expect(mockDelete).toHaveBeenCalledWith(`/api/notes/${noteId}`);
     });
 
     it('should handle error when note is not found for deletion', async () => {
@@ -208,8 +208,8 @@ describe('Notes API', () => {
       const error = createErrorResponse(errorDetail, 404);
       mockDelete.mockRejectedValueOnce(error);
 
-      await expect(notesApi.deleteNote(noteId)).rejects.toThrow(`Note not found: ${errorDetail}`);
-      expect(mockDelete).toHaveBeenCalledWith(`/api/users/notes/${noteId}`);
+      await expect(notesApi.deleteNote(noteId)).rejects.toThrow(`Failed to delete note: ${errorDetail}`);
+      expect(mockDelete).toHaveBeenCalledWith(`/api/notes/${noteId}`);
     });
   });
 });

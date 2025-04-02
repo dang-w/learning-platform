@@ -11,7 +11,8 @@ import authApi from '@/lib/api/auth';
 
 const profileSchema = z.object({
   email: z.string().email('Invalid email address'),
-  fullName: z.string().min(1, 'Full name is required'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -75,7 +76,8 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       email: '',
-      fullName: '',
+      firstName: '',
+      lastName: '',
     },
   });
 
@@ -128,7 +130,8 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
       console.log('User data for form reset:', user);
       resetProfileForm({
         email: user.email || '',
-        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
       });
     }
   }, [user, resetProfileForm]);
@@ -140,15 +143,10 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
     clearError();
 
     try {
-      // Split fullName into firstName and lastName
-      const nameParts = data.fullName.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
       await updateProfile({
         email: data.email,
-        firstName,
-        lastName
+        firstName: data.firstName,
+        lastName: data.lastName
       });
       setProfileSuccess(true);
     } catch (error) {
@@ -528,17 +526,32 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-                        Full Name
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                        First Name
                       </label>
                       <input
-                        data-testid="profile-full-name"
+                        data-testid="profile-first-name"
                         type="text"
-                        {...registerProfile('fullName')}
+                        {...registerProfile('firstName')}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
                       />
-                      {profileErrors.fullName && (
-                        <p className="mt-2 text-sm text-red-600">{profileErrors.fullName.message}</p>
+                      {profileErrors.firstName && (
+                        <p className="mt-2 text-sm text-red-600">{profileErrors.firstName.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                        Last Name
+                      </label>
+                      <input
+                        data-testid="profile-last-name"
+                        type="text"
+                        {...registerProfile('lastName')}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                      />
+                      {profileErrors.lastName && (
+                        <p className="mt-2 text-sm text-red-600">{profileErrors.lastName.message}</p>
                       )}
                     </div>
 

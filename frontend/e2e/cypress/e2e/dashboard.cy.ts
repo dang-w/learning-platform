@@ -26,7 +26,8 @@ describe('Dashboard', () => {
         username: username,
         email: `${username}@example.com`,
         password: password,
-        fullName: 'Test User Cypress' // Use a consistent name
+        firstName: 'Test',
+        lastName: 'User Cypress'
     }).then((response) => {
         // Log whether user was created or already existed
         if (response.status === 200 || response.status === 201) {

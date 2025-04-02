@@ -30,14 +30,16 @@ declare namespace Cypress {
   interface TestUser {
     username: string;
     email: string;
-    fullName: string;
+    firstName: string;
+    lastName: string;
   }
 
   interface MockUser {
     id: string;
     username: string;
     email: string;
-    fullName: string;
+    firstName: string;
+    lastName: string;
     role: string;
     createdAt: string;
     isTestUser: boolean;
@@ -49,7 +51,7 @@ declare namespace Cypress {
     logBackendError(info: TestingInfo): null;
     logTest(info: TestInfo): null;
     generateJWT(info: JwtInfo): string;
-    createDirectTestUser(userData: { username: string; email: string; password: string; fullName: string; }): Promise<{
+    createDirectTestUser(userData: { username: string; email: string; password: string; firstName: string; lastName: string; }): Promise<{
       success: boolean;
       method: string;
       endpoint?: string;
