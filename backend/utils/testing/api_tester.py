@@ -37,7 +37,8 @@ async def register_user():
                     "username": TEST_USERNAME,
                     "email": TEST_EMAIL,
                     "password": TEST_PASSWORD,
-                    "full_name": "Test User"
+                    "first_name": "Test",
+"last_name": "User"
                 }
             )
 

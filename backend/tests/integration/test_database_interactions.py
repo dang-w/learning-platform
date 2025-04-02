@@ -21,7 +21,8 @@ async def test_user_id():
         "username": "db_test_user",
         "email": "db_test@example.com",
         "hashed_password": "hashed_test_password",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
@@ -59,7 +60,8 @@ async def test_user_crud_operations():
         "username": "db_test_user",
         "email": "db_test@example.com",
         "hashed_password": "hashed_test_password",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
@@ -83,7 +85,8 @@ async def test_user_crud_operations():
         # 2. Update user
         update_data = {
             "$set": {
-                "full_name": "Updated DB Test User",
+                "first_name": "Updated",
+                "last_name": "DB Test User",
                 "disabled": True
             }
         }
@@ -91,7 +94,8 @@ async def test_user_crud_operations():
 
         # 3. Verify update
         updated_user = await db.users.find_one({"_id": test_user_id})
-        assert updated_user["full_name"] == "Updated DB Test User"
+        assert updated_user["first_name"] == "Updated"
+        assert updated_user["last_name"] == "DB Test User"
         assert updated_user["disabled"] == True
     finally:
         # Clean up after tests
@@ -118,7 +122,8 @@ async def test_resource_operations():
         "username": "db_test_user",
         "email": "db_test@example.com",
         "hashed_password": "hashed_test_password",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -251,7 +256,8 @@ async def test_concept_operations():
         "username": "db_test_user",
         "email": "db_test@example.com",
         "hashed_password": "hashed_test_password",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -393,7 +399,8 @@ async def test_metric_operations():
         "username": "db_test_user",
         "email": "db_test@example.com",
         "hashed_password": "hashed_test_password",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -511,7 +518,8 @@ async def test_learning_path_operations():
         "username": "db_test_user",
         "email": "db_test@example.com",
         "hashed_password": "hashed_test_password",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
@@ -743,7 +751,8 @@ async def test_progress_operations():
         "username": "progress_test_user",
         "email": "progress_test@example.com",
         "hashed_password": "hashed_test_password",
-        "full_name": "Progress Test User",
+        "first_name": "Progress",
+        "last_name": "Test User",
         "disabled": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),

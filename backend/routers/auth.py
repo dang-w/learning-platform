@@ -54,8 +54,8 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     confirm_password: str
-    full_name: str
-
+    first_name: str
+    last_name: str
 class LoginRequest(BaseModel):
     username: str
     password: str

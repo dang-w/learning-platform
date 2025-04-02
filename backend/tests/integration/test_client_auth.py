@@ -29,7 +29,8 @@ async def test_login_success(async_client):
     mock_db.users.find_one = AsyncMock(return_value={
         "username": "testuser",
         "email": "testuser@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False
     })
@@ -63,7 +64,8 @@ async def test_login_invalid_credentials(async_client):
     mock_db.users.find_one = AsyncMock(return_value={
         "username": "testuser",
         "email": "testuser@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False
     })

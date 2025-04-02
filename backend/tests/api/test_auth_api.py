@@ -14,7 +14,8 @@ from tests.conftest import MockUser
 test_user_data = {
     "username": "testuser",
     "email": "test@example.com",
-    "full_name": "Test User",
+    "first_name": "Test",
+"last_name": "User",
     "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
     "disabled": False
 }
@@ -93,7 +94,8 @@ def test_get_current_user_with_valid_token(client, auth_headers):
     user_data = response.json()
     assert user_data["username"] == "testuser"
     assert "email" in user_data
-    assert "full_name" in user_data
+    assert "first_name" in user_data
+    assert "last_name" in user_data
 
 def test_get_current_user_without_token(client):
     """Test getting the current user without a token."""
@@ -148,16 +150,20 @@ async def test_register_success(
     mock_set_cookie, mock_create_refresh, mock_create_access, mock_create_user, client
 ):
     """Test successful user registration."""
-    mock_create_user.return_value = {"username": "newuser"}
+    # Return a mock object that has a username attribute
+    mock_user_instance = MagicMock()
+    mock_user_instance.username = "newuser"
+    mock_create_user.return_value = mock_user_instance
     register_payload = {
         "username": "newuser",
         "email": "new@example.com",
         "password": "password123",
         "confirm_password": "password123",
-        "full_name": "New User"
+        "first_name": "New",
+        "last_name": "User"
     }
     response = client.post("/api/auth/register", json=register_payload)
-    assert response.status_code == 200
+    assert response.status_code == 201
     response_data = response.json()
     assert response_data["access_token"] == "fake_access_token"
     mock_create_user.assert_awaited_once()
@@ -177,7 +183,8 @@ async def test_register_password_mismatch(client):
         "email": "new@example.com",
         "password": "password123",
         "confirm_password": "password456", # Mismatch
-        "full_name": "New User"
+        "first_name": "New",
+        "last_name": "User"
     }
     response = client.post("/api/auth/register", json=register_payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -196,7 +203,8 @@ async def test_register_user_exists(mock_create_user, client):
         "email": "existing@example.com",
         "password": "password123",
         "confirm_password": "password123",
-        "full_name": "Existing User"
+        "first_name": "Existing",
+        "last_name": "User"
     }
     response = client.post("/api/auth/register", json=register_payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -297,7 +305,8 @@ def test_auth_me_endpoint_with_valid_token(client, auth_headers):
     mock_user = {
         "username": "testuser",
         "email": "test@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "id": "123456789",
         "created_at": datetime.now().isoformat(),
         "is_active": True,
@@ -321,7 +330,8 @@ def test_auth_me_endpoint_with_valid_token(client, auth_headers):
     user_data = response.json()
     assert user_data["username"] == "testuser"
     assert user_data["email"] == "test@example.com"
-    assert user_data["full_name"] == "Test User"
+    assert user_data["first_name"] == "Test"
+    assert user_data["last_name"] == "User"
     assert "resources" in user_data
     assert "articles" in user_data["resources"]
     assert "videos" in user_data["resources"]

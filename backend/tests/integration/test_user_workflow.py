@@ -28,7 +28,8 @@ async def setup_workflow_user():
     user_data = {
         "username": username,
         "email": f"{username}@example.com",
-        "full_name": "Workflow Test User",
+        "first_name": "Workflow",
+        "last_name": "Test User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False,
         "resources": {
@@ -144,7 +145,8 @@ async def test_user_profile(async_client, auth_headers):
     mock_db.users.find_one = AsyncMock(return_value={
         "username": "testuser",
         "email": "testuser@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False
     })
 

@@ -11,7 +11,8 @@ class MockUser:
     def __init__(self, username="testuser"):
         self.username = username
         self.email = f"{username}@example.com"
-        self.full_name = f"Test User {username.capitalize()}"
+        self.first_name = "Test"
+        self.last_name = f"User {username.capitalize()}"
         self.disabled = False
         self.id = username
         self.user_id = username
@@ -27,7 +28,8 @@ class MockUser:
         return {
             "username": self.username,
             "email": self.email,
-            "full_name": self.full_name,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
             "disabled": self.disabled,
             "id": self.id,
             "user_id": self.user_id,

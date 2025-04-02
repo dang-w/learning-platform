@@ -32,7 +32,8 @@ test_resource = {
 test_user_data = {
     "username": "testuser",
     "email": "test@example.com",
-    "full_name": "Test User",
+    "first_name": "Test",
+"last_name": "User",
     "disabled": False,
     "resources": {
         "articles": [test_resource],
@@ -175,7 +176,8 @@ def test_get_all_resources_empty(client, auth_headers):
     mock_find_one.return_value = {
         "username": "testuser",
         "email": "test@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "resources": {
             "articles": [],

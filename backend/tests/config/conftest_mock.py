@@ -41,7 +41,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 class User(BaseModel):
     username: str
     email: Optional[str] = None
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     disabled: Optional[bool] = None
 
 class UserInDB(User):
@@ -51,7 +52,8 @@ class UserInDB(User):
 test_user_data = {
     "username": "testuser",
     "email": "test@example.com",
-    "full_name": "Test User",
+    "first_name": "Test",
+"last_name": "User",
     "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
     "disabled": False
 }
@@ -82,7 +84,8 @@ async def mock_get_current_user(token: str = Depends(oauth2_scheme)):
     return User(
         username="testuser",
         email="test@example.com",
-        full_name="Test User",
+        first_name="Test",
+        last_name="User",
         disabled=False
     )
 
@@ -97,7 +100,8 @@ async def mock_authenticate_user(username: str, password: str):
         return User(
             username="testuser",
             email="test@example.com",
-            full_name="Test User",
+            first_name="Test",
+            last_name="User",
             disabled=False
         )
     return None
@@ -212,7 +216,8 @@ async def mock_create_learning_path(
         await database.db.users.insert_one({
             "username": current_user.username,
             "email": current_user.email,
-            "full_name": current_user.full_name,
+            "first_name": current_user.first_name,
+            "last_name": current_user.last_name,
             "disabled": current_user.disabled,
             "learning_paths": [learning_path_dict]
         })
@@ -764,7 +769,8 @@ async def test_user():
     return {
         "username": "testuser",
         "email": "test@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False
     }
