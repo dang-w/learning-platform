@@ -26,9 +26,8 @@ router = APIRouter()
 class UserBase(BaseModel):
     username: constr(min_length=3, max_length=50)
     email: EmailStr
-    full_name: Optional[str] = None
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class UserCreate(UserBase):
     password: constr(min_length=8)
@@ -134,17 +133,11 @@ def normalize_user_data(user_dict: dict) -> dict:
     if "created_at" not in user_data:
         user_data["created_at"] = datetime.utcnow()
 
-    # Add logic to split full_name into firstName and lastName
-    if "full_name" in user_data and isinstance(user_data["full_name"], str):
-        parts = user_data["full_name"].strip().split(' ', 1)
-        user_data["firstName"] = parts[0]
-        user_data["lastName"] = parts[1] if len(parts) > 1 else ""
-    else:
-        # Ensure firstName and lastName exist even if full_name doesn't
-        if "firstName" not in user_data:
-            user_data["firstName"] = ""
-        if "lastName" not in user_data:
-            user_data["lastName"] = ""
+    # Ensure firstName and lastName exist
+    if "firstName" not in user_data:
+        user_data["firstName"] = ""
+    if "lastName" not in user_data:
+        user_data["lastName"] = ""
 
     # <<< Log the final normalized data >>>
     logger.info(f"Normalized user data before return: {user_data}")
@@ -361,7 +354,8 @@ async def export_user_data(current_user: dict = Depends(get_current_active_user)
             "user_info": {
                 "username": current_user["username"],
                 "email": current_user["email"],
-                "full_name": current_user.get("full_name"),
+                "first_name": current_user.get("first_name"),
+                "last_name": current_user.get("last_name"),
                 "created_at": current_user["created_at"]
             },
             "learning_data": {

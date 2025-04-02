@@ -197,26 +197,18 @@ def rate_limit_dependency_with_logging(
             return
 
         # Check if rate limit is exceeded
-        is_allowed, retry_after, remaining, reset_time = check_rate_limit(
-            identifier=identifier,
+        is_allowed, remaining, retry_after, reset_time = check_rate_limit(
+            identifier,
             limit=limit,
             window=window,
             key_prefix=key_prefix
         )
 
         if not is_allowed:
-            # Log the specific limit being enforced
             logger.warning(f"[Rate Limiter Log] Rate limit exceeded for key prefix '{key_prefix}' for client {identifier}. Limit: {limit}/{window}s.")
-            raise RateLimitExceeded(
-                retry_after=retry_after,
-                limit=limit,
-                remaining=remaining,
-                reset_time=reset_time
-            )
+            raise RateLimitExceeded(retry_after=retry_after, limit=limit, remaining=remaining, reset_time=reset_time)
         else:
-             # Log successful check
-             logger.info(f"[Rate Limiter Log] Rate limit check passed for key prefix '{key_prefix}' for client {identifier}. Remaining: {remaining}")
-
+            logger.info(f"[Rate Limiter Log] Rate limit check passed for key prefix '{key_prefix}' for client {identifier}. Remaining: {remaining}")
 
     # Return the dependency function itself for FastAPI's Depends()
     return dependency

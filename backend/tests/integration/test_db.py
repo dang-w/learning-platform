@@ -53,7 +53,8 @@ def test_database_connection():
         user_data = {
             "username": username,
             "email": f"{username}@example.com",
-            "full_name": "Test DB User",
+            "first_name": "Test",
+            "last_name": "DB User",
             "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
             "disabled": False,
             "resources": [],

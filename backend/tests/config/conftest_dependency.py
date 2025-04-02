@@ -47,7 +47,8 @@ async def override_get_current_user():
     return {
         "username": TEST_USER_USERNAME,
         "email": TEST_USER_EMAIL,
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "resources": {
             "articles": [],

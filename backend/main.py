@@ -177,7 +177,8 @@ class UserCreate(BaseModel):
     username: str
     email: str
     password: str
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

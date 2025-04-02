@@ -18,7 +18,8 @@ VALID_USER = {
     "username": "testuser1",
     "email": "testuser1@example.com",
     "password": "SecurePass123!",
-    "full_name": "Test User One"
+    "first_name": "Test",
+    "last_name": "User One"
 }
 
 INVALID_USERS = {
@@ -26,19 +27,22 @@ INVALID_USERS = {
         "username": "testuser2",
         "email": "testuser2@example.com",
         "password": "weak",
-        "full_name": "Test User Two"
+        "first_name": "Test",
+        "last_name": "User Two"
     },
     "invalid_email": {
         "username": "testuser3",
         "email": "invalid-email",
         "password": "SecurePass123!",
-        "full_name": "Test User Three"
+        "first_name": "Test",
+        "last_name": "User Three"
     },
     "duplicate_username": {
         "username": "testuser1",  # Same as VALID_USER
         "email": "different@example.com",
         "password": "SecurePass123!",
-        "full_name": "Duplicate Username"
+        "first_name": "Duplicate",
+        "last_name": "Username"
     }
 }
 
@@ -78,7 +82,8 @@ async def test_valid_user_creation():
         mock_response.json.return_value = {
             "username": VALID_USER["username"],
             "email": VALID_USER["email"],
-            "full_name": VALID_USER["full_name"]
+            "first_name": VALID_USER["first_name"],
+            "last_name": VALID_USER["last_name"]
         }
         mock_post.return_value = mock_response
 
@@ -100,7 +105,8 @@ async def test_valid_user_creation():
                     user_data = response.json()
                     assert user_data["username"] == VALID_USER["username"]
                     assert user_data["email"] == VALID_USER["email"]
-                    assert user_data["full_name"] == VALID_USER["full_name"]
+                    assert user_data["first_name"] == VALID_USER["first_name"]
+                    assert user_data["last_name"] == VALID_USER["last_name"]
                     assert "hashed_password" not in user_data
 
 @pytest.mark.asyncio
@@ -181,7 +187,8 @@ async def test_duplicate_username():
             first_response.json.return_value = {
                 "username": VALID_USER["username"],
                 "email": VALID_USER["email"],
-                "full_name": VALID_USER["full_name"]
+                "first_name": VALID_USER["first_name"],
+                "last_name": VALID_USER["last_name"]
             }
 
             # Second response (error from duplicate)
@@ -221,7 +228,8 @@ async def test_database_verification():
         mock_response.json.return_value = {
             "username": VALID_USER["username"],
             "email": VALID_USER["email"],
-            "full_name": VALID_USER["full_name"],
+            "first_name": VALID_USER["first_name"],
+            "last_name": VALID_USER["last_name"],
             "id": "507f1f77bcf86cd799439011",  # Simulate ID from DB
             "is_active": True,
             "created_at": "2023-01-01T00:00:00Z"
@@ -281,7 +289,8 @@ async def test_concurrent_user_creation():
             success_response.json.return_value = {
                 "username": test_users[i]["username"],
                 "email": test_users[i]["email"],
-                "full_name": test_users[i]["full_name"]
+                "first_name": test_users[i]["first_name"],
+                "last_name": test_users[i]["last_name"]
             }
             success_responses.append(success_response)
 

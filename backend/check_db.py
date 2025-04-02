@@ -24,7 +24,8 @@ async def check_db():
         test_user = {
             "username": "testuser",
             "email": "test@example.com",
-            "full_name": "Test User",
+            "first_name": "Test",
+            "last_name": "User",
             "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
             "disabled": False,
             "resources": {

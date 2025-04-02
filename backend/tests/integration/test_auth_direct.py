@@ -42,7 +42,8 @@ async def test_authentication_direct():
     user_data = {
         "username": username,
         "email": f"{username}@example.com",
-        "full_name": "Test Auth User",
+        "first_name": "Test",
+        "last_name": "Auth User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False,
         "resources": [],
@@ -90,7 +91,8 @@ async def test_authentication_direct_disabled_user():
     user_data = {
         "username": username,
         "email": f"{username}@example.com",
-        "full_name": "Test Disabled User",
+        "first_name": "Test",
+        "last_name": "Disabled User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": True
     }
@@ -195,7 +197,8 @@ async def test_get_user():
     mock_db.users.find_one = AsyncMock(return_value={
         "username": username,
         "email": f"{username}@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
         "disabled": False
     })
@@ -207,7 +210,8 @@ async def test_get_user():
         assert user is not None
         assert user["username"] == username
         assert "email" in user
-        assert "full_name" in user
+        assert "first_name" in user
+        assert "last_name" in user
         assert "hashed_password" in user
 
         # Try with non-existent user

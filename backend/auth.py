@@ -65,7 +65,7 @@ def get_db():
 # Models
 class Token(BaseModel):
     access_token: str
-    refresh_token: str
+    # refresh_token: str # Should be handled via HttpOnly cookie
     token_type: str
 
 class TokenData(BaseModel):
@@ -75,7 +75,8 @@ class User(BaseModel):
     id: Optional[str] = None
     username: str
     email: str
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     disabled: bool = False
     is_active: bool = True
     created_at: Optional[datetime] = None
