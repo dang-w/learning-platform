@@ -159,7 +159,7 @@ const resourcesApi = {
 
   async completeResource(type: ResourceType, id: string, notes: string): Promise<Resource> {
     try {
-      const response = await apiClient.post<Resource>(`/api/resources/${type}/${id}/complete`, { notes });
+      const response = await apiClient.patch<Resource>(`/api/resources/${type}/${id}/complete`, { notes });
       return response.data;
     } catch (error) {
       console.error(`Error completing resource ${id} of type ${type}:`, error);

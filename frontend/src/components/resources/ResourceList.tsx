@@ -213,6 +213,7 @@ export const ResourceList = ({
             <div
               key={resource.id}
               data-testid="resource-item"
+              data-resource-id={resource.id}
               className="bg-white shadow rounded-lg p-6"
             >
               <div className="flex justify-between items-start">
@@ -258,11 +259,11 @@ export const ResourceList = ({
                 <div className="ml-4 flex-shrink-0 flex space-x-2">
                   {!resource.completed && (
                     <button
-                      data-testid="complete-resource"
                       onClick={() => handleMarkCompleted(resource.id)}
-                      className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200"
+                      className="text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200 px-2 py-1"
+                      data-testid="complete-resource"
                     >
-                      Complete
+                      Mark Complete
                     </button>
                   )}
                   <button

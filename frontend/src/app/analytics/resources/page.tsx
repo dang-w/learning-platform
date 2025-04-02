@@ -16,7 +16,7 @@ import {
   ChartOptions,
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import { resourcesApi } from '@/lib/api/resources';
+import resourcesApi from '@/lib/api/resources';
 import { Resource } from '@/types/resources';
 import { format, parseISO, subMonths } from 'date-fns';
 import { ChevronLeftIcon, BookOpenIcon, ClockIcon } from '@heroicons/react/24/outline';
@@ -328,7 +328,7 @@ export default function ResourceAnalyticsPage() {
             Start adding learning resources to track your progress.
           </p>
           <Link
-            href="/resources/new"
+            href="/resources?action=add"
             className="mt-6 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Add Resources

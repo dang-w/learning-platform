@@ -67,6 +67,8 @@ const ProfilePage: React.FC<ProfilePageProps> = () => {
   const [pageError, setPageError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  console.log(`[ProfilePage Render] activeTab: ${activeTab}`);
+
   const {
     register: registerProfile,
     handleSubmit: handleProfileSubmit,

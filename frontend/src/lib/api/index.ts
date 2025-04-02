@@ -11,7 +11,7 @@ import { AxiosError } from 'axios';
 // URL metadata extraction API
 export const extractUrlMetadata = async (url: string) => {
   try {
-    const response = await apiClient.post('/api/url/extract', { url });
+    const response = await apiClient.post('/api/url-extractor/extract', { url });
 
     return response.data;
   } catch (error) {

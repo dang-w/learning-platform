@@ -1,6 +1,6 @@
 import { expect, jest, beforeEach, afterEach, describe, it } from '@jest/globals';
 import { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
-import authApi, { User, LoginCredentials } from '@/lib/api/auth';
+import authApi, { User, RawUserResponse, LoginCredentials } from '@/lib/api/auth';
 import apiClient from '@/lib/api/client';
 import { tokenService } from '@/lib/services/token-service';
 import { createAxiosErrorResponse } from '@/lib/utils/test-utils';
@@ -15,6 +15,19 @@ const mockUser: User = {
   createdAt: '2023-01-01T00:00:00Z',
   updatedAt: '2023-01-01T12:00:00Z',
   isActive: true,
+  role: 'user',
+};
+
+// Define mock reponse user data matching the RawUserResponse interface
+const mockResponseUser: RawUserResponse = {
+  id: '1',
+  username: 'testuser',
+  email: 'test@example.com',
+  first_name: 'Test',
+  last_name: 'User',
+  created_at: '2023-01-01T00:00:00Z',
+  updated_at: '2023-01-01T12:00:00Z',
+  is_active: true,
   role: 'user',
 };
 
@@ -131,6 +144,14 @@ describe('Auth API', () => {
   });
 
   describe('getCurrentUser', () => {
+    const mockGetRawUserSuccessResponse: AxiosResponse<RawUserResponse> = {
+        data: mockResponseUser,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as InternalAxiosRequestConfig,
+    };
+
     const mockGetUserSuccessResponse: AxiosResponse<User> = {
         data: mockUser,
         status: 200,
@@ -141,7 +162,7 @@ describe('Auth API', () => {
 
     it('should successfully fetch current user', async () => {
       // Arrange: Mock API success using the spy with more specific casting
-      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockResolvedValueOnce(mockGetUserSuccessResponse as any);
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockResolvedValueOnce(mockGetRawUserSuccessResponse as any);
 
       // Act
       const result = await authApi.getCurrentUser();
@@ -160,7 +181,7 @@ describe('Auth API', () => {
       (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockRejectedValueOnce(error401 as any);
       // Cast startTokenRefresh spy
       (tokenService.startTokenRefresh as jest.Mock<Promise<string | null>>).mockResolvedValueOnce('new-access-token'); // Keep string | null based on previous error fix
-      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockResolvedValueOnce(mockGetUserSuccessResponse as any);
+      (apiClient.get as jest.Mock<Promise<AxiosResponse<User>>>).mockResolvedValueOnce(mockGetRawUserSuccessResponse as any);
 
       // Act
       const result = await authApi.getCurrentUser();

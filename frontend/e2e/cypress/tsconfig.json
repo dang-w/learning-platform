@@ -12,5 +12,5 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts", "support/index.d.ts"]
 }

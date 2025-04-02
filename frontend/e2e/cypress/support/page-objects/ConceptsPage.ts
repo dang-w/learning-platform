@@ -23,7 +23,7 @@ export class ConceptsPage extends BasePage {
   // Define selectors as private constants
   private selectors = {
     // Main container elements
-    conceptsContainer: '[data-testid="concepts-container"]',
+    conceptsContainer: '[data-testid="concepts-page"]',
     conceptsList: '[data-testid="concepts-list"]',
     conceptItem: '[data-testid="concept-item"]',
 

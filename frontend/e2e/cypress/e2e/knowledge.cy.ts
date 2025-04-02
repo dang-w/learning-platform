@@ -14,62 +14,76 @@
  * - Using filters and search
  * - Using spaced repetition features if available
  */
-import { conceptsPage, authPage, dashboardPage } from '../support/page-objects';
+import { conceptsPage, authPage } from '../support/page-objects';
 
 describe('Knowledge Management E2E Tests', () => {
-  const username = 'test-user-cypress';
-  const password = 'TestPassword123!';
+  // Generate unique user for each test run to avoid collisions after DB reset
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now();
+  const testUser = {
+    username: `knowledge-user-${timestamp}-${randomSuffix}`,
+    password: 'TestPassword123!',
+    email: `knowledge-user-${timestamp}-${randomSuffix}@example.com`,
+    firstName: 'Knowledge',
+    lastName: 'TestUser'
+  };
 
   beforeEach(() => {
     cy.task('resetDatabase').then((success) => {
       if (!success) {
         cy.log('Database reset failed, proceeding with caution...');
+        // Consider throwing error or skipping test if reset is critical
+        // throw new Error('Database reset failed!');
       }
     });
 
     cy.clearCookies();
     cy.clearLocalStorage();
 
-    cy.log(`Ensuring user ${username} exists via API...`);
-    cy.registerUserApi({
-        username: username,
-        email: `${username}@example.com`,
-        password: password,
-        firstName: 'Test',
-        lastName: 'User Cypress'
-    }).then((response) => {
-        if (response.status === 200 || response.status === 201) {
-            cy.log(`User ${username} created or endpoint confirmed existence.`);
-        } else if (response.status === 400 && response.body && typeof response.body === 'object' && 'detail' in response.body && typeof response.body.detail === 'string' && response.body.detail.includes('already exists')) {
-            cy.log(`User ${username} already existed.`);
-        } else {
-            cy.log(`Warning: registerUserApi responded with ${response.status}. Proceeding login attempt.`);
-            console.error('registerUserApi unexpected response:', response.body);
-        }
+    cy.log(`Registering unique user ${testUser.username} via UI...`);
+    cy.intercept('POST', '/api/auth/register').as('registerRequestKnowledge');
+    authPage.register({
+        username: testUser.username,
+        email: testUser.email,
+        password: testUser.password,
+        firstName: testUser.firstName,
+        lastName: testUser.lastName
     });
+    cy.wait('@registerRequestKnowledge').its('response.statusCode').should('match', /^20[01]$/); // Allow 200 or 201
+    cy.log('UI Registration successful.');
 
-    cy.log(`Logging in as ${username} via UI...`);
-    authPage.visitLogin();
+    cy.log(`Logging in as ${testUser.username} via UI...`);
     cy.intercept('POST', '/api/auth/token').as('loginRequestKnowledge');
-    authPage.login(username, password);
+    // Visit login page explicitly before login attempt
+    authPage.visitLogin();
+    authPage.login(testUser.username, testUser.password);
     cy.wait('@loginRequestKnowledge').its('response.statusCode').should('eq', 200);
     cy.log('UI Login successful.');
 
-    conceptsPage.visitConcepts();
+    // Intercept the API call for fetching concepts BEFORE visiting the page
+    cy.intercept('GET', '/api/reviews/concepts*').as('getConcepts');
 
-    // Wait for the main navbar (using correct selector)
-    cy.get(dashboardPage['selectors'].navBar).should('be.visible'); // Use dashboardPage.selectors.navBar
-    cy.log('Knowledge page layout loaded (navbar visible).');
-    // conceptsPage.isConceptsPageLoaded().should('be.true'); // Remove this check for now
-    // cy.log('Concepts page loaded successfully after UI login.');
+    // Visit the knowledge page directly after successful UI login
+    cy.log('Visiting /knowledge/concepts page directly...');
+    cy.visit('/knowledge/concepts');
+
+    // Wait for the concepts API call to complete
+    cy.log('Waiting for @getConcepts API call...');
+    cy.wait('@getConcepts');
+    cy.log('@getConcepts API call intercepted.');
+
+    // Wait for the main content area of the concepts page to be visible
+    cy.get(conceptsPage['selectors'].conceptsContainer, { timeout: 15000 }).should('be.visible');
+    cy.log('Concepts container is visible.');
 
     cy.on('uncaught:exception', (err) => {
-      cy.log(`Uncaught exception: ${err.message}`);
+      cy.log(`Uncaught exception during test: ${err.message}`);
+      // Prevent Cypress from failing the test on uncaught exceptions
       return false;
     });
   });
 
-  it('should display concepts list and navigation', () => {
+  it('should display concepts list', () => {
     conceptsPage.isConceptsPageLoaded().then(isLoaded => {
       if (!isLoaded) {
         cy.log('Concepts page not loaded properly, skipping test');

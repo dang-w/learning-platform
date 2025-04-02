@@ -14,6 +14,18 @@ export interface User {
   role: string;
 }
 
+export interface RawUserResponse {
+  id: string;
+  username: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+  role: string;
+}
+
 export interface LoginCredentials {
   username: string;
   password: string;
@@ -121,9 +133,24 @@ const authApi = {
     let handledAs401 = false; // Flag to track if 401 logic ran
     console.log("[authApi.getCurrentUser] Calling GET /auth/me (Attempt 1)");
     try {
-      const response = await apiClient.get('/auth/me');
-      console.log("[authApi.getCurrentUser] Received data from /auth/me:", response.data);
-      return response.data;
+      const response = await apiClient.get<RawUserResponse>('/auth/me');
+      console.log("[authApi.getCurrentUser] Received raw data from /auth/me:", response.data);
+
+      // Transform snake_case to camelCase
+      const userData: User = {
+        id: response.data.id,
+        username: response.data.username,
+        email: response.data.email,
+        firstName: response.data.first_name,
+        lastName: response.data.last_name,
+        createdAt: response.data.created_at,
+        updatedAt: response.data.updated_at,
+        isActive: response.data.is_active,
+        role: response.data.role,
+      };
+
+      console.log("[authApi.getCurrentUser] Transformed user data:", userData);
+      return userData;
     } catch (error) {
       console.error('Error fetching current user:', error);
 
@@ -134,9 +161,24 @@ const authApi = {
           if (refreshResult) {
             // Retry success: Return data and exit function
             console.log("[authApi.getCurrentUser] Calling GET /auth/me (Attempt 2 after refresh)");
-            const retryResponse = await apiClient.get('/auth/me');
-            console.log("[authApi.getCurrentUser] Received data from /auth/me on retry:", retryResponse.data);
-            return retryResponse.data;
+            const retryResponse = await apiClient.get<RawUserResponse>('/auth/me');
+            console.log("[authApi.getCurrentUser] Received raw data from /auth/me on retry:", retryResponse.data);
+
+            // Transform snake_case to camelCase on retry
+            const retryUserData: User = {
+              id: retryResponse.data.id,
+              username: retryResponse.data.username,
+              email: retryResponse.data.email,
+              firstName: retryResponse.data.first_name,
+              lastName: retryResponse.data.last_name,
+              createdAt: retryResponse.data.created_at,
+              updatedAt: retryResponse.data.updated_at,
+              isActive: retryResponse.data.is_active,
+              role: retryResponse.data.role,
+            };
+
+            console.log("[authApi.getCurrentUser] Transformed user data on retry:", retryUserData);
+            return retryUserData;
           }
           // Refresh resolved null: Clear tokens and re-throw original 401
           tokenService.clearTokens(); // Call #1 (Path A)

@@ -172,7 +172,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    logger.info(f"[get_current_user] Received token via dependency (raw): {token}")
     try:
         # Remove "Bearer " prefix if present
         if token and token.lower().startswith("bearer "):
@@ -239,7 +238,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         if user is None:
             logger.warning(f"User not found: {token_data.username}")
             raise credentials_exception
-        logger.info(f"Successfully authenticated user: {token_data.username}")
         return user
     except Exception as e:
         logger.error(f"Failed to get user: {str(e)}")

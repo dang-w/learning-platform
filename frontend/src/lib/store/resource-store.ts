@@ -61,11 +61,10 @@ export const useResourceStore = create<ResourceState>((set) => ({
   addResource: async (type, resource) => {
     set({ isLoading: true, error: null })
     try {
-      const newResource = await resourcesApi.createResource(type, resource)
-      set((state) => ({
-        resources: [...state.resources, newResource],
-        isLoading: false
-      }))
+      await resourcesApi.createResource(type, resource)
+      useResourceStore.getState().fetchResourcesByType(type)
+      useResourceStore.getState().fetchStatistics()
+      set({ isLoading: false })
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
     }
@@ -74,13 +73,10 @@ export const useResourceStore = create<ResourceState>((set) => ({
   updateResource: async (type, id, resource) => {
     set({ isLoading: true, error: null })
     try {
-      const updatedResource = await resourcesApi.updateResource(type, id, resource)
-      set((state) => ({
-        resources: state.resources.map((r) =>
-          r.id === id ? updatedResource : r
-        ),
-        isLoading: false
-      }))
+      await resourcesApi.updateResource(type, id, resource)
+      useResourceStore.getState().fetchResourcesByType(type)
+      useResourceStore.getState().fetchStatistics()
+      set({ isLoading: false })
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
     }
@@ -90,10 +86,9 @@ export const useResourceStore = create<ResourceState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       await resourcesApi.deleteResource(type, id)
-      set((state) => ({
-        resources: state.resources.filter((r) => r.id !== id),
-        isLoading: false
-      }))
+      useResourceStore.getState().fetchResourcesByType(type)
+      useResourceStore.getState().fetchStatistics()
+      set({ isLoading: false })
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
     }
@@ -102,13 +97,10 @@ export const useResourceStore = create<ResourceState>((set) => ({
   completeResource: async (type, id, notes) => {
     set({ isLoading: true, error: null })
     try {
-      const updatedResource = await resourcesApi.completeResource(type, id, notes)
-      set((state) => ({
-        resources: state.resources.map((r) =>
-          r.id === id ? updatedResource : r
-        ),
-        isLoading: false
-      }))
+      await resourcesApi.completeResource(type, id, notes)
+      useResourceStore.getState().fetchResourcesByType(type)
+      useResourceStore.getState().fetchStatistics()
+      set({ isLoading: false })
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
     }
@@ -117,13 +109,10 @@ export const useResourceStore = create<ResourceState>((set) => ({
   toggleCompletion: async (type, id) => {
     set({ isLoading: true, error: null })
     try {
-      const updatedResource = await resourcesApi.toggleResourceCompletion(type, id)
-      set((state) => ({
-        resources: state.resources.map((r) =>
-          r.id === id ? updatedResource : r
-        ),
-        isLoading: false
-      }))
+      await resourcesApi.toggleResourceCompletion(type, id)
+      useResourceStore.getState().fetchResourcesByType(type)
+      useResourceStore.getState().fetchStatistics()
+      set({ isLoading: false })
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
     }
