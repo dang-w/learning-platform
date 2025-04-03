@@ -23,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      isDashboardReady: false,
       error: null,
       statistics: null,
       notificationPreferences: null,
@@ -60,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
               user: null,
               isAuthenticated: false,
               isLoading: false,
+              isDashboardReady: false,
               error: null,
               statistics: null,
               notificationPreferences: null,
@@ -83,9 +85,12 @@ export const useAuthStore = create<AuthState>()(
             Promise.all([
               get().fetchStatistics(),
               get().getNotificationPreferences()
-            ]).catch(error => {
+            ]).then(() => {
+              console.log('[AuthStore] Associated data fetched successfully after init.');
+              set({ isDashboardReady: true });
+            }).catch(error => {
               console.error('[AuthStore] Error initializing associated user data:', error);
-              // Decide if this error should affect auth state - probably not
+              set({ isDashboardReady: false });
             });
 
           } catch (error: unknown) {
@@ -97,6 +102,7 @@ export const useAuthStore = create<AuthState>()(
               user: null,
               isAuthenticated: false,
               isLoading: false,
+              isDashboardReady: false,
               error: error instanceof Error ? error.message : 'Authentication failed during initialization',
               statistics: null,
               notificationPreferences: null,
@@ -110,6 +116,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            isDashboardReady: false,
             error: error instanceof Error ? error.message : 'Failed to initialize auth state',
             statistics: null,
             notificationPreferences: null,
@@ -150,6 +157,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             error: error instanceof Error ? error.message : 'Login failed',
             isLoading: false,
+            isDashboardReady: false,
             statistics: null,
             notificationPreferences: null
           });
@@ -173,6 +181,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            isDashboardReady: false,
             error: null,
             statistics: null,
             notificationPreferences: null
@@ -202,8 +211,12 @@ export const useAuthStore = create<AuthState>()(
           Promise.all([
             get().fetchStatistics(),
             get().getNotificationPreferences()
-          ]).catch(error => {
+          ]).then(() => {
+              console.log('[AuthStore] Associated data fetched successfully after fetchUser.');
+              set({ isDashboardReady: true });
+            }).catch(error => {
             console.error('[AuthStore] Error fetching associated user data after fetchUser:', error);
+            set({ isDashboardReady: false });
           });
 
         } catch (error: unknown) {
@@ -214,6 +227,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             isLoading: false, // Set loading false here
+            isDashboardReady: false,
             error: error instanceof Error ? error.message : 'Failed to fetch user data',
             statistics: null,
             notificationPreferences: null
@@ -314,6 +328,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           isAuthenticated: false,
           isLoading: false,
+          isDashboardReady: false,
           error: null,
           statistics: null,
           notificationPreferences: null,
@@ -385,6 +400,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            isDashboardReady: false,
             statistics: null,
             notificationPreferences: null,
           });

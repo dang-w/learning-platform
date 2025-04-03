@@ -11,7 +11,7 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, isDashboardReady } = useAuthStore();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -19,7 +19,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && !isDashboardReady)) {
     return <LoadingScreen />;
   }
 

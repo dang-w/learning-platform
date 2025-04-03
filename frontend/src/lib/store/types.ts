@@ -5,6 +5,7 @@ export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isDashboardReady: boolean;
   error: string | null;
   statistics: UserStatistics | null;
   notificationPreferences: NotificationPreferences | null;
