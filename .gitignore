@@ -50,4 +50,4 @@ progress-tracking/*.png
 .env.test.local
 .env.production.local
 cypress.env.json
-.env.test✅ **PASSING!** (4/4 tests passing).
+backend/.env.test
