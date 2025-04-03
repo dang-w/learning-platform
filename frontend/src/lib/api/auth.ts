@@ -1,6 +1,5 @@
 import { tokenService } from '../services/token-service';
 import apiClient from './client';
-import { AxiosError } from 'axios';
 
 export interface User {
   id: string;
@@ -130,9 +129,10 @@ const authApi = {
   },
 
   async getCurrentUser(): Promise<User> {
-    let handledAs401 = false; // Flag to track if 401 logic ran
-    console.log("[authApi.getCurrentUser] Calling GET /auth/me (Attempt 1)");
+    console.log("[authApi.getCurrentUser] Calling GET /auth/me");
     try {
+      // The apiClient call will automatically handle 401s and token refresh
+      // via the configured interceptors.
       const response = await apiClient.get<RawUserResponse>('/auth/me');
       console.log("[authApi.getCurrentUser] Received raw data from /auth/me:", response.data);
 
@@ -152,51 +152,11 @@ const authApi = {
       console.log("[authApi.getCurrentUser] Transformed user data:", userData);
       return userData;
     } catch (error) {
+      // Log the error. The interceptor handles 401s.
+      // The calling function (e.g., in auth-store) should handle state updates
+      // and potentially clearing tokens based on the error type.
       console.error('Error fetching current user:', error);
-
-      if (error instanceof AxiosError && error.response?.status === 401) {
-        handledAs401 = true; // Mark that we entered the 401 handling path
-        try {
-          const refreshResult = await tokenService.startTokenRefresh();
-          if (refreshResult) {
-            // Retry success: Return data and exit function
-            console.log("[authApi.getCurrentUser] Calling GET /auth/me (Attempt 2 after refresh)");
-            const retryResponse = await apiClient.get<RawUserResponse>('/auth/me');
-            console.log("[authApi.getCurrentUser] Received raw data from /auth/me on retry:", retryResponse.data);
-
-            // Transform snake_case to camelCase on retry
-            const retryUserData: User = {
-              id: retryResponse.data.id,
-              username: retryResponse.data.username,
-              email: retryResponse.data.email,
-              firstName: retryResponse.data.first_name,
-              lastName: retryResponse.data.last_name,
-              createdAt: retryResponse.data.created_at,
-              updatedAt: retryResponse.data.updated_at,
-              isActive: retryResponse.data.is_active,
-              role: retryResponse.data.role,
-            };
-
-            console.log("[authApi.getCurrentUser] Transformed user data on retry:", retryUserData);
-            return retryUserData;
-          }
-          // Refresh resolved null: Clear tokens and re-throw original 401
-          tokenService.clearTokens(); // Call #1 (Path A)
-          throw error; // Exits via throw
-        } catch (refreshError) {
-          // Refresh failed (rejected): Log, clear tokens, and throw refresh error
-          console.error('Token refresh failed:', refreshError);
-          tokenService.clearTokens(); // Call #1 (Path B)
-          throw refreshError; // Exits via throw
-        }
-      }
-
-      // Fallback logic
-      if (!handledAs401) { // Only run this if the error wasn't handled as a 401
-        tokenService.clearTokens();
-      }
-      // Always re-throw the error that brought us to the catch block
-      // (unless we returned successfully after retry)
+      // Re-throw the error to be handled by the caller
       throw error;
     }
   },

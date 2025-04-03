@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { BACKEND_API_URL } from '../config';
 import { tokenService } from '../services/token-service';
+import { cookieUtils } from '../utils/cookie';
 
 // Define a type for the window object that might include Cypress
 interface WindowWithCypress extends Window {
@@ -41,6 +42,9 @@ interface QueueItem {
 
 let isRefreshing = false;
 let failedQueue: QueueItem[] = [];
+
+// HTTP methods requiring CSRF protection
+const CSRF_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
 const processQueue = (error: Error | null = null) => {
   failedQueue.forEach((promise) => {
@@ -106,6 +110,20 @@ apiClient.interceptors.request.use((config: RetryableRequest) => {
     console.log(`[apiClient Request Interceptor 1] Standardized URL: ${originalUrl} -> ${config.url}`);
   }
   config._retryCount = config._retryCount || 0;
+
+  // --- Add CSRF Token ---
+  config.headers = config.headers || {};
+  const method = config.method?.toUpperCase();
+  if (method && CSRF_METHODS.includes(method)) {
+    const csrfToken = cookieUtils.get('csrftoken'); // Read token from cookie
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken; // Add header
+      console.log(`[apiClient Request Interceptor 1] Added X-CSRF-Token header for ${method} ${config.url}`);
+    } else {
+      console.warn(`[apiClient Request Interceptor 1] CSRF token cookie ('csrftoken') not found for ${method} ${config.url}. Request will likely fail if CSRF is enforced.`);
+    }
+  }
+  // --- End CSRF Token ---
 
   // Add skip header dynamically just before the request if in Cypress
   if (IS_CYPRESS_TEST) {

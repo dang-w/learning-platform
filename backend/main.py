@@ -19,6 +19,7 @@ import uuid
 import psutil
 import platform
 from datetime import timezone
+from starlette_csrf import CSRFMiddleware
 
 # Import authentication from auth module
 from auth import (
@@ -66,6 +67,14 @@ from routers.test_utils import router as test_utils_router
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# CSRF Secret (Load from environment)
+CSRF_SECRET_KEY = os.getenv("CSRF_SECRET")
+if not CSRF_SECRET_KEY:
+    logger.warning("CSRF_SECRET environment variable not set! CSRF protection might not function correctly.")
+    # In a real production scenario, you might want to raise an error or exit
+    # raise ValueError("CSRF_SECRET environment variable is required")
+    CSRF_SECRET_KEY = "fallback_secret_for_dev_only_generate_a_real_one" # Fallback for safety during dev
+
 # Load environment variables based on ENVIRONMENT
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 if ENVIRONMENT == "test":
@@ -95,6 +104,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"],
+)
+
+# Add CSRF Middleware (Place after CORS)
+app.add_middleware(
+    CSRFMiddleware,
+    secret=CSRF_SECRET_KEY,
+    # Optional: Customize cookie name, header name, safe methods, etc.
+    # cookie_name="csrftoken",
+    # header_name="X-CSRF-Token",
+    # safe_methods={"GET", "HEAD", "OPTIONS", "TRACE"},
+    # cookie_secure=(ENVIRONMENT == "production"), # Set Secure flag in production
+    # cookie_samesite="lax", # Consider 'lax' or 'strict'
 )
 
 # Mount routers
