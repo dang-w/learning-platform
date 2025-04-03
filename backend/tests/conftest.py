@@ -12,7 +12,7 @@ from datetime import timedelta
 from jose import JWTError
 import nest_asyncio
 import uuid
-from httpx import AsyncClient
+from httpx import AsyncClient, Headers
 
 # Import standardized utilities
 from utils.error_handlers import AuthenticationError, ResourceNotFoundError
@@ -123,9 +123,9 @@ class MockUser:
         return self.model_dump()
 
 # Setup test user fixture
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def setup_test_user():
-    """Create a test user in the database."""
+    """Create a test user in the database for each test."""
     try:
         # Create a test user
         test_user = await create_test_user()
@@ -177,45 +177,6 @@ def client(setup_test_user):
     # Clear dependency overrides
     app.dependency_overrides.clear()
 
-# Async client fixture for testing
-@pytest.fixture(scope="function")
-def event_loop():
-    """Create an event loop for each test."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    nest_asyncio.apply(loop)
-    yield loop
-    loop.close()
-
-@pytest_asyncio.fixture
-async def async_client(setup_test_user, event_loop):
-    """Create an async test client with authentication overrides."""
-    # Create an async client
-    async with AsyncClient(app=app, base_url="http://test", follow_redirects=True) as ac:
-        # Override the dependencies for authentication
-        if setup_test_user:
-            # For authenticated routes
-            async def override_get_current_user():
-                """Override the get_current_user dependency."""
-                return MockUser(username=setup_test_user["user"]["username"])
-
-            # Override the dependencies
-            app.dependency_overrides[get_current_user] = override_get_current_user
-            app.dependency_overrides[get_current_active_user] = override_get_current_user
-        else:
-            # For unauthenticated routes
-            async def override_get_current_user():
-                """Override to simulate authentication failure."""
-                raise AuthenticationError(detail="Not authenticated for testing")
-
-            # Override the dependencies
-            app.dependency_overrides[get_current_user] = override_get_current_user
-
-        yield ac
-
-        # Clear dependency overrides
-        app.dependency_overrides.clear()
-
 # Auth headers fixture for testing
 @pytest.fixture(scope="function")
 def auth_headers(setup_test_user):
@@ -247,9 +208,9 @@ async def test_db():
             db_conn["client"].close()
 
 # Patch database fixture for testing
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def patch_database():
-    """Patch the database module to use the mock database."""
+    """Patch database functions for each test."""
     # Import the modules that use the database
     import database
     import utils.db_utils
@@ -303,3 +264,33 @@ async def clear_rate_limits():
             yield
     else:
         yield
+
+# Async client fixture for testing
+@pytest_asyncio.fixture
+async def async_client(setup_test_user, event_loop):
+    """Create an async test client with authentication overrides."""
+    # Create an async client
+    async with AsyncClient(app=app, base_url="http://test", follow_redirects=True) as ac:
+        # Override the dependencies for authentication
+        if setup_test_user:
+            # For authenticated routes
+            async def override_get_current_user():
+                """Override the get_current_user dependency."""
+                return MockUser(username=setup_test_user["user"]["username"])
+
+            # Override the dependencies
+            app.dependency_overrides[get_current_user] = override_get_current_user
+            app.dependency_overrides[get_current_active_user] = override_get_current_user
+        else:
+            # For unauthenticated routes
+            async def override_get_current_user():
+                """Override to simulate authentication failure."""
+                raise AuthenticationError(detail="Not authenticated for testing")
+
+            # Override the dependencies
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
+        yield ac
+
+        # Clear dependency overrides
+        app.dependency_overrides.clear()

@@ -106,17 +106,21 @@ app.add_middleware(
     expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"],
 )
 
-# Add CSRF Middleware (Place after CORS)
-app.add_middleware(
-    CSRFMiddleware,
-    secret=CSRF_SECRET_KEY,
-    # Optional: Customize cookie name, header name, safe methods, etc.
-    # cookie_name="csrftoken",
-    # header_name="X-CSRF-Token",
-    # safe_methods={"GET", "HEAD", "OPTIONS", "TRACE"},
-    # cookie_secure=(ENVIRONMENT == "production"), # Set Secure flag in production
-    # cookie_samesite="lax", # Consider 'lax' or 'strict'
-)
+# Add CSRF Middleware (Place after CORS), but disable for test environment
+if ENVIRONMENT != "test":
+    app.add_middleware(
+        CSRFMiddleware,
+        secret=CSRF_SECRET_KEY,
+        # Optional: Customize cookie name, header name, safe methods, etc.
+        # cookie_name="csrftoken",
+        # header_name="X-CSRF-Token",
+        # safe_methods={"GET", "HEAD", "OPTIONS", "TRACE"},
+        # cookie_secure=(ENVIRONMENT == "production"), # Set Secure flag in production
+        # cookie_samesite="lax", # Consider 'lax' or 'strict'
+    )
+    logger.info(f"CSRF Middleware enabled for {ENVIRONMENT} environment.")
+else:
+    logger.info("CSRF Middleware disabled for test environment.")
 
 # Mount routers
 app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])

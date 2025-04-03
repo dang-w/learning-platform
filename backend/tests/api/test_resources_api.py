@@ -1,8 +1,9 @@
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock, AsyncMock, ANY, call
 from fastapi import HTTPException, status
 from datetime import datetime
 from copy import deepcopy
+from bson import ObjectId
 
 # Import the app and auth functions
 from main import app
@@ -11,8 +12,14 @@ from auth import get_current_user, get_current_active_user
 # Import standardized utilities
 from utils.error_handlers import AuthenticationError, ResourceNotFoundError
 
-# Import the MockUser class from conftest
+# Import the MockUser class and mock_db fixture from conftest
 from tests.conftest import MockUser
+from tests.mock_db import db # Import the mock db instance
+
+# Import ResourceBase, and UserResource from routers.resources
+from routers.resources import ResourceBase, UserResource
+# Import UserInDB from routers.auth
+from routers.auth import UserInDB
 
 # Test data
 test_resource = {
@@ -33,7 +40,7 @@ test_user_data = {
     "username": "testuser",
     "email": "test@example.com",
     "first_name": "Test",
-"last_name": "User",
+    "last_name": "User",
     "disabled": False,
     "resources": {
         "articles": [test_resource],
@@ -177,7 +184,7 @@ def test_get_all_resources_empty(client, auth_headers):
         "username": "testuser",
         "email": "test@example.com",
         "first_name": "Test",
-"last_name": "User",
+        "last_name": "User",
         "disabled": False,
         "resources": {
             "articles": [],
@@ -435,82 +442,183 @@ def test_update_resource(client, auth_headers):
         assert resource_data["notes"] == updated_resource["notes"]
         assert resource_data["id"] == 1
 
-def test_mark_resource_completed(client, auth_headers):
-    """Test marking a resource as completed."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
+@pytest.mark.asyncio
+async def test_mark_resource_completed(client, auth_headers):
+    """Test marking a resource as completed using the PATCH endpoint."""
+    # Generate an ObjectId for the mock user
+    mock_user_id = ObjectId()
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    # Override the dependency to return a valid UserInDB object
+    app.dependency_overrides[get_current_active_user] = lambda: UserInDB(
+        _id=mock_user_id,
+        username="testuser",
+        email="test@example.com",
+        hashed_password="abc",
+        resources={"articles": []}  # Ensure the user object structure is somewhat realistic
+    )
 
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = test_user_data
+    resource_type = "articles"
+    resource_id = 1
 
-    # Create a mock for the update_one method
-    mock_update_one = AsyncMock()
-    mock_update = MagicMock()
-    mock_update.modified_count = 1
-    mock_update_one.return_value = mock_update
+    # Define states before and after completion
+    sample_article = {
+        "id": resource_id,
+        "title": "Test Article for Completion",
+        "url": "http://example.com/article-complete",
+        "topics": ["testing", "mocking"],
+        "difficulty": "intermediate",
+        "estimated_time": 10,
+        "date_added": datetime.now().isoformat(),
+        "completed": False,
+        "notes": "Initial notes for completion test",
+        "completion_date": None
+    }
+    completion_payload = {"notes": "Marked as completed via test"}
+    # Expected state after update - use ANY for completion_date
+    updated_article_state = sample_article.copy()
+    updated_article_state["completed"] = True
+    updated_article_state["notes"] = completion_payload["notes"]
+    updated_article_state["completion_date"] = ANY # Should be set upon completion
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-    mock_users.update_one = mock_update_one
-
-    # Create a mock for the db
-    mock_db = MagicMock()
-    mock_db.users = mock_users
-
-    # Create a completion request with notes
-    completion_data = {
-        "notes": "Completed with notes"
+    # --- Define Mock Return Values ---
+    find_one_return_projection = {
+        "_id": mock_user_id,
+        "username": "testuser",
+        "resources": { resource_type: [sample_article] } # Resource exists, not completed
+    }
+    mock_update_result = MagicMock()
+    mock_update_result.modified_count = 1
+    # The second find_one call retrieves the whole document after update
+    second_find_one_return = {
+        "_id": mock_user_id,
+        "username": "testuser",
+        "resources": { resource_type: [updated_article_state] } # Resource marked completed
     }
 
-    # Mock the database operations
-    with patch('routers.resources.db', mock_db):
-        response = client.patch("/api/resources/articles/1/complete", json=completion_data, headers=auth_headers)
+    # --- Define async side_effect helpers ---
+    find_one_call_count = 0
+    async def find_one_side_effect(*args, **kwargs):
+        nonlocal find_one_call_count
+        find_one_call_count += 1
+        # Check args to ensure correct filter/projection is used for the call
+        current_filter = args[0] if args else {}
+        current_projection = args[1] if len(args) > 1 else None
 
-        assert response.status_code == 200
-        resource_data = response.json()
-        assert resource_data["completed"] is True
-        assert resource_data["id"] == 1
-        assert resource_data["notes"] == "Completed with notes"
+        if find_one_call_count == 1:
+            # First call: Check existence before update
+            expected_filter_1 = {"_id": mock_user_id, f"resources.{resource_type}.id": resource_id}
+            expected_projection_1 = {f"resources.{resource_type}.$": 1}
+            if current_filter == expected_filter_1 and current_projection == expected_projection_1:
+                 return find_one_return_projection
+            else:
+                 print(f"WARN: find_one call 1 args mismatch. Got: {args}") # Debugging
+        elif find_one_call_count == 2:
+            # Second call: Fetch updated resource after update
+            expected_filter_2 = {"_id": mock_user_id, f"resources.{resource_type}.id": resource_id}
+            expected_projection_2 = {f"resources.{resource_type}.$": 1}
+            if current_filter == expected_filter_2 and current_projection == expected_projection_2:
+                return second_find_one_return
+            else:
+                print(f"WARN: find_one call 2 args mismatch. Got: {args}") # Debugging
+        return None # Default case
+
+    async def update_one_side_effect(*args, **kwargs):
+         # Simulate a successful update
+         return mock_update_result
+
+    # --- Patch DB methods using AsyncMock correctly ---
+    with patch("database.db.users.find_one", new_callable=AsyncMock) as mock_find_one_async, \
+         patch("database.db.users.update_one", new_callable=AsyncMock) as mock_update_one_async:
+
+        # Assign the async helper functions as side_effects
+        mock_find_one_async.side_effect = find_one_side_effect
+        mock_update_one_async.side_effect = update_one_side_effect
+
+        # --- Execute API Call ---
+        response = client.patch(
+            f"/api/resources/{resource_type}/{resource_id}/complete",
+            headers=auth_headers,
+            json=completion_payload
+        )
+
+    # --- Assertions ---
+    assert response.status_code == 200
+    response_data = response.json()
+
+    # Check the structure and specific fields of the response
+    assert response_data["id"] == resource_id
+    assert response_data["type"] == resource_type
+    assert response_data["details"]["title"] == sample_article["title"]
+    assert response_data["details"]["completed"] is True
+    assert response_data["details"]["notes"] == completion_payload["notes"]
+    assert response_data["details"]["completion_date"] is not None
+
+    # Verify find_one was called twice
+    assert mock_find_one_async.call_count == 2
+
+    # Verify the first find_one call arguments
+    first_call_args, _ = mock_find_one_async.call_args_list[0]
+    expected_filter_1 = {"_id": mock_user_id, f"resources.{resource_type}.id": resource_id}
+    expected_projection_1 = {f"resources.{resource_type}.$": 1}
+    assert first_call_args[0] == expected_filter_1
+    assert first_call_args[1] == expected_projection_1
+
+    # Verify update_one was called once
+    assert mock_update_one_async.call_count == 1
+
+    # Verify update_one call arguments
+    update_args, _ = mock_update_one_async.call_args
+    expected_update_filter = {"_id": mock_user_id, f"resources.{resource_type}.id": resource_id}
+    assert update_args[0] == expected_update_filter
+    update_payload_set = update_args[1]['$set']
+    assert update_payload_set[f"resources.{resource_type}.$.completed"] is True
+    assert update_payload_set[f"resources.{resource_type}.$.notes"] == completion_payload["notes"]
+    assert f"resources.{resource_type}.$.completion_date" in update_payload_set
+    assert isinstance(update_payload_set[f"resources.{resource_type}.$.completion_date"], datetime)
+
+    # Verify the second find_one call arguments
+    second_call_args, _ = mock_find_one_async.call_args_list[1]
+    expected_filter_2 = {"_id": mock_user_id, f"resources.{resource_type}.id": resource_id}
+    expected_projection_2 = {f"resources.{resource_type}.$": 1}
+    assert second_call_args[0] == expected_filter_2
+    assert second_call_args[1] == expected_projection_2
+
+    # Clean up dependency override
+    del app.dependency_overrides[get_current_active_user]
 
 def test_delete_resource(client, auth_headers):
-    """Test deleting an existing resource."""
-    # Create a mock user
+    """Test deleting a resource."""
     mock_user = MockUser(username="testuser")
-
-    # Override the dependencies with synchronous functions
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = test_user_data
+    resource_type = "articles"
+    resource_id = 1 # Use integer ID
 
-    # Create a mock for the update_one method
+    # Mock the update_one call for deletion (uses $pull)
     mock_update_one = AsyncMock()
-    mock_update = MagicMock()
-    mock_update.modified_count = 1
-    mock_update_one.return_value = mock_update
+    mock_update_result = MagicMock()
+    mock_update_result.matched_count = 1
+    mock_update_result.modified_count = 1
+    mock_update_one.return_value = mock_update_result
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-    mock_users.update_one = mock_update_one
+    mock_users_collection = MagicMock()
+    mock_users_collection.update_one = mock_update_one
+    mock_db_instance = MagicMock()
+    mock_db_instance.users = mock_users_collection
 
-    # Create a mock for the db
-    mock_db = MagicMock()
-    mock_db.users = mock_users
+    with patch('routers.resources.db', mock_db_instance):
+        response = client.delete(
+            f"/api/resources/{resource_type}/{resource_id}", # Use integer ID
+            headers=auth_headers
+        )
 
-    # Mock the database operations
-    with patch('routers.resources.db', mock_db):
-        response = client.delete("/api/resources/articles/1", headers=auth_headers)
+    assert response.status_code == 204
 
-        assert response.status_code == 204
+    # Verify update_one was called correctly for deletion ($pull)
+    expected_delete_filter = {"username": mock_user.username}
+    expected_delete_update = {"$pull": {f"resources.{resource_type}": {"id": resource_id}}} # Match by integer id
+    mock_update_one.assert_called_once_with(expected_delete_filter, expected_delete_update)
 
 def test_get_resource_statistics(client, auth_headers):
     """Test getting resource statistics."""
@@ -562,34 +670,73 @@ def test_get_resource_statistics(client, auth_headers):
         assert "completion_rate" in stats_data
 
 def test_get_resource_not_found(client, auth_headers):
-    """Test getting a resource that doesn't exist."""
-    # Create a mock user
+    """Test getting a resource that does not exist."""
     mock_user = MockUser(username="testuser")
-
-    # Override the dependencies with synchronous functions
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = test_user_data
+    resource_type = "articles"
+    non_existent_id = 999 # Use an integer ID known not to exist
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
+    # Mock find_one to return a user doc without the matching resource ID
+    # The endpoint uses $elemMatch, so the find_one needs to simulate the db returning nothing *for that specific element*
+    # Returning None for the user find is one way, another is returning user data without the specific resource
+    mock_db_find_one_get = AsyncMock(return_value=None)
 
-    # Create a mock for the db
-    mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_users_collection = MagicMock()
+    mock_users_collection.find_one = mock_db_find_one_get
+    mock_db_instance = MagicMock()
+    mock_db_instance.users = mock_users_collection
 
-    # Mock the database operations
-    with patch('routers.resources.db', mock_db):
-        response = client.get("/api/resources/articles/999", headers=auth_headers)
+    with patch('routers.resources.db', mock_db_instance):
+        # Test GET for a single resource by ID
+        response_get = client.get(
+            f"/api/resources/{resource_type}/{non_existent_id}",
+            headers=auth_headers
+        )
+        assert response_get.status_code == 404
 
-        assert response.status_code == 404
-        error_response = response.json()
-        assert "detail" in error_response
-        assert "not found" in error_response["detail"].lower()
+        # Re-mock for PUT (needs different logic potentially)
+        # PUT checks if the resource exists *before* trying to update
+        mock_db_find_one_put = AsyncMock(return_value={
+            "username": mock_user.username,
+            "resources": {resource_type: []} # Simulate resource type exists, but ID doesn't
+        })
+        mock_users_collection.find_one = mock_db_find_one_put
+        update_payload = {
+            "title": "Update NonExistent", "url": "http://example.com/nonexistent",
+            "topics": ["fail"], "difficulty": "easy", "estimated_time": 5
+        }
+        response_put = client.put(
+            f"/api/resources/{resource_type}/{non_existent_id}",
+            json=update_payload, headers=auth_headers
+        )
+        assert response_put.status_code == 404
+
+        # Re-mock for PATCH (checks existence via $elemMatch)
+        mock_db_find_one_patch = AsyncMock(return_value=None) # $elemMatch returns no user doc
+        mock_users_collection.find_one = mock_db_find_one_patch
+        completion_payload = {"notes": "Complete NonExistent"}
+        response_patch = client.patch(
+            f"/api/resources/{resource_type}/{non_existent_id}/complete",
+             json=completion_payload, headers=auth_headers
+        )
+        assert response_patch.status_code == 404
+
+        # Re-mock for DELETE (update_one returns modified_count=0)
+        mock_update_one_delete = AsyncMock()
+        mock_update_result_delete = MagicMock()
+        mock_update_result_delete.matched_count = 1 # User is found
+        mock_update_result_delete.modified_count = 0 # But resource ID wasn't pulled
+        mock_update_one_delete.return_value = mock_update_result_delete
+        mock_users_collection.update_one = mock_update_one_delete
+
+        response_delete = client.delete(
+            f"/api/resources/{resource_type}/{non_existent_id}",
+            headers=auth_headers
+        )
+        # The endpoint raises 404 if modified_count is 0
+        assert response_delete.status_code == 404
 
 def test_create_resources_batch(client, auth_headers, monkeypatch):
     """Test creating multiple resources in a batch."""

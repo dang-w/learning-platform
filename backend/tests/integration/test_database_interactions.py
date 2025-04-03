@@ -10,7 +10,7 @@ from auth import User
 from routers.reviews import Concept as ConceptInDB
 from routers.progress import Metric as MetricInDB
 from routers.learning_path import Goal as GoalInDB, Milestone as MilestoneInDB, Roadmap as RoadmapInDB
-from routers.resources import Resource as ResourceInDB
+from routers.resources import UserResource as ResourceInDB
 
 # Test database interactions directly
 
