@@ -108,6 +108,8 @@ npm run cypress:run
   - `src/__tests__/lib` - Utility and hook tests
 - `cypress` - End-to-end tests
   - `cypress/e2e` - E2E test specifications
+- `e2e` - End-to-end tests (Cypress)
+  - `e2e/cypress/e2e` - E2E test specifications
 - `public` - Static assets
 
 ## Deployment

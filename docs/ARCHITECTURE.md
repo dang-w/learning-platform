@@ -2,34 +2,6 @@
 
 This document outlines the architecture of the AI/ML Learning Platform, which has been transformed from a local script-based system to a modern web application with a frontend built with Next.js and a Python backend.
 
-## Implementation Status
-
-The platform is currently under active development with the following components in various stages of completion:
-
-### Completed Components
-- ✅ Backend API with FastAPI
-- ✅ MongoDB database integration
-- ✅ Authentication system with JWT
-- ✅ Frontend foundation with Next.js 15
-- ✅ Resource management functionality
-- ✅ URL metadata extraction integration
-- ✅ Learning path tracking
-- ✅ Knowledge management system with spaced repetition
-- ✅ Basic UI components and layouts
-- ✅ Progress analytics dashboard
-
-### In Progress Components
-- 🔄 Testing suite implementation
-  - ✅ Backend unit tests with pytest
-  - ✅ Frontend unit tests with Jest
-  - ✅ End-to-end tests with Cypress
-  - 🔄 Integration tests
-
-### Not Started Components
-- ❌ Deployment configuration
-- ❌ CI/CD pipeline setup
-- ❌ Production environment configuration
-
 ## System Overview
 
 The AI/ML Learning Platform is designed to help users track their progress, manage knowledge, and optimize learning while transitioning from software development to AI/ML engineering. The platform provides:
@@ -61,10 +33,10 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
 
 ### Frontend
 
-- **Framework**: Next.js 15 with App Router
+- **Framework**: Next.js 15.2.2 with App Router
 - **Language**: TypeScript
-- **UI Library**: React 19
-- **Styling**: Tailwind CSS 4
+- **UI Library**: React ^19
+- **Styling**: Tailwind CSS ^4
 - **State Management**: React Query for server state, Zustand for client state
 - **Authentication**: JWT with HTTP-only cookies
 - **Data Visualization**: Chart.js
@@ -74,7 +46,7 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
 ### Backend
 
 - **Framework**: FastAPI
-- **Language**: Python 3.10+
+- **Language**: Python 3.11+
 - **Database**: MongoDB with Motor (async driver)
 - **Authentication**: JWT with OAuth2
 - **Data Processing**: Pandas, NumPy
@@ -92,34 +64,34 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
 
 ### Frontend Components
 
-1. **Authentication Module** ✅
+1. **Authentication Module**
    - Login/Registration
    - Profile management
    - Session handling
 
-2. **Dashboard** ✅
+2. **Dashboard**
    - Overview of learning progress
    - Recent activity
    - Quick access to key features
 
-3. **Learning Path Management** ✅
+3. **Learning Path Management**
    - Goals tracking
    - Roadmap visualization
    - Milestone management
 
-4. **Resource Library** ✅
+4. **Resource Library**
    - Resource categorization
    - Completion tracking
    - Resource recommendations
    - URL metadata extraction
 
-5. **Knowledge Management** ✅
+5. **Knowledge Management**
    - Concept notes with markdown support
    - Spaced repetition system
    - Review scheduling
    - Interactive markdown editor for content
 
-6. **Progress Analytics** ✅
+6. **Progress Analytics**
    - Study time tracking
    - Focus metrics
    - Topic distribution
@@ -127,126 +99,105 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
 
 ### Backend API Structure
 
-1. **Authentication API** ✅
+1. **Authentication API**
    - User registration
    - Login/logout
    - Token management
 
-2. **Resources API** ✅
+2. **Resources API**
    - CRUD operations for learning resources
    - Resource categorization
    - Completion tracking
    - Statistics
 
-3. **Progress API** ✅
+3. **Progress API**
    - Study metrics tracking
    - Analytics generation
    - Report creation
    - Data visualization
 
-4. **Reviews API** ✅
+4. **Reviews API**
    - Concept management
    - Spaced repetition scheduling
    - Review session generation
    - Review statistics
 
-5. **Learning Path API** ✅
+5. **Learning Path API**
    - Goals management
    - Milestone tracking
    - Roadmap configuration
    - Progress statistics
 
-6. **URL Extraction API** ✅
+6. **URL Extraction API**
    - Metadata extraction from URLs
    - Resource type detection
    - Topic extraction
 
-## Testing Strategy
-
-### Backend Testing
-
-1. **Unit Tests** ✅
-   - Test individual functions and methods
-   - Mock external dependencies
-   - Focus on business logic
-
-2. **API Tests** ✅
-   - Test API endpoints
-   - Validate request/response handling
-   - Check authentication and authorization
-
-3. **Integration Tests** 🔄
-   - Test interactions between components
-   - Validate database operations
-   - Test end-to-end workflows
-
-### Frontend Testing
-
-1. **Unit Tests** ✅
-   - Test individual components
-   - Mock API calls and state
-   - Validate component behavior
-
-2. **Integration Tests** 🔄
-   - Test component interactions
-   - Validate state management
-   - Test form submissions
-
-3. **End-to-End Tests** ✅
-   - Test complete user flows
-   - Validate UI interactions
-   - Test authentication flows
-
 ## Data Models
+
+> **Note:** The following data models provide a conceptual overview. While User, Resource, and Learning Path models are updated based on API documentation, the exact structure for Metric, Concept, Goal, and Milestone might differ slightly in the implementation.
 
 ### User
 
+Based on the `/users/me/` API response:
+
 ```json
 {
+  "id": "string",
   "username": "string",
   "email": "string",
-  "hashed_password": "string",
   "full_name": "string",
   "disabled": false,
+  "is_active": true,
+  "created_at": "string",
   "resources": {
     "articles": [],
     "videos": [],
     "courses": [],
     "books": []
   },
+  "study_sessions": [],
+  "review_sessions": [],
+  "learning_paths": [],
+  "reviews": [],
   "metrics": [],
   "concepts": [],
   "goals": [],
-  "milestones": [],
-  "roadmap": {}
+  "milestones": []
 }
 ```
 
 ### Resource
 
+Based on the `/api/resources/` API response:
+
 ```json
 {
-  "id": 1,
+  "id": "string",
+  "user_id": "string", // Added based on POST response
   "title": "string",
+  "description": "string",
   "url": "string",
-  "topics": ["string"],
-  "difficulty": "beginner|intermediate|advanced",
-  "estimated_time": 60,
-  "completed": false,
-  "date_added": "2023-03-15T10:30:00",
-  "completion_date": null,
+  "resource_type": "string", // e.g., article, video, course, book
+  "tags": ["string"],
+  "completion_status": "string", // e.g., not_started, in_progress, completed
+  "created_at": "string",
+  "updated_at": "string",
   "notes": "string"
 }
 ```
 
 ### Metric
 
+Conceptual representation:
+
 ```json
 {
-  "id": "20230315_103000",
-  "date": "2023-03-15",
+  "id": "string", // Assuming string ID
+  "user_id": "string", // Assuming association with user
+  "date": "string",
   "study_hours": 2.5,
-  "topics": "linear algebra,neural networks",
+  "topics": ["string"], // Assuming array based on context
   "focus_score": 8,
   "notes": "string"
 }
@@ -254,75 +205,90 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
 
 ### Concept
 
+Conceptual representation:
+
 ```json
 {
-  "id": "20230315_103000_neural_networks",
-  "title": "Neural Networks",
+  "id": "string", // Assuming string ID
+  "user_id": "string", // Assuming association with user
+  "title": "string",
   "content": "markdown content",
-  "topics": ["deep learning", "neural networks"],
+  "topics": ["string"],
   "reviews": [
     {
-      "date": "2023-03-15T10:30:00",
-      "confidence": 4
+      "date": "string",
+      "confidence": 4 // Example field
     }
   ],
-  "next_review": "2023-03-18T10:30:00"
+  "next_review": "string", // Date string
+  "created_at": "string", // Likely exists
+  "updated_at": "string" // Likely exists
 }
 ```
 
 ### Goal
 
+Conceptual representation:
+
 ```json
 {
-  "id": "goal_20230315103000",
-  "title": "Master Neural Networks",
+  "id": "string", // Assuming string ID
+  "user_id": "string", // Assuming association with user
+  "title": "string",
   "description": "string",
-  "target_date": "2023-06-15",
+  "target_date": "string", // Date string
   "priority": 8,
-  "category": "Deep Learning",
+  "category": "string",
   "completed": false,
   "completion_date": null,
-  "notes": "string"
+  "notes": "string",
+  "created_at": "string", // Likely exists
+  "updated_at": "string" // Likely exists
 }
 ```
 
 ### Milestone
 
+Conceptual representation:
+
 ```json
 {
-  "id": "milestone_20230315103000",
-  "title": "Complete Deep Learning Specialization",
+  "id": "string", // Assuming string ID
+  "user_id": "string", // Assuming association with user
+  "title": "string",
   "description": "string",
-  "target_date": "2023-06-15",
-  "verification_method": "Certificate",
-  "resources": ["course_1", "course_2"],
+  "target_date": "string", // Date string
+  "verification_method": "string",
+  "resources": ["string"], // Assuming array of resource IDs
   "completed": false,
   "completion_date": null,
-  "notes": "string"
+  "notes": "string",
+  "created_at": "string", // Likely exists
+  "updated_at": "string" // Likely exists
 }
 ```
 
-### Roadmap
+### Learning Path
+
+Based on the `/api/learning-path/` API response (replaces previous Roadmap model):
 
 ```json
 {
-  "id": "roadmap_20230315103000",
-  "title": "AI/ML Engineer Roadmap",
+  "id": "string",
+  "user_id": "string", // Assuming association with user
+  "title": "string",
   "description": "string",
-  "phases": [
+  "resources": [ // Array of resource objects or IDs
     {
-      "title": "Foundation",
-      "description": "string",
-      "items": [
-        {
-          "title": "Linear Algebra",
-          "completed": true
-        }
-      ]
+      "id": "string",
+      "title": "string",
+      "resource_type": "string"
     }
+    // ... or potentially just resource IDs ["string", "string"]
   ],
-  "created_at": "2023-03-15T10:30:00",
-  "updated_at": "2023-03-15T10:30:00"
+  "progress": 0, // Percentage or count
+  "created_at": "string",
+  "updated_at": "string"
 }
 ```
 
@@ -335,6 +301,8 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
 5. When the token expires, the frontend requests a new token
 
 ## Deployment Strategy (Planned)
+
+> **Note:** While the following sections outline potential cloud deployment strategies, the primary method for running the full application stack locally is currently via Docker Compose, as detailed in the [**Docker Setup Guide**](/docs/DOCKER.md). The strategies below represent potential future deployment targets.
 
 ### Frontend Deployment (Vercel)
 
@@ -364,27 +332,6 @@ The AI/ML Learning Platform is designed to help users track their progress, mana
 2. Set up a new cluster
 3. Configure network access and database users
 4. Get the connection string and use it in the backend environment variables
-
-## Next Steps for Completion
-
-1. ~~**Complete Progress Analytics Dashboard**~~
-   - ~~Implement data visualization with Chart.js~~
-   - ~~Connect to the backend API endpoints~~
-   - ~~Test with real data~~
-
-2. **Complete Comprehensive Testing**
-   - ✅ Add unit tests for backend components
-   - ✅ Add unit tests for frontend components
-   - ✅ Set up end-to-end testing with Cypress
-   - 🔄 Add integration tests for backend services
-   - 🔄 Add integration tests for frontend components
-   - 🔄 Improve test coverage to at least 80%
-
-3. **Configure Deployment**
-   - Set up Vercel for frontend deployment
-   - Configure cloud service for backend deployment
-   - Set up MongoDB Atlas for database hosting
-   - Create deployment documentation
 
 ## Future Enhancements
 

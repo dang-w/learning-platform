@@ -18,8 +18,8 @@ This document provides comprehensive documentation for setting up, running, and 
 
 The Learning Platform is containerized using Docker, with the following services:
 
-- **Frontend**: Next.js application (Node.js 20)
-- **Backend**: FastAPI application (Python 3.12)
+- **Frontend**: Next.js application (Node.js LTS version, e.g., 20.x)
+- **Backend**: FastAPI application (Python 3.11+)
 - **MongoDB**: Database (Version 7.0)
 - **Redis**: Caching layer (Version 7.2)
 
@@ -64,22 +64,17 @@ docker-compose up -d --build frontend
 
 ### Environment Variables
 
-Create a `.env` file in the project root with the following variables:
+The `docker-compose.yml` file sets default environment variables directly for development purposes, including API keys, database connections (internal to the Docker network), and debug settings. You generally do not need a separate `.env` file just to run `docker-compose up`.
+
+However, the MongoDB root username and password can be overridden if needed. If you wish to change the default MongoDB credentials (`admin`/`password`), you can create a `.env` file in the project root containing:
 
 ```
-# MongoDB Configuration
-MONGO_USERNAME=admin
-MONGO_PASSWORD=secure_password
-MONGO_DATABASE=learning_platform
-
-# API Configuration
-SECRET_KEY=your_secure_secret_key
-DEBUG=false
-API_URL=http://backend:8000
-
-# Frontend Configuration
-NEXT_PUBLIC_API_URL=http://localhost:8000
+# Optional: Override default MongoDB root credentials
+MONGO_INITDB_ROOT_USERNAME=your_mongo_admin
+MONGO_INITDB_ROOT_PASSWORD=your_mongo_password
 ```
+
+For production deployments, environment variables should be managed securely outside the compose file (e.g., using secrets management tools or platform-specific environment variable settings).
 
 ### Volumes
 
@@ -117,11 +112,11 @@ Both the frontend and backend containers are configured with volume mounts for h
 # Run backend tests
 docker-compose exec backend pytest
 
-# Run frontend tests
+# Run frontend unit tests
 docker-compose exec frontend npm test
 
-# Run E2E tests
-docker-compose exec frontend npm run test:e2e
+# Run frontend E2E tests (headless)
+docker-compose exec frontend npm run e2e:headless
 ```
 
 ### Accessing Container Shells

@@ -55,7 +55,6 @@ The backend includes a comprehensive test suite using pytest. For detailed testi
 
 - [**TESTING.md**](TESTING.md): Main backend testing documentation ✅
 - [**tests/README.md**](tests/README.md): Test organization and structure ✅
-- [**Unified Testing Guide**](/docs/testing/UNIFIED_TESTING_GUIDE.md): Project-wide testing documentation ✅
 
 ### Running Basic Tests
 
@@ -85,53 +84,25 @@ For detailed testing instructions, see the [TESTING.md](TESTING.md) file.
 - `main.py`: Main FastAPI application
 - `auth.py`: Authentication logic
 - `database.py`: Database connection and utilities
+- `init_db.py`: Database initialization script
 - `routers/`: API route handlers
   - `resources.py`: Resource management endpoints
   - `progress.py`: Progress tracking endpoints
   - `reviews.py`: Spaced repetition review endpoints
   - `learning_path.py`: Learning path management endpoints
   - `url_extractor.py`: URL metadata extraction endpoints
-- `app/services/`: Service modules
-  - `url_extractor.py`: URL metadata extraction service
+- `app/`: Application core modules
+  - `services/`: Service layer logic
 - `tests/`: Test suite
   - `api/`: API endpoint tests
   - `services/`: Service layer tests
   - `utils/`: Test utilities
   - `config/`: Test configurations
-  - `runners/`: Test runner scripts
+  - `integration/`: Integration tests
+  - `performance/`: Performance tests
+  - `reports/`: Test reports
 - `utils/`: Utility functions
-- `init_db.py`: Database initialization script
 
-## Recent Updates
+## API Documentation
 
-### E2E Testing Support (March 2025)
-
-The following endpoints have been implemented to support E2E testing:
-
-1. **Batch Creation Endpoints**
-   - `/api/resources/batch` - Create multiple resources in a batch
-   - `/api/reviews/concepts/batch` - Create multiple knowledge concepts in a batch
-   - `/api/learning-path/goals/batch` - Create multiple learning goals in a batch
-
-2. **Token Management**
-   - `/token/refresh` - Refresh an access token using an existing valid token
-
-These endpoints enhance the API's usability for E2E testing by allowing for more efficient data setup and improved token handling.
-
-### Running Tests
-
-To run tests for the implemented endpoints:
-
-```bash
-# Test token refresh endpoint
-pytest tests/api/test_auth_api.py::test_token_refresh -v
-
-# Test batch endpoints
-pytest tests/api/test_resources_api.py::test_create_resources_batch -v
-pytest tests/api/test_knowledge.py::test_create_concepts_batch -v
-pytest tests/api/test_learning_path_api.py::test_create_goals_batch -v
-```
-
-## Documentation
-
-For more comprehensive documentation about the project, please refer to the [documentation hub](/docs/README.md).
+With the backend running, please visit http://localhost:8000/docs for a current list of API endpoints and schemas.

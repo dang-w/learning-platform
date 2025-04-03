@@ -16,7 +16,7 @@ This document provides comprehensive information about testing approaches, organ
 
 ## Overview
 
-The backend testing suite ensures the stability, correctness, and reliability of the API. We use pytest as our testing framework with a variety of approaches to cover different testing scenarios.
+The backend testing suite ensures the stability, correctness, and reliability of the API using pytest. It employs various approaches to cover unit, integration, API, and performance testing scenarios, aiming for high-quality, reliable backend services.
 
 ### Testing Goals
 

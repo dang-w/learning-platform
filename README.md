@@ -40,7 +40,7 @@ learning-platform/
 │   │   ├── lib/            # Utility functions
 │   │   └── types/          # TypeScript type definitions
 │   ├── public/             # Static assets
-│   └── e2e-testing/        # End-to-end testing with Cypress
+│   └── e2e/                # End-to-end testing with Cypress
 ├── backend/                # FastAPI backend application
 │   ├── app/                # Application code
 │   │   ├── api/            # API routes
@@ -60,7 +60,7 @@ learning-platform/
 ### Prerequisites
 
 - Node.js 18+ and npm for frontend
-- Python 3.10+ for backend
+- Python 3.11+ for backend
 - MongoDB 5.0+
 - Docker and Docker Compose (optional, for containerized setup)
 
@@ -165,7 +165,6 @@ We maintain comprehensive documentation for all aspects of the project:
 - [**Documentation Hub**](/docs/README.md): Central index of all documentation
 - [**Architecture Documentation**](/docs/architecture/ARCHITECTURE.md): System design and components
 - [**API Documentation**](/docs/api/API_DOCUMENTATION.md): API endpoints and usage
-- [**Unified Testing Guide**](/docs/testing/UNIFIED_TESTING_GUIDE.md): Testing standards and approaches
 - [**Docker Setup Guide**](/docs/DOCKER.md): Complete Docker configuration and usage
 - [**Frontend Documentation**](/frontend/README.md): Frontend-specific documentation
 - [**Backend Documentation**](/backend/README.md): Backend-specific documentation
@@ -181,7 +180,7 @@ The platform includes comprehensive testing for both frontend and backend:
 - **Unit Tests**: Testing individual components
 
 For detailed frontend testing information, see:
-- [Frontend E2E Testing Documentation](/frontend/e2e-testing/README.md)
+- [Frontend E2E Testing Documentation](/frontend/e2e/README.md)
 
 ### Backend Testing
 
@@ -197,8 +196,8 @@ For detailed backend testing information, see:
 ```bash
 # Frontend tests
 cd frontend
-npm run test:e2e        # Run E2E tests
-npm run test:unit       # Run unit tests
+npm run e2e:headless  # Run E2E tests headlessly (Corrected command)
+npm test              # Run unit tests (Corrected command)
 
 # Backend tests
 cd backend
