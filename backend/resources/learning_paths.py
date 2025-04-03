@@ -33,21 +33,33 @@ ML_ENGINEER_MILESTONES = [
         "title": "Learn Python Fundamentals",
         "description": "Master Python programming language basics including syntax, data structures, and object-oriented programming.",
         "verification_method": "Complete a Python project with classes, functions, and proper error handling",
-        "resources": ["https://www.python.org/doc/", "https://docs.python.org/3/tutorial/index.html"],
+        "resources": [
+            "https://www.python.org/doc/",
+            "https://docs.python.org/3/tutorial/index.html",
+            "https://www.learnpython.org/",
+            "https://www.codecademy.com/catalog/language/python",
+            "https://futurecoder.io/"
+        ],
         "estimated_days": 14
     },
     {
         "title": "Master Data Processing with Pandas",
         "description": "Learn to efficiently manipulate and analyze data using Pandas library",
         "verification_method": "Clean and analyze a real-world dataset with Pandas",
-        "resources": ["https://pandas.pydata.org/docs/user_guide/index.html"],
+        "resources": [
+            "https://pandas.pydata.org/docs/user_guide/index.html",
+            "https://nbviewer.org/github/pybokeh/jupyter_notebooks/blob/main/pandas/PandasCheatSheet.ipynb"
+        ],
         "estimated_days": 14
     },
     {
         "title": "Learn Machine Learning Fundamentals",
         "description": "Understand core ML concepts including supervised/unsupervised learning, feature engineering, and model evaluation",
         "verification_method": "Implement basic ML algorithms and explain how they work",
-        "resources": ["https://www.coursera.org/learn/machine-learning"],
+        "resources": [
+            "https://www.coursera.org/learn/machine-learning",
+            "https://www.deeplearning.ai/machine-learning-yearning/"
+        ],
         "estimated_days": 30
     },
     {
@@ -61,14 +73,22 @@ ML_ENGINEER_MILESTONES = [
         "title": "Learn Deep Learning Fundamentals",
         "description": "Understand neural networks, backpropagation, and deep learning architectures",
         "verification_method": "Implement a neural network from scratch",
-        "resources": ["https://www.deeplearningbook.org/"],
+        "resources": [
+            "https://www.deeplearningbook.org/",
+            "http://neuralnetworksanddeeplearning.com/",
+            "http://introtodeeplearning.com/"
+        ],
         "estimated_days": 30
     },
     {
         "title": "Master TensorFlow or PyTorch",
         "description": "Become proficient with a deep learning framework",
         "verification_method": "Build and train a complex neural network",
-        "resources": ["https://www.tensorflow.org/tutorials", "https://pytorch.org/tutorials/"],
+        "resources": [
+            "https://www.tensorflow.org/tutorials",
+            "https://pytorch.org/tutorials/",
+            "https://d2l.ai/"
+        ],
         "estimated_days": 30
     }
 ]
@@ -94,14 +114,54 @@ ML_ENGINEER_GOALS = [
         "description": "Understand how to deploy, monitor, and maintain ML models in production",
         "priority": 2,
         "category": "technical",
-        "estimated_days": 30
+        "estimated_days": 30,
+        "resources": [
+            "https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning",
+            "https://ml-ops.org/content/ MLOps",
+            "https://github.com/visenger/awesome-mlops"
+        ]
     },
     {
         "title": "Contribute to an Open Source ML Project",
         "description": "Make meaningful contributions to an open source ML library or tool",
         "priority": 3,
         "category": "community",
-        "estimated_days": 60
+        "estimated_days": 60,
+        "resources": ["https://github.com/topics/machine-learning"]
+    },
+    {
+        "title": "Explore NLP Basics",
+        "description": "Learn the fundamentals of Natural Language Processing.",
+        "priority": 3,
+        "category": "specialization",
+        "estimated_days": 20,
+        "resources": [
+            "https://web.stanford.edu/class/cs224n/",
+            "https://www.deeplearning.ai/resources/natural-language-processing/"
+        ]
+    },
+    {
+        "title": "Explore Computer Vision Basics",
+        "description": "Learn the fundamentals of Computer Vision.",
+        "priority": 3,
+        "category": "specialization",
+        "estimated_days": 20,
+        "resources": [
+            "http://cs231n.stanford.edu/",
+            "https://docs.opencv.org/4.x/d6/d00/tutorial_table_of_content_core.html",
+            "https://pyimagesearch.com/start-here/"
+        ]
+    },
+    {
+        "title": "Explore Reinforcement Learning Basics",
+        "description": "Learn the fundamentals of Reinforcement Learning.",
+        "priority": 3,
+        "category": "specialization",
+        "estimated_days": 20,
+        "resources": [
+            "https://www.youtube.com/playlist?list=PLqYmG7hTraZDM-OYHWgPebj2MfCFzFObQ",
+            "https://hackernoon.com/reinforcement-learning-course-part-1"
+        ]
     }
 ]
 
@@ -110,32 +170,66 @@ ML_ENGINEER_ROADMAP = [
     {
         "title": "Phase 1: Programming Fundamentals",
         "description": "Master the programming skills required for machine learning",
-        "resources": ["https://www.python.org/doc/", "https://pandas.pydata.org/docs/"]
+        "resources": [
+            "https://www.python.org/doc/",
+            "https://docs.python.org/3/tutorial/index.html",
+            "https://www.learnpython.org/",
+            "https://pandas.pydata.org/docs/",
+            "https://nbviewer.org/github/pybokeh/jupyter_notebooks/blob/main/pandas/PandasCheatSheet.ipynb"
+        ]
     },
     {
         "title": "Phase 2: Mathematics and Statistics",
         "description": "Learn the mathematical foundations of machine learning",
-        "resources": ["https://www.coursera.org/specializations/mathematics-machine-learning"]
+        "resources": [
+            "https://www.coursera.org/specializations/mathematics-machine-learning",
+            "https://www.khanacademy.org/math/linear-algebra",
+            "https://www.khanacademy.org/math/multivariable-calculus",
+            "https://www.khanacademy.org/math/statistics-probability"
+        ]
     },
     {
         "title": "Phase 3: Machine Learning",
         "description": "Master core machine learning algorithms and techniques",
-        "resources": ["https://www.coursera.org/learn/machine-learning", "https://scikit-learn.org/stable/user_guide.html"]
+        "resources": [
+            "https://www.coursera.org/learn/machine-learning",
+            "https://scikit-learn.org/stable/user_guide.html",
+            "https://www.deeplearning.ai/machine-learning-yearning/"
+        ]
     },
     {
         "title": "Phase 4: Deep Learning",
         "description": "Learn deep learning frameworks and neural network architectures",
-        "resources": ["https://www.deeplearningbook.org/", "https://www.tensorflow.org/tutorials"]
+        "resources": [
+            "https://www.deeplearningbook.org/",
+            "https://www.tensorflow.org/tutorials",
+            "https://pytorch.org/tutorials/",
+            "https://d2l.ai/",
+            "http://introtodeeplearning.com/"
+        ]
     },
     {
         "title": "Phase 5: Specialization and Projects",
-        "description": "Focus on specific areas of interest and build a portfolio",
-        "resources": ["https://www.kaggle.com/competitions", "https://github.com/topics/machine-learning"]
+        "description": "Focus on specific areas like NLP, CV, or RL and build a portfolio",
+        "resources": [
+            "https://www.kaggle.com/competitions",
+            "https://github.com/topics/machine-learning",
+            "https://web.stanford.edu/class/cs224n/", # NLP
+            "https://www.deeplearning.ai/resources/natural-language-processing/", # NLP
+            "http://cs231n.stanford.edu/", # CV
+            "https://docs.opencv.org/4.x/d6/d00/tutorial_table_of_content_core.html", # CV
+            "https://pyimagesearch.com/start-here/", # CV
+            "https://www.youtube.com/playlist?list=PLqYmG7hTraZDM-OYHWgPebj2MfCFzFObQ" # RL
+        ]
     },
     {
         "title": "Phase 6: MLOps and Deployment",
         "description": "Learn to deploy and maintain ML models in production",
-        "resources": ["https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning"]
+        "resources": [
+            "https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning",
+            "https://ml-ops.org/content/ MLOps",
+            "https://github.com/visenger/awesome-mlops"
+        ]
     }
 ]
 

@@ -164,6 +164,114 @@ VIDEOS = [
     }
 ]
 
+# AI/ML Platforms and Guides
+PLATFORMS_GUIDES = [
+    {
+        "title": "LearnPython.org - Interactive Tutorial",
+        "url": "https://www.learnpython.org/",
+        "topics": ["python", "interactive", "tutorial", "beginner"],
+        "difficulty": "beginner",
+        "estimated_time": 40, # Estimated time for core concepts
+        "notes": "Free interactive Python tutorial covering basics to advanced."
+    },
+    {
+        "title": "Codecademy Python Catalog",
+        "url": "https://www.codecademy.com/catalog/language/python",
+        "topics": ["python", "interactive", "courses", "data science", "OOP"],
+        "difficulty": "beginner",
+        "estimated_time": 100, # Estimated time for free introductory content
+        "notes": "Offers various free introductory Python modules and courses."
+    },
+    {
+        "title": "futurecoder - Interactive Python",
+        "url": "https://futurecoder.io/",
+        "topics": ["python", "interactive", "tutorial", "beginner"],
+        "difficulty": "beginner",
+        "estimated_time": 30, # Estimated time for basics
+        "notes": "Free, open-source platform for learning Python from scratch."
+    },
+    {
+        "title": "Pandas Cheat Sheet (nbviewer)",
+        "url": "https://nbviewer.org/github/pybokeh/jupyter_notebooks/blob/main/pandas/PandasCheatSheet.ipynb",
+        "topics": ["pandas", "cheat sheet", "data analysis", "python"],
+        "difficulty": "intermediate",
+        "estimated_time": 5, # Time to review/use as reference
+        "notes": "Detailed Jupyter Notebook covering common Pandas tasks."
+    },
+    {
+        "title": "HackerNoon RL Course (Part 1)",
+        "url": "https://hackernoon.com/reinforcement-learning-course-part-1",
+        "topics": ["reinforcement learning", "tutorial", "beginner", "python"],
+        "difficulty": "beginner",
+        "estimated_time": 2, # Estimated read/understand time
+        "notes": "Beginner-friendly introduction to RL concepts with Python examples."
+    },
+    {
+        "title": "DeepLearning.AI NLP Guide",
+        "url": "https://www.deeplearning.ai/resources/natural-language-processing/",
+        "topics": ["NLP", "guide", "introduction", "deep learning"],
+        "difficulty": "intermediate",
+        "estimated_time": 3, # Estimated read/understand time
+        "notes": "Comprehensive guide covering NLP concepts, techniques, and tools."
+    },
+    {
+        "title": "Khan Academy: Linear Algebra",
+        "url": "https://www.khanacademy.org/math/linear-algebra",
+        "topics": ["mathematics", "linear algebra", "foundations"],
+        "difficulty": "beginner",
+        "estimated_time": 60, # Estimated time for core ML-relevant concepts
+        "notes": "Covers vectors, matrices, transformations relevant to ML."
+    },
+    {
+        "title": "Khan Academy: Multivariable Calculus",
+        "url": "https://www.khanacademy.org/math/multivariable-calculus",
+        "topics": ["mathematics", "calculus", "foundations", "optimization"],
+        "difficulty": "intermediate",
+        "estimated_time": 80, # Estimated time for core ML-relevant concepts
+        "notes": "Covers derivatives, gradients needed for optimization."
+    },
+    {
+        "title": "Khan Academy: Statistics and Probability",
+        "url": "https://www.khanacademy.org/math/statistics-probability",
+        "topics": ["mathematics", "statistics", "probability", "foundations"],
+        "difficulty": "beginner",
+        "estimated_time": 70, # Estimated time for core ML-relevant concepts
+        "notes": "Covers probability, distributions, regression basics for ML."
+    },
+    {
+        "title": "MLOps Guide (ml-ops.org)",
+        "url": "https://ml-ops.org/content/ MLOps", # Note: Space might be typo, check later
+        "topics": ["mlops", "guide", "principles", "architecture"],
+        "difficulty": "intermediate",
+        "estimated_time": 10, # Estimated read/understand time
+        "notes": "Community-driven guide covering MLOps principles and practices."
+    },
+    {
+        "title": "Awesome MLOps (GitHub List)",
+        "url": "https://github.com/visenger/awesome-mlops",
+        "topics": ["mlops", "resources", "tools", "community"],
+        "difficulty": "intermediate",
+        "estimated_time": 2, # Time to browse
+        "notes": "Curated list of MLOps resources, tools, articles, etc."
+    },
+    {
+        "title": "OpenCV Tutorials",
+        "url": "https://docs.opencv.org/4.x/d6/d00/tutorial_table_of_content_core.html",
+        "topics": ["computer vision", "opencv", "tutorial", "image processing"],
+        "difficulty": "intermediate",
+        "estimated_time": 100, # Estimated time for core tutorials
+        "notes": "Official tutorials for the fundamental CV library, OpenCV."
+    },
+    {
+        "title": "PyImageSearch Tutorials",
+        "url": "https://pyimagesearch.com/start-here/",
+        "topics": ["computer vision", "python", "opencv", "deep learning", "projects"],
+        "difficulty": "intermediate",
+        "estimated_time": 150, # Estimated time for several introductory tutorials
+        "notes": "Large collection of free, practical CV tutorials and projects."
+    }
+]
+
 # Create formatted resources with standardized fields
 def get_formatted_resources():
     """
@@ -179,7 +287,8 @@ def get_formatted_resources():
         "courses": [],
         "books": [],
         "articles": [],
-        "videos": []
+        "videos": [],
+        "platforms_guides": [] # Added new category
     }
 
     # Format courses
@@ -240,6 +349,21 @@ def get_formatted_resources():
             "date_added": current_date,
             "completion_date": None,
             "notes": video["notes"]
+        })
+
+    # Format platforms and guides (New section)
+    for idx, guide in enumerate(PLATFORMS_GUIDES):
+        formatted_resources["platforms_guides"].append({
+            "id": generate_id(f"pg{idx+1}"),
+            "title": guide["title"],
+            "url": guide["url"],
+            "topics": guide["topics"],
+            "difficulty": guide["difficulty"],
+            "estimated_time": guide.get("estimated_time", 0), # Use get for optional field
+            "completed": False,
+            "date_added": current_date,
+            "completion_date": None,
+            "notes": guide["notes"]
         })
 
     return formatted_resources
