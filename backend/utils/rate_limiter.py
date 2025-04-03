@@ -1,27 +1,35 @@
 from fastapi import HTTPException, Request, status
 import redis
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional, Tuple
 import time
 from functools import wraps
-
-# Load environment variables
-load_dotenv()
+from fastapi import Depends
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load environment variables based on ENVIRONMENT
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+if ENVIRONMENT == "test":
+    print("INFO [rate_limiter]: Loading .env.test")
+    load_dotenv(dotenv_path=".env.test", override=True)
+else:
+    print(f"INFO [rate_limiter]: Loading default .env for {ENVIRONMENT}")
+    load_dotenv()
+
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # Check if we're in development mode
 IS_DEVELOPMENT = ENVIRONMENT.lower() == "development"
+# Check if we are in test mode for E2E testing
+IS_TEST_ENVIRONMENT = ENVIRONMENT.lower() == "test"
 
 # Rate limit settings
 RATE_LIMIT_SETTINGS = {
@@ -152,21 +160,36 @@ def reset_rate_limit(identifier: str, key_prefix: Optional[str] = None):
     logger.info(f"Rate limit reset for {key}: {result == 1}")
     return result == 1
 
-def rate_limit_dependency(
+def rate_limit_dependency_with_logging(
     limit: int = 60,  # requests
     window: int = 60,  # seconds
     key_prefix: Optional[str] = None
 ):
-    """Create a FastAPI dependency for rate limiting."""
+    """Create a FastAPI dependency for rate limiting with logging."""
 
     async def dependency(request: Request):
-        # Skip rate limiting in development environment when explicitly requested
-        if IS_DEVELOPMENT and request.headers.get("X-Skip-Rate-Limit") == "true":
-            logger.info("Skipping rate limit check in development mode")
-            return
+        # --- Start Debug Logging for Bypass ---
+        skip_header = request.headers.get("X-Skip-Rate-Limit")
+        client_id = get_client_identifier(request) # Get client_id early for logging
+        logger.info(f"[Rate Limiter Log] Path: {request.url.path}, Client: {client_id}")
+        logger.info(f"[Rate Limiter Log] Checking Header - X-Skip-Rate-Limit: '{skip_header}' (Type: {type(skip_header).__name__})")
+        logger.info(f"[Rate Limiter Log] IS_DEVELOPMENT flag: {IS_DEVELOPMENT}")
+        logger.info(f"[Rate Limiter Log] IS_TEST_ENVIRONMENT flag: {IS_TEST_ENVIRONMENT}") # Log test env flag
+
+        # Skip rate limiting in development OR test environment when explicitly requested via header
+        if (IS_DEVELOPMENT or IS_TEST_ENVIRONMENT) and request.headers.get("X-Skip-Rate-Limit") == "true":
+            logger.info("[Rate Limiter Log] Bypass Active: Skipping rate limit check (DEVELOPMENT/TEST and Header is 'true').")
+            return # Skip rate limiting
+
+        # Log reason if bypass didn't happen
+        if (IS_DEVELOPMENT or IS_TEST_ENVIRONMENT) and request.headers.get("X-Skip-Rate-Limit") != "true":
+             logger.info(f"[Rate Limiter Log] Bypass Inactive: DEVELOPMENT/TEST is True but header is '{skip_header}' (not 'true').")
+        elif not (IS_DEVELOPMENT or IS_TEST_ENVIRONMENT):
+             logger.info(f"[Rate Limiter Log] Bypass Inactive: Not in DEVELOPMENT or TEST environment.")
+        # --- End Debug Logging for Bypass ---
 
         # Get client identifier (IP address by default)
-        identifier = get_client_identifier(request)
+        identifier = get_client_identifier(request) # Already got this above
 
         # If Redis is not available, skip rate limiting
         if not redis_client:
@@ -174,78 +197,39 @@ def rate_limit_dependency(
             return
 
         # Check if rate limit is exceeded
-        is_allowed, retry_after, remaining, reset_time = check_rate_limit(
-            identifier=identifier,
+        is_allowed, remaining, retry_after, reset_time = check_rate_limit(
+            identifier,
             limit=limit,
             window=window,
             key_prefix=key_prefix
         )
 
         if not is_allowed:
-            raise RateLimitExceeded(
-                retry_after=retry_after,
-                limit=limit,
-                remaining=remaining,
-                reset_time=reset_time
-            )
+            logger.warning(f"[Rate Limiter Log] Rate limit exceeded for key prefix '{key_prefix}' for client {identifier}. Limit: {limit}/{window}s.")
+            raise RateLimitExceeded(retry_after=retry_after, limit=limit, remaining=remaining, reset_time=reset_time)
+        else:
+            logger.info(f"[Rate Limiter Log] Rate limit check passed for key prefix '{key_prefix}' for client {identifier}. Remaining: {remaining}")
 
+    # Return the dependency function itself for FastAPI's Depends()
     return dependency
 
-def rate_limit(
-    limit: int = 60,  # requests
-    window: int = 60,  # seconds
-    key_prefix: Optional[str] = None
-):
-    """
-    Decorator for rate limiting specific routes.
+# Specific rate limit dependency instances
+# Example: 5 requests per minute
+rate_limit_dependency = rate_limit_dependency_with_logging(limit=100, window=60) # Default generous limit
 
-    Args:
-        limit: Maximum number of requests allowed in the window
-        window: Time window in seconds
-        key_prefix: Optional prefix for rate limit key
+# Updated stricter limit for user creation (matching users.py usage)
+create_user_rate_limit = rate_limit_dependency_with_logging(limit=10, window=600, key_prefix="user_creation")
 
-    Usage:
-        @app.post("/endpoint")
-        @rate_limit(limit=5, window=60)
-        async def endpoint():
-            ...
-    """
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            request = kwargs.get('request')
-            if not request:
-                for arg in args:
-                    if isinstance(arg, Request):
-                        request = arg
-                        break
+# Example: Limit for password reset requests
+password_reset_rate_limit = rate_limit_dependency_with_logging(limit=5, window=900)
 
-            if not request:
-                logger.warning("No request object found - rate limiting disabled")
-                return await func(*args, **kwargs)
+# Specific limits for auth router
+register_rate_limit = rate_limit_dependency_with_logging(limit=5, window=3600, key_prefix="register")
+token_rate_limit = rate_limit_dependency_with_logging(limit=10, window=60, key_prefix="token")
+refresh_rate_limit = rate_limit_dependency_with_logging(limit=10, window=60, key_prefix="refresh")
 
-            identifier = get_client_identifier(request)
-            if key_prefix:
-                identifier = f"{key_prefix}:{identifier}"
+# Specific limits for notes router
+notes_read_rate_limit = rate_limit_dependency_with_logging(limit=50, window=60, key_prefix="notes_read")
+notes_write_rate_limit = rate_limit_dependency_with_logging(limit=20, window=60, key_prefix="notes_write")
 
-            is_allowed, remaining, retry_after, reset_time = check_rate_limit(
-                identifier,
-                limit,
-                window,
-                key_prefix
-            )
-
-            # Set rate limit headers
-            request.state.rate_limit_headers = {
-                "X-RateLimit-Limit": str(limit),
-                "X-RateLimit-Remaining": str(remaining),
-                "X-RateLimit-Reset": str(reset_time)
-            }
-
-            if not is_allowed:
-                raise RateLimitExceeded(retry_after, limit, remaining, reset_time)
-
-            return await func(*args, **kwargs)
-
-        return wrapper
-    return decorator
+# Ensure file ends with a newline

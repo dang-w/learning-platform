@@ -29,7 +29,8 @@ async def test_login_success(async_client):
     mock_db.users.find_one = AsyncMock(return_value={
         "username": "testuser",
         "email": "testuser@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False
     })
@@ -41,12 +42,17 @@ async def test_login_success(async_client):
             "password": "password123"
         }
 
-        # Use the correct path /api/auth/token
-        response = await async_client.post("/api/auth/token", data=login_data)
+        # Use the correct path /api/auth/token and send JSON
+        response = await async_client.post("/api/auth/token", json=login_data)
         assert response.status_code == 200
         token_data = response.json()
         assert "access_token" in token_data
+        assert "refresh_token" not in token_data # Refresh token is now HttpOnly cookie
         assert token_data["token_type"] == "bearer"
+        # Check for refresh token cookie
+        assert "refresh_token" in response.cookies
+        assert response.cookies["refresh_token"] is not None
+        assert "HttpOnly" in response.headers["set-cookie"]
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -58,7 +64,8 @@ async def test_login_invalid_credentials(async_client):
     mock_db.users.find_one = AsyncMock(return_value={
         "username": "testuser",
         "email": "testuser@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False
     })
@@ -70,8 +77,8 @@ async def test_login_invalid_credentials(async_client):
             "password": "wrongpassword"
         }
 
-        # Use the correct path /api/auth/token
-        response = await async_client.post("/api/auth/token", data=login_data)
+        # Use the correct path /api/auth/token and send JSON
+        response = await async_client.post("/api/auth/token", json=login_data)
         assert response.status_code == 401
         error_data = response.json()
         assert "detail" in error_data

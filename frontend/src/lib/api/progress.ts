@@ -1,5 +1,5 @@
 import { LearningProgress } from '@/types/progress';
-import { fetchJsonWithAuth } from '../utils/api';
+import apiClient from './client';
 
 export interface Metric {
   id: string;
@@ -48,10 +48,8 @@ export interface WeeklyReport {
 const progressApi = {
   addMetric: async (data: MetricCreate): Promise<Metric> => {
     try {
-      return await fetchJsonWithAuth<Metric>('/api/progress/metrics', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      const response = await apiClient.post<Metric>('/api/progress/metrics', data);
+      return response.data;
     } catch (error) {
       console.error('Error adding metric:', error);
       throw error;
@@ -60,17 +58,14 @@ const progressApi = {
 
   getMetrics: async (startDate?: string, endDate?: string): Promise<Metric[]> => {
     try {
-      let url = '/api/progress/metrics';
+      const url = '/api/progress/metrics';
       const params = new URLSearchParams();
 
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      return await fetchJsonWithAuth<Metric[]>(url);
+      const response = await apiClient.get<Metric[]>(url, { params });
+      return response.data;
     } catch (error) {
       console.error('Error fetching metrics:', error);
       throw error;
@@ -80,7 +75,8 @@ const progressApi = {
   getRecentMetricsSummary: async (days: number = 7): Promise<MetricsSummary> => {
     try {
       console.log(`Fetching recent metrics summary for the last ${days} days`);
-      return await fetchJsonWithAuth<MetricsSummary>(`/api/progress/metrics/recent?days=${days}`);
+      const response = await apiClient.get<MetricsSummary>(`/api/progress/metrics/recent`, { params: { days } });
+      return response.data;
     } catch (error) {
       console.error('Error fetching recent metrics:', error);
       throw error;
@@ -89,12 +85,10 @@ const progressApi = {
 
   generateWeeklyReport: async (date?: string): Promise<WeeklyReport> => {
     try {
-      let url = '/api/progress/report/weekly';
-      if (date) {
-        url += `?date=${date}`;
-      }
-
-      return await fetchJsonWithAuth<WeeklyReport>(url);
+      const url = '/api/progress/report/weekly';
+      const params = date ? { date } : undefined;
+      const response = await apiClient.get<WeeklyReport>(url, { params });
+      return response.data;
     } catch (error) {
       console.error('Error generating weekly report:', error);
       throw error;
@@ -103,9 +97,7 @@ const progressApi = {
 
   deleteMetric: async (metricId: string): Promise<void> => {
     try {
-      await fetchJsonWithAuth(`/api/progress/metrics/${metricId}`, {
-        method: 'DELETE'
-      });
+      await apiClient.delete(`/api/progress/metrics/${metricId}`);
     } catch (error) {
       console.error('Error deleting metric:', error);
       throw error;
@@ -114,25 +106,28 @@ const progressApi = {
 
   fetchLearningProgress: async (): Promise<LearningProgress> => {
     try {
-      return await fetchJsonWithAuth<LearningProgress>('/api/learning-path/progress');
+      const response = await apiClient.get<LearningProgress>('/api/learning-path/progress');
+      return response.data;
     } catch (error) {
       console.error('Error fetching learning progress:', error);
       throw error;
     }
   },
 
-  getAllMetrics: async () => {
+  getAllMetrics: async (): Promise<Metric[]> => {
     try {
-      return await fetchJsonWithAuth('/api/progress/metrics');
+      const response = await apiClient.get<Metric[]>('/api/progress/metrics');
+      return response.data;
     } catch (error) {
       console.error('Error fetching all metrics:', error);
       throw error;
     }
   },
 
-  getStudySessions: async () => {
+  getStudySessions: async (): Promise<unknown> => {
     try {
-      return await fetchJsonWithAuth('/api/progress/study-session');
+      const response = await apiClient.get('/api/progress/study-session');
+      return response.data;
     } catch (error) {
       console.error('Error fetching study sessions:', error);
       throw error;

@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# E2E Testing Artifacts
+/e2e/cypress/reports/
+/e2e/cypress/screenshots/
+/e2e/cypress/videos/
+/e2e/cypress/runner-results/

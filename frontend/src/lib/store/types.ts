@@ -8,16 +8,14 @@ export interface AuthState {
   error: string | null;
   statistics: UserStatistics | null;
   notificationPreferences: NotificationPreferences | null;
-  refreshToken: string | null;
   validationErrors?: Record<string, string>;
 
   // Required methods
   initializeFromStorage: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string, fullName: string) => Promise<{ user: User }>;
+  register: (username: string, email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
-  refreshAuthToken: () => Promise<boolean>;
   clearError: () => void;
 
   // Additional methods
@@ -30,17 +28,6 @@ export interface AuthState {
   exportUserData: () => Promise<Blob>;
   deleteAccount: () => Promise<void>;
   reset: () => void;
-  setRefreshToken: (token: string) => void;
   setStatistics: (statistics: UserStatistics) => void;
   setNotificationPreferences: (preferences: NotificationPreferences) => void;
-
-  // Internal state
-  _lastTokenRefresh: number;
-  _retryAfterTimestamp: number | null;
-  _lastRefreshAttemptTimestamp: number | null;
-  _refreshAttempts: number;
-  _lastRefreshTimestamp: number | null;
-  _inRefreshCycle: boolean;
-  _refreshPromise: Promise<boolean> | null;
-  _refreshCallStack: string[];
 }

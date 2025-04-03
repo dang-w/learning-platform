@@ -11,7 +11,7 @@ from .lessons import router as lessons
 from .url_extractor import router as url_extractor
 from .auth import router as auth
 from .notes import router as notes
-
+from .test_utils import router as test_utils
 # Export all routers
 __all__ = [
     "users",
@@ -23,5 +23,6 @@ __all__ = [
     "lessons",
     "url_extractor",
     "auth",
-    "notes"
+    "notes",
+    "test_utils"
 ]

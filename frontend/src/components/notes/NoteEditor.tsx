@@ -163,6 +163,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             <div
               key={tag}
               className="flex items-center bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm"
+              data-testid={`tag-${tag}`}
             >
               {tag}
               <button
@@ -182,6 +183,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           type="button"
           onClick={onCancel}
           className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          data-testid="cancel-button"
         >
           Cancel
         </button>

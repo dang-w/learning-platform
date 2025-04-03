@@ -77,7 +77,7 @@ export function Roadmap({ goals, milestones }: RoadmapProps) {
   }
 
   return (
-    <div>
+    <div data-testid="roadmap-visualization">
       <h2 className="text-xl font-semibold mb-6">Your Learning Roadmap</h2>
 
       <div className="space-y-8">

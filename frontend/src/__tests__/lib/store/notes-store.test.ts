@@ -113,20 +113,37 @@ describe('Notes Store', () => {
     it('should fetch notes with tag filter', async () => {
       // Setup
       const tag = 'react';
-      const filteredNotes = [mockNotes[0], mockNotes[2]];
-      const paginatedResponse = createMockPaginatedResponse(filteredNotes);
-      mockGetNotes.mockResolvedValueOnce(paginatedResponse);
+      const filteredNotes = mockNotes.filter(note => note.tags.includes(tag));
 
-      const { result } = renderHook(() => useNotesStore());
-
-      // Act
-      await act(async () => {
-        await result.current.fetchNotes(tag);
+      // Mock API call (should be called without tag, returning all notes)
+      mockGetNotes.mockResolvedValueOnce({
+        items: mockNotes,
+        total: mockNotes.length,
+        skip: 0,
+        limit: 20
       });
 
-      // Assert
-      expect(mockGetNotes).toHaveBeenCalledWith(tag);
-      expect(result.current.notes).toEqual(filteredNotes);
+      // Initial render
+      const { result } = renderHook(() => useNotesStore());
+
+      // Set active tag
+      act(() => {
+        result.current.setActiveTag(tag);
+      });
+
+      // Fetch notes (which will now filter internally)
+      await act(async () => {
+        await result.current.fetchNotes();
+      });
+
+      // Assert API call (without tag)
+      // Check that the API was called, potentially with default pagination
+      // Using expect.stringMatching allows for flexibility with pagination params
+      expect(mockGetNotes).toHaveBeenCalledWith();
+
+      // Assert filtered state
+      expect(result.current.filteredNotes).toEqual(filteredNotes);
+      expect(result.current.activeTag).toBe(tag);
     });
   });
 

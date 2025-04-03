@@ -1,7 +1,5 @@
-import { AxiosError } from 'axios'
 import apiClient from './client'
 import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resources'
-import { fetchJsonWithAuth, withRetry } from '../utils/api'
 
 export interface ResourceStatistics {
   total: number
@@ -29,7 +27,8 @@ const resourcesApi = {
   // Get all resources
   getAll: async (): Promise<Resource[]> => {
     try {
-      return await fetchJsonWithAuth<Resource[]>('/api/resources');
+      const response = await apiClient.get<Resource[]>('/api/resources');
+      return response.data;
     } catch (error) {
       console.error('Error fetching resources:', error)
       throw error
@@ -44,31 +43,17 @@ const resourcesApi = {
   // Get resources statistics
   getStatistics: async (): Promise<ResourceStatistics> => {
     try {
-      return await fetchJsonWithAuth<ResourceStatistics>('/api/resources/statistics');
+      const response = await apiClient.get<ResourceStatistics>('/resources/statistics');
+      return response.data;
     } catch (error) {
-      // Try the direct backend API as fallback
-      try {
-        // Use apiClient as a fallback
-        const response = await apiClient.get('/resources/statistics');
-        return response.data;
-      } catch (backendError) {
-        console.error('Error fetching resource statistics:', backendError);
-        // Re-throw the original error since it's more likely to be accurate
-        throw error;
-      }
+      console.error('Error fetching resource statistics:', error);
+      throw error;
     }
   },
 
   // Add alias for getStatistics for backward compatibility
   getResourceStatistics: async (): Promise<ResourceStatistics> => {
     return resourcesApi.getStatistics()
-  },
-
-  handleError(error: unknown): never {
-    if (error instanceof AxiosError) {
-      throw new Error(error.response?.data?.message || error.message)
-    }
-    throw error
   },
 
   async getResourcesByType(type: ResourceType): Promise<Resource[]> {
@@ -114,19 +99,8 @@ const resourcesApi = {
 
   async createResource(type: ResourceType, resource: ResourceCreateInput): Promise<Resource> {
     try {
-      // Use dedicated endpoints for videos, courses, and books if available
-      if (type === 'videos' || type === 'courses' || type === 'books') {
-        return await fetchJsonWithAuth<Resource>(`/api/resources/${type}`, {
-          method: 'POST',
-          body: JSON.stringify(resource)
-        });
-      }
-
-      // Use the generic endpoint for other resource types
-      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}`, {
-        method: 'POST',
-        body: JSON.stringify(resource)
-      });
+      const response = await apiClient.post<Resource>(`/api/resources/${type}`, resource);
+      return response.data;
     } catch (error) {
       console.error(`Error creating resource of type ${type}:`, error);
       throw error;
@@ -136,10 +110,8 @@ const resourcesApi = {
   // New dedicated creation methods
   async createVideo(resource: ResourceCreateInput): Promise<Resource> {
     try {
-      return await fetchJsonWithAuth<Resource>('/api/resources/videos', {
-        method: 'POST',
-        body: JSON.stringify(resource)
-      });
+      const response = await apiClient.post<Resource>('/api/resources/videos', resource);
+      return response.data;
     } catch (error) {
       console.error('Error creating video resource:', error);
       throw error;
@@ -148,10 +120,8 @@ const resourcesApi = {
 
   async createCourse(resource: ResourceCreateInput): Promise<Resource> {
     try {
-      return await fetchJsonWithAuth<Resource>('/api/resources/courses', {
-        method: 'POST',
-        body: JSON.stringify(resource)
-      });
+      const response = await apiClient.post<Resource>('/api/resources/courses', resource);
+      return response.data;
     } catch (error) {
       console.error('Error creating course resource:', error);
       throw error;
@@ -160,10 +130,8 @@ const resourcesApi = {
 
   async createBook(resource: ResourceCreateInput): Promise<Resource> {
     try {
-      return await fetchJsonWithAuth<Resource>('/api/resources/books', {
-        method: 'POST',
-        body: JSON.stringify(resource)
-      });
+      const response = await apiClient.post<Resource>('/api/resources/books', resource);
+      return response.data;
     } catch (error) {
       console.error('Error creating book resource:', error);
       throw error;
@@ -172,10 +140,8 @@ const resourcesApi = {
 
   async updateResource(type: ResourceType, id: string, resource: ResourceUpdateInput): Promise<Resource> {
     try {
-      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(resource)
-      });
+      const response = await apiClient.put<Resource>(`/api/resources/${type}/${id}`, resource);
+      return response.data;
     } catch (error) {
       console.error(`Error updating resource ${id} of type ${type}:`, error);
       throw error;
@@ -184,9 +150,7 @@ const resourcesApi = {
 
   async deleteResource(type: ResourceType, id: string): Promise<void> {
     try {
-      await fetchJsonWithAuth(`/api/resources/${type}/${id}`, {
-        method: 'DELETE'
-      });
+      await apiClient.delete(`/api/resources/${type}/${id}`);
     } catch (error) {
       console.error(`Error deleting resource ${id} of type ${type}:`, error);
       throw error;
@@ -195,10 +159,8 @@ const resourcesApi = {
 
   async completeResource(type: ResourceType, id: string, notes: string): Promise<Resource> {
     try {
-      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}/${id}/complete`, {
-        method: 'POST',
-        body: JSON.stringify({ notes })
-      });
+      const response = await apiClient.patch<Resource>(`/api/resources/${type}/${id}/complete`, { notes });
+      return response.data;
     } catch (error) {
       console.error(`Error completing resource ${id} of type ${type}:`, error);
       throw error;
@@ -207,25 +169,47 @@ const resourcesApi = {
 
   async toggleResourceCompletion(type: ResourceType, id: string): Promise<Resource> {
     try {
-      return await fetchJsonWithAuth<Resource>(`/api/resources/${type}/${id}/toggle-completion`, {
-        method: 'POST'
-      });
+      const response = await apiClient.post<Resource>(`/api/resources/${type}/${id}/toggle-completion`);
+      return response.data;
     } catch (error) {
       console.error(`Error toggling completion for resource ${id} of type ${type}:`, error);
       throw error;
     }
+  },
+
+  async getResourceById(type: ResourceType, id: string): Promise<Resource> {
+    try {
+      const response = await apiClient.get<Resource>(`/api/resources/${type}/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching resource ${id} of type ${type}:`, error);
+      throw error;
+    }
+  },
+
+  async getResourceStats(type: ResourceType, id: string): Promise<ResourceStats> {
+    try {
+      const response = await apiClient.get<ResourceStats>(`/api/resources/${type}/${id}/stats`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching stats for resource ${id} of type ${type}:`, error);
+      throw error;
+    }
+  },
+
+  getResource: async (type: ResourceType, id: string): Promise<Resource> => {
+    return resourcesApi.getResourceById(type, id);
   },
 }
 
 export default resourcesApi
 
 export async function fetchResourceStats(): Promise<ResourceStats> {
-  return withRetry(async () => {
-    try {
-      return await fetchJsonWithAuth<ResourceStats>('/api/resources/statistics');
-    } catch (error) {
-      console.error('Error in fetchResourceStats:', error);
-      throw error;
-    }
-  }, 2, 1000); // Retry up to 2 times with 1000ms initial delay
+  try {
+    const response = await apiClient.get<ResourceStats>('/api/resources/statistics');
+    return response.data;
+  } catch (error) {
+    console.error('Error in fetchResourceStats:', error);
+    throw error;
+  }
 }

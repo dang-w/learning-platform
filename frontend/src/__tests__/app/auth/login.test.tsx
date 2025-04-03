@@ -37,10 +37,16 @@ describe('LoginPage', () => {
     await user.type(screen.getByTestId('password-input'), 'password123');
 
     const submitButton = screen.getByTestId('submit-button');
-    await user.click(submitButton);
 
-    expect(submitButton).toBeDisabled();
-    expect(submitButton).toHaveTextContent('Logging in...');
+    // Wrap click and waitFor in act
+    await act(async () => {
+      await user.click(submitButton);
+      // Wait for the button to become disabled and text to change
+      await waitFor(() => {
+        expect(submitButton).toBeDisabled();
+        expect(submitButton).toHaveTextContent('Logging in...');
+      });
+    });
   });
 
   it('should show form fields with correct attributes', () => {

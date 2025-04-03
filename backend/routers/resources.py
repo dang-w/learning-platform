@@ -6,6 +6,8 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 import logging
+import httpx # Use httpx for async requests
+from bs4 import BeautifulSoup
 
 # Load environment variables
 load_dotenv()
@@ -78,6 +80,15 @@ class ResourceBatchCreate(BaseModel):
 # Define a direct model for batch POST requests
 class ResourceBatchRequest(BaseModel):
     resources: List[Dict[str, Any]]
+
+# Define request and response models for metadata extraction
+class MetadataRequest(BaseModel):
+    url: str
+
+class MetadataResponse(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    # Add other fields as needed, e.g., image, type guess
 
 # We need to add this model to the top of the file with other models
 class ResourceBatchCreateTest(BaseModel):
@@ -424,7 +435,7 @@ async def update_resource(
 
     return resources[resource_index]
 
-@router.post("/{resource_type}/{resource_id}/complete", response_model=Resource)
+@router.patch("/{resource_type}/{resource_id}/complete", response_model=Resource)
 async def mark_resource_completed(
     resource_type: str,
     resource_id: int,
@@ -842,3 +853,51 @@ async def create_book(
     """
     # Reuse the generic create_resource function with resource_type="books"
     return await create_resource("books", resource, current_user)
+
+# New route for metadata extraction
+@router.post("/metadata", response_model=MetadataResponse)
+async def extract_url_metadata(request: MetadataRequest, current_user: dict = Depends(get_current_active_user)):
+    """
+    Extract metadata (title, description) from a given URL.
+    """
+    logger.info(f"Metadata extraction requested for URL: {request.url} by user {get_username(current_user)}")
+    try:
+        # Validate URL format (basic check)
+        if not request.url.startswith(("http://", "https://")):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid URL format.")
+
+        # Fetch URL content asynchronously
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+            try:
+                response = await client.get(request.url)
+                response.raise_for_status() # Raise exception for bad status codes (4xx, 5xx)
+            except httpx.RequestError as exc:
+                logger.error(f"HTTP request failed for {request.url}: {exc}")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not fetch URL: {exc}")
+            except httpx.HTTPStatusError as exc:
+                 logger.error(f"HTTP status error for {request.url}: {exc}")
+                 raise HTTPException(status_code=exc.response.status_code, detail=f"URL returned status {exc.response.status_code}")
+
+        # Parse HTML content
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Extract title
+        title = soup.title.string.strip() if soup.title else None
+
+        # Extract description (look for meta description tag)
+        description = None
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
+        if meta_desc and 'content' in meta_desc.attrs:
+            description = meta_desc['content'].strip()
+
+        # Log success
+        logger.info(f"Metadata extracted for {request.url}: Title='{title}'")
+
+        return MetadataResponse(title=title, description=description)
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPExceptions directly
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error during metadata extraction for {request.url}: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Metadata extraction failed.")

@@ -1,0 +1,10 @@
+{
+  "reporterEnabled": "mochawesome",
+  "mochawesomeReporterOptions": {
+    "reportDir": "e2e/reports",
+    "overwrite": false,
+    "html": true,
+    "json": true,
+    "timestamp": true
+  }
+}
