@@ -33,7 +33,8 @@ def test_authentication(client, auth_headers):
     user_data = verify_response(response)
     assert user_data["username"] == "testuser"
     assert "email" in user_data
-    assert "full_name" in user_data
+    assert "first_name" in user_data
+    assert "last_name" in user_data
 
 @pytest.mark.integration
 def test_authentication_failure():

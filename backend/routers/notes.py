@@ -9,7 +9,10 @@ import uuid
 
 from database import db
 from auth import get_current_active_user
-from utils.rate_limiter import rate_limit_dependency
+from utils.rate_limiter import (
+    notes_read_rate_limit,
+    notes_write_rate_limit
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -112,7 +115,7 @@ async def get_notes(
     skip: int = Query(0, ge=0, description="Number of notes to skip"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of notes to return"),
     current_user: dict = Depends(get_current_active_user),
-    _: None = Depends(rate_limit_dependency(limit=50, window=60, key_prefix="notes_read"))
+    _: None = Depends(notes_read_rate_limit)
 ):
     """Get all notes for the current user with pagination."""
     try:
@@ -159,7 +162,7 @@ async def get_notes(
 async def get_note(
     note_id: str,
     current_user: dict = Depends(get_current_active_user),
-    _: None = Depends(rate_limit_dependency(limit=50, window=60, key_prefix="notes_read"))
+    _: None = Depends(notes_read_rate_limit)
 ):
     """Get a specific note by ID."""
     try:
@@ -197,7 +200,7 @@ async def get_note(
 async def create_note(
     note: NoteCreate,
     current_user: dict = Depends(get_current_active_user),
-    _: None = Depends(rate_limit_dependency(limit=20, window=60, key_prefix="notes_write"))
+    _: None = Depends(notes_write_rate_limit)
 ):
     """Create a new note."""
     try:
@@ -227,7 +230,7 @@ async def update_note(
     note_id: str,
     note_update: NoteUpdate,
     current_user: dict = Depends(get_current_active_user),
-    _: None = Depends(rate_limit_dependency(limit=20, window=60, key_prefix="notes_write"))
+    _: None = Depends(notes_write_rate_limit)
 ):
     """Update an existing note."""
     try:
@@ -275,7 +278,7 @@ async def update_note(
 async def delete_note(
     note_id: str,
     current_user: dict = Depends(get_current_active_user),
-    _: None = Depends(rate_limit_dependency(limit=20, window=60, key_prefix="notes_write"))
+    _: None = Depends(notes_write_rate_limit)
 ):
     """Delete a note."""
     try:

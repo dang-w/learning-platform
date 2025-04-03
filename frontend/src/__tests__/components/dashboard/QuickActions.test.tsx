@@ -41,7 +41,7 @@ describe('QuickActions', () => {
     render(<QuickActions />);
 
     const addResourceLink = screen.getByText('Add Resource').closest('a');
-    expect(addResourceLink).toHaveAttribute('href', '/resources/new');
+    expect(addResourceLink).toHaveAttribute('href', '/resources?action=add');
 
     const startReviewLink = screen.getByText('Start Review').closest('a');
     expect(startReviewLink).toHaveAttribute('href', '/reviews/session');

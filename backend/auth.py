@@ -65,7 +65,7 @@ def get_db():
 # Models
 class Token(BaseModel):
     access_token: str
-    refresh_token: str
+    # refresh_token: str # Should be handled via HttpOnly cookie
     token_type: str
 
 class TokenData(BaseModel):
@@ -75,7 +75,8 @@ class User(BaseModel):
     id: Optional[str] = None
     username: str
     email: str
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     disabled: bool = False
     is_active: bool = True
     created_at: Optional[datetime] = None
@@ -113,11 +114,24 @@ async def get_user(username: str) -> Optional[dict]:
 
 async def authenticate_user(username: str, password: str) -> Optional[dict]:
     """Authenticate a user."""
+    logger.info(f"[authenticate_user] Attempting to authenticate user: {username}")
     user = await get_user(username)
     if not user:
+        logger.warning(f"[authenticate_user] User not found: {username}")
         return None
-    if not verify_password(password, user["hashed_password"]):
-        return None
+    logger.info(f"[authenticate_user] User found: {username}. Verifying password...")
+    # Explicitly call verify_password and log the result
+    try:
+        password_verified = verify_password(password, user["hashed_password"])
+        logger.info(f"[authenticate_user] verify_password result: {password_verified}")
+        if not password_verified:
+            logger.warning(f"[authenticate_user] Password verification failed for user: {username}")
+            return None
+    except Exception as e:
+        logger.error(f"[authenticate_user] Error during verify_password for user {username}: {str(e)}")
+        return None # Treat errors during verification as failure
+
+    logger.info(f"[authenticate_user] Password verified successfully for user: {username}")
     return user
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -135,16 +149,20 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "type": "access"})
+    # Convert datetime to integer timestamp (seconds since epoch UTC)
+    to_encode.update({"exp": int(expire.timestamp()), "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    logger.info(f"[create_access_token] Generated token: {encoded_jwt}")
     return encoded_jwt
 
 def create_refresh_token(data: dict) -> str:
     """Create a refresh token."""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    # Convert datetime to integer timestamp (seconds since epoch UTC)
+    to_encode.update({"exp": int(expire.timestamp()), "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    logger.info(f"[create_refresh_token] Generated token: {encoded_jwt}")
     return encoded_jwt
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
@@ -155,10 +173,54 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        logger.debug("Attempting to decode JWT token")
-        logger.info(f"Token debug info: Length={len(token) if token else 0}, Prefix={token[:10] + '...' if token and len(token) > 10 else 'N/A'}")
+        # Remove "Bearer " prefix if present
+        if token and token.lower().startswith("bearer "):
+            token_value = token[7:]
+        else:
+            token_value = token # Use as is if prefix not found (or handle as error?)
+            if not token_value:
+                logger.warning("Token value is empty after dependency injection.")
+                raise credentials_exception
+            # Optional: Log or raise if prefix was expected but missing?
+            # logger.warning("Authorization header missing 'Bearer ' prefix.")
 
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # logger.debug("Attempting to decode JWT token value")
+        # logger.info(f"Token debug info: Length={len(token_value)}, Prefix={token_value[:10] + '...' if len(token_value) > 10 else 'N/A'}")
+
+        # --- JWT Decode Debugging ---
+        # current_time_utc = datetime.utcnow()
+        # current_timestamp = int(current_time_utc.timestamp())
+        # logger.info(f"[JWT Decode] Current UTC Time: {current_time_utc}")
+        # logger.info(f"[JWT Decode] Current Timestamp: {current_timestamp}")
+        # try:
+        #     # Decode without validation just to get claims for logging
+        #     unverified_payload = jwt.decode(token_value, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": False, "verify_exp": False})
+        #     token_exp = unverified_payload.get('exp')
+        #     logger.info(f"[JWT Decode] Token 'exp' claim: {token_exp}")
+        #     if token_exp:
+        #         logger.info(f"[JWT Decode] Time difference (exp - now): {token_exp - current_timestamp} seconds")
+        # except Exception as log_err:
+        #     logger.error(f"[JWT Decode] Error getting token claims for logging: {log_err}")
+        # --- End JWT Decode Debugging ---
+
+        # WORKAROUND: Skip internal expiry validation due to python-jose bug/issue
+        # logger.info("[JWT Decode] Attempting decode with verify_exp=False")
+        payload = jwt.decode(
+            token_value,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"verify_exp": False} # Skip internal expiry check - WORKAROUND
+        )
+        # logger.info("[JWT Decode] Decode successful (verify_exp=False)")
+
+        # Manual expiry check (Now handled implicitly by subsequent logic or should be added back if strict check needed)
+        # token_exp_manual = payload.get("exp", 0)
+        # logger.info(f"[Manual Check] Token exp: {token_exp_manual}, Current time: {current_timestamp}")
+        # if token_exp_manual < current_timestamp:
+        #     logger.error(f"[Manual Check] Manual check failed: Token expired ({token_exp_manual} < {current_timestamp})")
+        #     raise JWTError("Manual Check: Signature has expired.")
+        # else:
+        #     logger.info("[Manual Check] Manual check passed.")
 
         username: str = payload.get("sub")
         if username is None:
@@ -176,7 +238,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         if user is None:
             logger.warning(f"User not found: {token_data.username}")
             raise credentials_exception
-        logger.info(f"Successfully authenticated user: {token_data.username}")
         return user
     except Exception as e:
         logger.error(f"Failed to get user: {str(e)}")

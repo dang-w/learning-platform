@@ -14,7 +14,8 @@ from tests.conftest import MockUser
 test_user_data = {
     "username": "testuser",
     "email": "test@example.com",
-    "full_name": "Test User",
+    "first_name": "Test",
+"last_name": "User",
     "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
     "disabled": False
 }
@@ -93,7 +94,8 @@ def test_get_current_user_with_valid_token(client, auth_headers):
     user_data = response.json()
     assert user_data["username"] == "testuser"
     assert "email" in user_data
-    assert "full_name" in user_data
+    assert "first_name" in user_data
+    assert "last_name" in user_data
 
 def test_get_current_user_without_token(client):
     """Test getting the current user without a token."""
@@ -140,67 +142,123 @@ def test_get_current_user_with_invalid_token(client):
     assert error_response["detail"] == "Could not validate credentials"
 
 @pytest.mark.asyncio
-async def test_login_with_valid_credentials(client, monkeypatch):
-    """Test login with valid credentials."""
-    # Create a synchronous mock for the route
-    def mock_post(*args, **kwargs):
-        class MockResponse:
-            def __init__(self):
-                self.status_code = 200
-                self.text = """{"access_token": "fake_access_token", "refresh_token": "fake_refresh_token", "token_type": "bearer"}"""
-                self._content = self.text.encode("utf-8")
-
-            def json(self):
-                import json
-                return json.loads(self.text)
-
-        return MockResponse()
-
-    # Apply the mock to the client
-    monkeypatch.setattr(client, "post", mock_post)
-
-    # The test should now pass regardless of the actual route logic
-    response = client.post(
-        "/api/auth/token",
-        data={"username": "testuser", "password": "password123"},
-    )
-
-    assert response.status_code == 200
+@patch("routers.auth.create_user", new_callable=AsyncMock)
+@patch("routers.auth.create_access_token", return_value="fake_access_token")
+@patch("routers.auth.create_refresh_token", return_value="fake_refresh_token")
+@patch("routers.auth.set_refresh_token_cookie")
+async def test_register_success(
+    mock_set_cookie, mock_create_refresh, mock_create_access, mock_create_user, client
+):
+    """Test successful user registration."""
+    # Return a mock object that has a username attribute
+    mock_user_instance = MagicMock()
+    mock_user_instance.username = "newuser"
+    mock_create_user.return_value = mock_user_instance
+    register_payload = {
+        "username": "newuser",
+        "email": "new@example.com",
+        "password": "password123",
+        "confirm_password": "password123",
+        "first_name": "New",
+        "last_name": "User"
+    }
+    response = client.post("/api/auth/register", json=register_payload)
+    assert response.status_code == 201
     response_data = response.json()
-    assert "access_token" in response_data
-    assert "refresh_token" in response_data
-    assert "token_type" in response_data
+    assert response_data["access_token"] == "fake_access_token"
+    mock_create_user.assert_awaited_once()
+    mock_create_access.assert_called_once_with(data={"sub": "newuser"})
+    mock_create_refresh.assert_called_once_with(data={"sub": "newuser"})
+    mock_set_cookie.assert_called_once()
+    args, kwargs = mock_set_cookie.call_args
+    assert args[1] == "fake_refresh_token"
+    from starlette.responses import Response
+    assert isinstance(args[0], Response)
+
+@pytest.mark.asyncio
+async def test_register_password_mismatch(client):
+    """Test registration with mismatching passwords."""
+    register_payload = {
+        "username": "newuser",
+        "email": "new@example.com",
+        "password": "password123",
+        "confirm_password": "password456", # Mismatch
+        "first_name": "New",
+        "last_name": "User"
+    }
+    response = client.post("/api/auth/register", json=register_payload)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Password and confirmation password do not match" in response.json()["detail"]
+
+@pytest.mark.asyncio
+@patch("routers.auth.create_user", new_callable=AsyncMock)
+async def test_register_user_exists(mock_create_user, client):
+    """Test registration when user already exists."""
+    mock_create_user.side_effect = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Username already registered"
+    )
+    register_payload = {
+        "username": "existinguser",
+        "email": "existing@example.com",
+        "password": "password123",
+        "confirm_password": "password123",
+        "first_name": "Existing",
+        "last_name": "User"
+    }
+    response = client.post("/api/auth/register", json=register_payload)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Username already registered" in response.json()["detail"]
+    mock_create_user.assert_awaited_once()
+
+@pytest.mark.asyncio
+@patch("routers.auth.authenticate_user", new_callable=AsyncMock)
+@patch("routers.auth.create_access_token", return_value="fake_access_token")
+@patch("routers.auth.create_refresh_token", return_value="fake_refresh_token")
+@patch("routers.auth.set_refresh_token_cookie")
+async def test_token_success(mock_set_cookie, mock_create_refresh, mock_create_access, mock_auth_user, client):
+    """Test successful login via /token endpoint."""
+    mock_auth_user.return_value = {"username": "testuser"}
+    login_payload = {"username": "testuser", "password": "password123"}
+    response = client.post("/api/auth/token", json=login_payload)
+    assert response.status_code == status.HTTP_200_OK
+    response_data = response.json()
+    assert response_data["access_token"] == "fake_access_token"
     assert response_data["token_type"] == "bearer"
+    mock_auth_user.assert_awaited_once_with("testuser", "password123")
+    mock_create_access.assert_called_once()
+    args, kwargs = mock_create_access.call_args
+    assert kwargs['data']['sub'] == "testuser"
+    mock_create_refresh.assert_called_once_with(data={"sub": "testuser"})
+    mock_set_cookie.assert_called_once()
+    args_cookie, kwargs_cookie = mock_set_cookie.call_args
+    assert args_cookie[1] == "fake_refresh_token"
+    from starlette.responses import Response
+    assert isinstance(args_cookie[0], Response)
 
-@patch("auth.authenticate_user")
-def test_login_with_invalid_username(mock_auth, client):
+@patch("routers.auth.authenticate_user", new_callable=AsyncMock)
+def test_login_with_invalid_username(mock_auth_async, client):
     """Test login with invalid username."""
-    # Mock authenticate_user to return None
-    mock_auth.return_value = None
-
+    mock_auth_async.return_value = None
     response = client.post(
         "/api/auth/token",
-        data={"username": "nonexistent", "password": "password123"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
+        json={"username": "nonexistent", "password": "password123"}
     )
-
     assert response.status_code == 401
     assert response.json()["detail"] == "Incorrect username or password"
+    mock_auth_async.assert_awaited_once_with("nonexistent", "password123")
 
-@patch("auth.authenticate_user")
-def test_login_with_invalid_password(mock_auth, client):
+@patch("routers.auth.authenticate_user", new_callable=AsyncMock)
+def test_login_with_invalid_password(mock_auth_async, client):
     """Test login with invalid password."""
-    # Mock authenticate_user to return None
-    mock_auth.return_value = None
-
+    mock_auth_async.return_value = None
     response = client.post(
         "/api/auth/token",
-        data={"username": "testuser", "password": "wrongpassword"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
+        json={"username": "testuser", "password": "wrongpassword"}
     )
-
     assert response.status_code == 401
     assert response.json()["detail"] == "Incorrect username or password"
+    mock_auth_async.assert_awaited_once_with("testuser", "wrongpassword")
 
 def test_login_incorrect_credentials(client):
     # ... existing code ...
@@ -208,40 +266,28 @@ def test_login_incorrect_credentials(client):
 
 def test_token_refresh(client, monkeypatch):
     """Test refreshing an access token."""
-    # Mock the requests.post method
-    def mock_post(*args, **kwargs):
-        class MockResponse:
-            def __init__(self):
-                self.status_code = 200
-
-            def json(self):
-                return {
-                    "access_token": "new_access_token",
-                    "refresh_token": "new_refresh_token",
-                    "token_type": "bearer"
-                }
-
-        return MockResponse()
-
-    # Apply the mock at the module level
+    # Mock verify_refresh_token to simulate successful validation
     with patch("routers.auth.verify_refresh_token", return_value={"sub": "testuser", "type": "refresh"}):
-        # Test refreshing token
+        # Simulate the refresh_token cookie being present
         response = client.post(
             "/api/auth/token/refresh",
-            json={"refresh_token": "valid_refresh_token"}
+            cookies={"refresh_token": "valid_refresh_token"}
         )
 
         assert response.status_code == 200
         token_data = response.json()
         assert "access_token" in token_data
-        assert "refresh_token" in token_data
+        assert "refresh_token" not in token_data
         assert token_data["token_type"] == "bearer"
+        assert "refresh_token" in response.cookies
+        assert response.cookies["refresh_token"] is not None
+        assert "HttpOnly" in response.headers["set-cookie"]
 
 def test_token_refresh_invalid_token(client):
-    """Test token refresh with invalid token."""
+    """Test token refresh with invalid token/cookie."""
     response = client.post(
         "/api/auth/token/refresh",
-        json={"refresh_token": "invalid_token"}
+        cookies={"refresh_token": "invalid_token"}
     )
 
     assert response.status_code == 401
@@ -249,13 +295,18 @@ def test_token_refresh_invalid_token(client):
     assert "detail" in error_response
     assert error_response["detail"] == "Invalid or expired refresh token"
 
+    response_no_cookie = client.post("/api/auth/token/refresh")
+    assert response_no_cookie.status_code == 401
+    assert response_no_cookie.json()["detail"] == "Refresh token cookie not found"
+
 def test_auth_me_endpoint_with_valid_token(client, auth_headers):
     """Test accessing the /api/auth/me endpoint with a valid token."""
     # Create a mock user with all required fields
     mock_user = {
         "username": "testuser",
         "email": "test@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "id": "123456789",
         "created_at": datetime.now().isoformat(),
         "is_active": True,
@@ -279,7 +330,8 @@ def test_auth_me_endpoint_with_valid_token(client, auth_headers):
     user_data = response.json()
     assert user_data["username"] == "testuser"
     assert user_data["email"] == "test@example.com"
-    assert user_data["full_name"] == "Test User"
+    assert user_data["first_name"] == "Test"
+    assert user_data["last_name"] == "User"
     assert "resources" in user_data
     assert "articles" in user_data["resources"]
     assert "videos" in user_data["resources"]

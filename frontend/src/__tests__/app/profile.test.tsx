@@ -70,11 +70,6 @@ describe('ProfilePage', () => {
   it('renders the profile page with user data', async () => {
     render(<ProfilePage />);
 
-    // Wait for initialization and loading to complete
-    await waitFor(() => {
-      expect(mockAuthStore.initializeFromStorage).toHaveBeenCalled();
-    });
-
     // Wait for API calls to complete
     await waitFor(() => {
       expect(authApi.getUserStatistics).toHaveBeenCalled();
@@ -90,7 +85,8 @@ describe('ProfilePage', () => {
     expect(screen.getByTestId('profile-page')).toBeInTheDocument();
     expect(screen.getByTestId('profile-form')).toBeInTheDocument();
     expect(screen.getByDisplayValue('test@example.com')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Test')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('User')).toBeInTheDocument();
   });
 
   it('submits the profile form with updated data', async () => {
@@ -108,11 +104,13 @@ describe('ProfilePage', () => {
     });
 
     const emailInput = screen.getByTestId('profile-email');
-    const fullNameInput = screen.getByTestId('profile-full-name');
+    const firstNameInput = screen.getByTestId('profile-first-name');
+    const lastNameInput = screen.getByTestId('profile-last-name');
     const submitButton = screen.getByTestId('save-profile-button');
 
     fireEvent.change(emailInput, { target: { value: 'newemail@example.com' } });
-    fireEvent.change(fullNameInput, { target: { value: 'New Name' } });
+    fireEvent.change(firstNameInput, { target: { value: 'New' } });
+    fireEvent.change(lastNameInput, { target: { value: 'Name' } });
     fireEvent.click(submitButton);
 
     await waitFor(() => {

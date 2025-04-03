@@ -25,7 +25,8 @@ async def test_user_profile(async_client, auth_headers):
     user_data = {
         "username": username,
         "email": f"{username}@example.com",
-        "full_name": f"Test User {username.capitalize()}",
+        "first_name": "Test",
+        "last_name": f"User {username.capitalize()}",
         "disabled": False
     }
 
@@ -41,7 +42,8 @@ async def test_user_profile(async_client, auth_headers):
         user_data = verify_response(response)
         assert user_data["username"] == username
         assert user_data["email"] == f"{username}@example.com"
-        assert user_data["full_name"] == f"Test User {username.capitalize()}"
+        assert user_data["first_name"] == "Test"
+        assert user_data["last_name"] == f"User {username.capitalize()}"
         assert user_data["disabled"] is False
 
 @pytest.mark.integration

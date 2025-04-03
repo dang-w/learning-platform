@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import os
 from dotenv import load_dotenv
 from bson.objectid import ObjectId
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -455,7 +456,11 @@ Period: {week_start} to {week_end}
 
                     focus_plot_url = fig_to_base64(fig)
         except Exception as e:
-            print(f"Error generating time plots: {e}")
+            logger.error(f"Error generating time plots for {username}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate time plots: {str(e)}"
+            )
 
     # Topic distribution plot
     if topic_count:
@@ -483,14 +488,26 @@ Period: {week_start} to {week_end}
 
             topic_plot_url = fig_to_base64(fig)
         except Exception as e:
-            print(f"Error generating topic plot: {e}")
+            logger.error(f"Error generating topic plot for {username}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate topic plot: {str(e)}"
+            )
 
-    return {
-        "report_content": report,
-        "time_plot_url": time_plot_url,
-        "focus_plot_url": focus_plot_url,
-        "topic_plot_url": topic_plot_url
-    }
+    try:
+        return {
+            "report_content": report,
+            "time_plot_url": time_plot_url,
+            "focus_plot_url": focus_plot_url,
+            "topic_plot_url": topic_plot_url
+        }
+    except Exception as e:
+        logger.error(f"Error generating weekly report for {username}: {str(e)}")
+        # Raise HTTPException instead of returning nothing
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate weekly report: {str(e)}"
+        )
 
 @router.delete("/metrics/{metric_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_metric(

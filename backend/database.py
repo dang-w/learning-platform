@@ -9,8 +9,14 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+# Load environment variables based on ENVIRONMENT
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+if ENVIRONMENT == "test":
+    print("INFO [database]: Loading .env.test")
+    load_dotenv(dotenv_path=".env.test", override=True)
+else:
+    print(f"INFO [database]: Loading default .env for {ENVIRONMENT}")
+    load_dotenv()
 
 # Get MongoDB connection string from environment variables
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")

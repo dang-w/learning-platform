@@ -13,7 +13,9 @@ import os
 from database import db
 from auth import get_current_active_user, get_password_hash
 from utils.validators import validate_email, validate_password_strength
-from utils.rate_limiter import rate_limit_dependency
+from utils.rate_limiter import rate_limit_dependency_with_logging, create_user_rate_limit
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,10 +26,17 @@ router = APIRouter()
 class UserBase(BaseModel):
     username: constr(min_length=3, max_length=50)
     email: EmailStr
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 class UserCreate(UserBase):
     password: constr(min_length=8)
+
+# Add model for user profile updates (PATCH)
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    firstName: Optional[str] = None  # Use camelCase to match frontend request
+    lastName: Optional[str] = None   # Use camelCase to match frontend request
 
 class User(UserBase):
     id: str
@@ -130,9 +139,17 @@ def normalize_user_data(user_dict: dict) -> dict:
     if "created_at" not in user_data:
         user_data["created_at"] = datetime.utcnow()
 
+    # Ensure first_name and last_name exist
+    if "first_name" not in user_data:
+        user_data["first_name"] = ""
+    if "last_name" not in user_data:
+        user_data["last_name"] = ""
+
+    # <<< Log the final normalized data >>>
     return user_data
 
-@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency(limit=10, window=600, key_prefix="user_creation"))])
+@router.post("/", response_model=User, status_code=status.HTTP_201_CREATED,
+            dependencies=[Depends(create_user_rate_limit)])
 async def create_user(user: UserCreate, request: Request):
     """Create a new user."""
     try:
@@ -342,7 +359,8 @@ async def export_user_data(current_user: dict = Depends(get_current_active_user)
             "user_info": {
                 "username": current_user["username"],
                 "email": current_user["email"],
-                "full_name": current_user.get("full_name"),
+                "first_name": current_user.get("first_name"),
+                "last_name": current_user.get("last_name"),
                 "created_at": current_user["created_at"]
             },
             "learning_data": {
@@ -418,4 +436,79 @@ async def delete_account(current_user: dict = Depends(get_current_active_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error deleting user account"
+        )
+
+@router.patch("/me", response_model=User)
+async def update_user_me(
+    update_data: UserUpdate,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """Update current user's profile (email, first_name, last_name)."""
+    user_id = current_user["_id"]
+    update_payload = update_data.model_dump(exclude_unset=True) # Only get fields sent by client
+
+    if not update_payload:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided for update."
+        )
+
+    # Map frontend camelCase keys to backend snake_case keys for DB update
+    db_update_dict = {}
+    if "email" in update_payload:
+        # Basic validation for the new email
+        if not validate_email(update_payload["email"]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email format")
+        # Check if the new email is already taken by another user
+        existing_user = await db.users.find_one({"email": update_payload["email"], "_id": {"$ne": user_id}})
+        if existing_user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email address already in use by another account.")
+        db_update_dict["email"] = update_payload["email"]
+
+    if "firstName" in update_payload:
+        # Add basic validation if needed (e.g., length)
+        db_update_dict["first_name"] = update_payload["firstName"]
+    if "lastName" in update_payload:
+        # Add basic validation if needed (e.g., length)
+        db_update_dict["last_name"] = update_payload["lastName"]
+
+    # Add updated_at timestamp if any fields are being updated
+    if db_update_dict:
+        db_update_dict["updated_at"] = datetime.utcnow()
+    else:
+         # Should have been caught by the initial check, but as a safeguard:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid fields provided for update.")
+
+    try:
+        result = await db.users.update_one(
+            {"_id": user_id},
+            {"$set": db_update_dict}
+        )
+
+        if result.matched_count == 0: # Should not happen if user is authenticated
+             logger.error(f"Attempted to update non-existent user: {user_id}")
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        # Fetch the updated document to return
+        updated_user_doc = await db.users.find_one({"_id": user_id})
+
+        if updated_user_doc is None:
+            logger.error(f"Failed to fetch user after update: {user_id}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated user profile")
+
+        # Normalize and return using the existing User model
+        normalized_user = normalize_user_data(updated_user_doc)
+        return User(**normalized_user)
+
+    except DuplicateKeyError: # Should be caught by the explicit check above, but good to have
+         logger.warning(f"Update failed due to potential duplicate key for user {user_id} with payload {db_update_dict}")
+         raise HTTPException(
+             status_code=status.HTTP_400_BAD_REQUEST,
+             detail="An unexpected conflict occurred. The email might already be in use."
+         )
+    except Exception as e:
+        logger.error(f"Error updating user profile for {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating user profile"
         )

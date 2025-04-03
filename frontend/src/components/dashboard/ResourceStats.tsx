@@ -131,7 +131,7 @@ export function ResourceStats() {
   }
 
   return (
-    <Card>
+    <Card data-testid="resource-stats">
       <CardHeader>
         <CardTitle>Resource Statistics</CardTitle>
       </CardHeader>

@@ -32,7 +32,8 @@ test_resource = {
 test_user_data = {
     "username": "testuser",
     "email": "test@example.com",
-    "full_name": "Test User",
+    "first_name": "Test",
+"last_name": "User",
     "disabled": False,
     "resources": {
         "articles": [test_resource],
@@ -175,7 +176,8 @@ def test_get_all_resources_empty(client, auth_headers):
     mock_find_one.return_value = {
         "username": "testuser",
         "email": "test@example.com",
-        "full_name": "Test User",
+        "first_name": "Test",
+"last_name": "User",
         "disabled": False,
         "resources": {
             "articles": [],
@@ -468,7 +470,7 @@ def test_mark_resource_completed(client, auth_headers):
 
     # Mock the database operations
     with patch('routers.resources.db', mock_db):
-        response = client.post("/api/resources/articles/1/complete", json=completion_data, headers=auth_headers)
+        response = client.patch("/api/resources/articles/1/complete", json=completion_data, headers=auth_headers)
 
         assert response.status_code == 200
         resource_data = response.json()

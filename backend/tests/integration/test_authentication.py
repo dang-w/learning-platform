@@ -19,7 +19,8 @@ TEST_USER = {
     "username": "auth_test_user",
     "email": "auth_test@example.com",
     "password": "TestPassword123!",
-    "full_name": "Auth Test User"
+    "first_name": "Auth",
+    "last_name": "Test User"
 }
 
 @pytest.fixture(autouse=True)
@@ -288,7 +289,8 @@ async def test_protected_endpoint_access():
         user_response_auth.json.return_value = {
             "username": TEST_USER["username"],
             "email": TEST_USER["email"],
-            "full_name": TEST_USER["full_name"]
+            "first_name": TEST_USER["first_name"],
+            "last_name": TEST_USER["last_name"]
         }
 
         # Third response: protected endpoint without token
@@ -624,7 +626,8 @@ async def test_password_update():
                 "username": TEST_USER["username"],
                 "email": TEST_USER["email"],
                 "hashed_password": hashed_password,
-                "full_name": TEST_USER["full_name"]
+                "first_name": TEST_USER["first_name"],
+                "last_name": TEST_USER["last_name"]
             }
             mock_collection.find_one = AsyncMock(return_value=mock_user)
 

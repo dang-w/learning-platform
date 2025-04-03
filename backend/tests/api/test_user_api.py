@@ -21,7 +21,8 @@ from tests.conftest import MockUser
 test_user_data = {
     "username": "testuser",
     "email": "test@example.com",
-    "full_name": "Test User",
+    "first_name": "Test",
+"last_name": "User",
     "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
     "disabled": False
 }
@@ -44,7 +45,8 @@ async def test_create_user(client):
     new_user = {
         "username": "newuser",
         "email": "newuser@example.com",
-        "full_name": "New User",
+        "first_name": "New",
+        "last_name": "User",
         "password": "Password123!"
     }
 
@@ -87,7 +89,8 @@ async def test_create_user_duplicate_username(client):
     duplicate_user = {
         "username": "testuser",  # Same username as existing user
         "email": "another@example.com",
-        "full_name": "Another User",
+        "first_name": "Another",
+        "last_name": "User",
         "password": "Password123!"
     }
 
@@ -97,7 +100,8 @@ async def test_create_user_duplicate_username(client):
         existing_user = {
             "username": "testuser",
             "email": "test@example.com",
-            "full_name": "Test User",
+            "first_name": "Test",
+"last_name": "User",
             "disabled": False
         }
 
@@ -142,7 +146,8 @@ def test_get_current_user_with_valid_token(client, auth_headers):
     user_data = response.json()
     assert user_data["username"] == "testuser"
     assert "email" in user_data
-    assert "full_name" in user_data
+    assert "first_name" in user_data
+    assert "last_name" in user_data
 
 def test_get_current_user_without_token(client):
     """Test getting the current user without a token."""
@@ -227,7 +232,7 @@ def test_login_with_invalid_username(mock_auth, client):
 
     response = client.post(
         "/api/auth/token",
-        data={"username": "invaliduser", "password": "password123"}
+        json={"username": "invaliduser", "password": "password123"}
     )
 
     assert response.status_code == 401
@@ -241,7 +246,7 @@ def test_login_with_invalid_password(mock_auth, client):
 
     response = client.post(
         "/api/auth/token",
-        data={"username": "testuser", "password": "invalidpassword"}
+        json={"username": "testuser", "password": "invalidpassword"}
     )
 
     assert response.status_code == 401

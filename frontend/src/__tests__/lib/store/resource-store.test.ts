@@ -158,7 +158,11 @@ describe('Resource Store', () => {
         notes: '',
       };
 
+      // Mock the create API and subsequent fetches
       (resourcesApi.createResource as jest.Mock).mockResolvedValueOnce(createdResource);
+      // Assume the fetch returns the new resource (adjust if initial state matters)
+      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValueOnce([createdResource]);
+      (resourcesApi.getResourceStatistics as jest.Mock).mockResolvedValueOnce(mockStatistics); // Use mock stats
 
       const { result } = renderHook(() => useResourceStore());
 
@@ -167,7 +171,11 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.createResource).toHaveBeenCalledWith(type, newResource);
-      expect(result.current.resources).toContainEqual(createdResource);
+      // Verify fetches were called
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+      expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      // Check state *after* fetches complete
+      expect(result.current.resources).toEqual([createdResource]);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
     });
@@ -185,6 +193,10 @@ describe('Resource Store', () => {
       const error = new Error('Failed to add resource');
       (resourcesApi.createResource as jest.Mock).mockRejectedValueOnce(error);
 
+      // Reset mocks for fetchResourcesByType and getResourceStatistics for safety in error case tests
+      (resourcesApi.getResourcesByType as jest.Mock).mockClear();
+      (resourcesApi.getResourceStatistics as jest.Mock).mockClear();
+
       const { result } = renderHook(() => useResourceStore());
 
       await act(async () => {
@@ -192,6 +204,9 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.createResource).toHaveBeenCalledWith(type, newResource);
+      // Verify fetches were *not* called after error
+      expect(resourcesApi.getResourcesByType).not.toHaveBeenCalled();
+      expect(resourcesApi.getResourceStatistics).not.toHaveBeenCalled();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(error.message);
     });
@@ -205,17 +220,21 @@ describe('Resource Store', () => {
         title: 'Updated Resource',
         topics: ['ML', 'AI', 'Data Science'],
       };
-
+      const originalResource = mockResources.find(r => r.id === id)!;
       const updatedResource: Resource = {
-        ...mockResources[0],
+        ...originalResource,
         ...updateData,
       };
+      const updatedList = mockResources.map(r => r.id === id ? updatedResource : r);
 
+      // Mock the update API and subsequent fetches
       (resourcesApi.updateResource as jest.Mock).mockResolvedValueOnce(updatedResource);
+      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValueOnce(updatedList);
+      (resourcesApi.getResourceStatistics as jest.Mock).mockResolvedValueOnce(mockStatistics); // Use mock stats
 
       const { result } = renderHook(() => useResourceStore());
 
-      // First set some initial resources
+      // Set initial state *before* the action
       act(() => {
         result.current.resources = [...mockResources];
       });
@@ -225,6 +244,11 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.updateResource).toHaveBeenCalledWith(type, id, updateData);
+      // Verify fetches were called
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+      expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      // Check state *after* fetches complete
+      expect(result.current.resources).toEqual(updatedList);
       expect(result.current.resources.find(r => r.id === id)).toEqual(updatedResource);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
@@ -240,6 +264,10 @@ describe('Resource Store', () => {
       const error = new Error('Failed to update resource');
       (resourcesApi.updateResource as jest.Mock).mockRejectedValueOnce(error);
 
+      // Reset mocks for fetchResourcesByType and getResourceStatistics for safety in error case tests
+      (resourcesApi.getResourcesByType as jest.Mock).mockClear();
+      (resourcesApi.getResourceStatistics as jest.Mock).mockClear();
+
       const { result } = renderHook(() => useResourceStore());
 
       // First set some initial resources
@@ -252,8 +280,13 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.updateResource).toHaveBeenCalledWith(type, id, updateData);
+      // Verify fetches were *not* called after error
+      expect(resourcesApi.getResourcesByType).not.toHaveBeenCalled();
+      expect(resourcesApi.getResourceStatistics).not.toHaveBeenCalled();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(error.message);
+      // Ensure state wasn't incorrectly changed
+      expect(result.current.resources).toEqual(mockResources);
     });
   });
 
@@ -261,12 +294,16 @@ describe('Resource Store', () => {
     it('should delete a resource and update state', async () => {
       const type: ResourceType = 'articles';
       const id = '1';
+      const remainingResources = mockResources.filter(r => r.id !== id);
 
+      // Mock the delete API and subsequent fetches
       (resourcesApi.deleteResource as jest.Mock).mockResolvedValueOnce(undefined);
+      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValueOnce(remainingResources);
+      (resourcesApi.getResourceStatistics as jest.Mock).mockResolvedValueOnce(mockStatistics); // Use mock stats
 
       const { result } = renderHook(() => useResourceStore());
 
-      // First set some initial resources
+      // Set initial state *before* the action
       act(() => {
         result.current.resources = [...mockResources];
       });
@@ -276,6 +313,11 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.deleteResource).toHaveBeenCalledWith(type, id);
+      // Verify fetches were called
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+      expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      // Check state *after* fetches complete
+      expect(result.current.resources).toEqual(remainingResources);
       expect(result.current.resources.find(r => r.id === id)).toBeUndefined();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
@@ -288,6 +330,10 @@ describe('Resource Store', () => {
       const error = new Error('Failed to delete resource');
       (resourcesApi.deleteResource as jest.Mock).mockRejectedValueOnce(error);
 
+      // Reset mocks for fetchResourcesByType and getResourceStatistics for safety in error case tests
+      (resourcesApi.getResourcesByType as jest.Mock).mockClear();
+      (resourcesApi.getResourceStatistics as jest.Mock).mockClear();
+
       const { result } = renderHook(() => useResourceStore());
 
       // First set some initial resources
@@ -300,8 +346,13 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.deleteResource).toHaveBeenCalledWith(type, id);
+      // Verify fetches were *not* called after error
+      expect(resourcesApi.getResourcesByType).not.toHaveBeenCalled();
+      expect(resourcesApi.getResourceStatistics).not.toHaveBeenCalled();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(error.message);
+      // Ensure state wasn't incorrectly changed
+      expect(result.current.resources).toEqual(mockResources);
     });
   });
 
@@ -310,19 +361,25 @@ describe('Resource Store', () => {
       const type: ResourceType = 'articles';
       const id = '1';
       const notes = 'Completed with notes';
+      const originalResource = mockResources.find(r => r.id === id)!;
 
       const completedResource: Resource = {
-        ...mockResources[0],
+        ...originalResource,
         completed: true,
-        completion_date: '2023-03-20T10:30:00',
+        completion_date: '2023-03-20T10:30:00', // Example date, API mock should provide actual
         notes,
       };
+      const updatedList = mockResources.map(r => r.id === id ? completedResource : r);
 
+      // Mock the complete API and subsequent fetches
+      // Mock completeResource to return the resource *with* completion_date
       (resourcesApi.completeResource as jest.Mock).mockResolvedValueOnce(completedResource);
+      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValueOnce(updatedList);
+      (resourcesApi.getResourceStatistics as jest.Mock).mockResolvedValueOnce(mockStatistics); // Use mock stats
 
       const { result } = renderHook(() => useResourceStore());
 
-      // First set some initial resources
+      // Set initial state *before* the action
       act(() => {
         result.current.resources = [...mockResources];
       });
@@ -332,6 +389,11 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.completeResource).toHaveBeenCalledWith(type, id, notes);
+      // Verify fetches were called
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+      expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      // Check state *after* fetches complete
+      expect(result.current.resources).toEqual(updatedList);
       expect(result.current.resources.find(r => r.id === id)).toEqual(completedResource);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
@@ -345,6 +407,10 @@ describe('Resource Store', () => {
       const error = new Error('Failed to complete resource');
       (resourcesApi.completeResource as jest.Mock).mockRejectedValueOnce(error);
 
+      // Reset mocks for fetchResourcesByType and getResourceStatistics for safety in error case tests
+      (resourcesApi.getResourcesByType as jest.Mock).mockClear();
+      (resourcesApi.getResourceStatistics as jest.Mock).mockClear();
+
       const { result } = renderHook(() => useResourceStore());
 
       // First set some initial resources
@@ -357,8 +423,13 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.completeResource).toHaveBeenCalledWith(type, id, notes);
+      // Verify fetches were *not* called after error
+      expect(resourcesApi.getResourcesByType).not.toHaveBeenCalled();
+      expect(resourcesApi.getResourceStatistics).not.toHaveBeenCalled();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(error.message);
+      // Ensure state wasn't incorrectly changed
+      expect(result.current.resources).toEqual(mockResources);
     });
   });
 
@@ -414,21 +485,26 @@ describe('Resource Store', () => {
   });
 
   describe('toggleCompletion', () => {
-    it('should toggle resource completion status', async () => {
+    it('should toggle resource completion status (to completed)', async () => {
       const type: ResourceType = 'articles';
-      const id = '1';
+      const id = '1'; // Assuming resource '1' starts as incomplete
+      const originalResource = mockResources.find(r => r.id === id)!;
 
       const toggledResource: Resource = {
-        ...mockResources[0],
+        ...originalResource,
         completed: true,
-        completion_date: '2023-03-20T10:30:00',
+        completion_date: '2023-03-20T10:30:00', // Example date, API mock should provide actual
       };
+      const updatedList = mockResources.map(r => r.id === id ? toggledResource : r);
 
+      // Mock the toggle API and subsequent fetches
       (resourcesApi.toggleResourceCompletion as jest.Mock).mockResolvedValueOnce(toggledResource);
+      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValueOnce(updatedList);
+      (resourcesApi.getResourceStatistics as jest.Mock).mockResolvedValueOnce(mockStatistics); // Use mock stats
 
       const { result } = renderHook(() => useResourceStore());
 
-      // First set some initial resources
+      // Set initial state *before* the action
       act(() => {
         result.current.resources = [...mockResources];
       });
@@ -438,7 +514,55 @@ describe('Resource Store', () => {
       });
 
       expect(resourcesApi.toggleResourceCompletion).toHaveBeenCalledWith(type, id);
+       // Verify fetches were called
+       expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+       expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      // Check state *after* fetches complete
+      expect(result.current.resources).toEqual(updatedList);
       expect(result.current.resources.find(r => r.id === id)?.completed).toBe(true);
+      expect(result.current.resources.find(r => r.id === id)?.completion_date).not.toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should toggle resource completion status (to incomplete)', async () => {
+      const type: ResourceType = 'articles'; // Assuming type doesn't matter for the toggle logic itself
+      const id = '2'; // Assuming resource '2' starts as complete
+      const originalResource = mockResources.find(r => r.id === id)!;
+
+      const toggledResource: Resource = {
+        ...originalResource,
+        completed: false,
+        completion_date: null,
+      };
+       // Ensure the initial state reflects resource '2' being complete
+       const initialState = [...mockResources];
+       const updatedList = initialState.map(r => r.id === id ? toggledResource : r);
+
+      // Mock the toggle API and subsequent fetches
+      (resourcesApi.toggleResourceCompletion as jest.Mock).mockResolvedValueOnce(toggledResource);
+      (resourcesApi.getResourcesByType as jest.Mock).mockResolvedValueOnce(updatedList);
+      (resourcesApi.getResourceStatistics as jest.Mock).mockResolvedValueOnce(mockStatistics); // Use mock stats
+
+      const { result } = renderHook(() => useResourceStore());
+
+      // Set initial state *before* the action
+      act(() => {
+        result.current.resources = initialState;
+      });
+
+      await act(async () => {
+        await result.current.toggleCompletion(type, id);
+      });
+
+      expect(resourcesApi.toggleResourceCompletion).toHaveBeenCalledWith(type, id);
+       // Verify fetches were called
+       expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith(type);
+       expect(resourcesApi.getResourceStatistics).toHaveBeenCalledTimes(1);
+      // Check state *after* fetches complete
+      expect(result.current.resources).toEqual(updatedList);
+      expect(result.current.resources.find(r => r.id === id)?.completed).toBe(false);
+      expect(result.current.resources.find(r => r.id === id)?.completion_date).toBeNull();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
     });
@@ -450,20 +574,28 @@ describe('Resource Store', () => {
       const error = new Error('Failed to toggle completion');
       (resourcesApi.toggleResourceCompletion as jest.Mock).mockRejectedValueOnce(error);
 
+      // Set initial state *before* the action
       const { result } = renderHook(() => useResourceStore());
-
-      // First set some initial resources
       act(() => {
         result.current.resources = [...mockResources];
       });
+
+      // Reset mocks for fetchResourcesByType and getResourceStatistics for safety in error case tests
+      (resourcesApi.getResourcesByType as jest.Mock).mockClear();
+      (resourcesApi.getResourceStatistics as jest.Mock).mockClear();
 
       await act(async () => {
         await result.current.toggleCompletion(type, id);
       });
 
       expect(resourcesApi.toggleResourceCompletion).toHaveBeenCalledWith(type, id);
+      // Verify fetches were *not* called after error
+      expect(resourcesApi.getResourcesByType).not.toHaveBeenCalled();
+      expect(resourcesApi.getResourceStatistics).not.toHaveBeenCalled();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(error.message);
+      // Ensure state wasn't incorrectly changed
+      expect(result.current.resources).toEqual(mockResources);
     });
   });
 

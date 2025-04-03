@@ -1,0 +1,13 @@
+{
+  "name": "learning-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Learning Platform",
+  "private": true,
+  "scripts": {
+    "start": "uvicorn main:app --host 0.0.0.0 --port 8000",
+    "dev": "uvicorn main:app --reload --port 8000",
+    "test:e2e:start": "export ENVIRONMENT=test && export ALLOW_DB_RESET=true && uvicorn main:app --reload --port 8000"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

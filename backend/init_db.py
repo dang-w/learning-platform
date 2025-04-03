@@ -56,7 +56,8 @@ async def create_sample_user():
     user_dict = {
         "username": "sample_user",
         "email": "sample@example.com",
-        "full_name": "Sample User",
+        "first_name": "Sample",
+        "last_name": "User",
         "hashed_password": hashed_password,
         "disabled": False,
         "resources": {

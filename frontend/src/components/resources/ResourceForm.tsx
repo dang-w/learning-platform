@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '../ui/buttons'
 import { Input, FormGroup, Label, FormError } from '../ui/forms'
 import { Alert } from '../ui/feedback'
-import { Resource, ResourceCreateInput } from '@/types/resources'
+import { Resource, ResourceType } from '@/types/resources'
 import { useUrlMetadata } from '@/lib/hooks/useUrlMetadata'
 
 const resourceSchema = z.object({
@@ -19,16 +19,31 @@ const resourceSchema = z.object({
 
 type ResourceFormData = z.infer<typeof resourceSchema>
 
+// Define the structure provided by the ResourceForm (based on its Zod schema)
+// This should match the Zod schema definition within ResourceForm.tsx
+interface ResourceFormDataFromForm {
+  url: string;
+  title: string;
+  description?: string; // Form has description
+  resourceType: ResourceType; // Form has resourceType
+  estimated_time: number;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  topics: string[];
+}
+
 interface ResourceFormProps {
   resource?: Resource
-  onSubmit: (data: ResourceCreateInput) => Promise<void>
-  onCancel: () => void
+  // Update onSubmit to accept the form's data structure
+  onSubmit: (data: ResourceFormDataFromForm) => Promise<void> | void; // Allow sync or async
+  onCancel: () => void;
+  isSubmitting?: boolean; // Add isSubmitting prop
 }
 
 export const ResourceForm = ({
   resource,
   onSubmit: submitHandler,
   onCancel,
+  isSubmitting, // Use the isSubmitting prop from parent
 }: ResourceFormProps) => {
   const { isExtracting, error: extractionError, extractMetadata } = useUrlMetadata()
 
@@ -37,7 +52,7 @@ export const ResourceForm = ({
     handleSubmit,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<ResourceFormData>({
     resolver: zodResolver(resourceSchema),
     defaultValues: resource ? {
@@ -72,19 +87,11 @@ export const ResourceForm = ({
   }
 
   const onSubmitForm = async (data: ResourceFormData) => {
-    try {
-      const createInput: ResourceCreateInput = {
-        url: data.url,
-        title: data.title,
-        estimated_time: data.estimated_time,
-        difficulty: data.difficulty,
-        topics: data.topics,
-      }
-      await submitHandler(createInput)
-      onCancel()
-    } catch (err) {
-      console.error('Form submission error:', err)
-    }
+    // The parent component (NewResourcePage or ResourcesPage) handles the API call.
+    // This internal handler just needs to pass the validated form data up.
+    // We pass the full 'data' which matches the ResourceFormDataFromForm type.
+    await submitHandler(data);
+    // onCancel(); // Let the parent decide if closing the form is needed on submit
   }
 
   return (
@@ -103,7 +110,7 @@ export const ResourceForm = ({
           <Button
             type="button"
             onClick={handleExtractMetadata}
-            disabled={isExtracting}
+            disabled={isSubmitting || isExtracting}
             variant="secondary"
             data-testid="extract-metadata"
           >
