@@ -11,6 +11,8 @@ Tests are organized into the following directories:
 - `tests/integration/`: Integration tests that test multiple components together
 - `tests/utils/`: Tests for utility functions
 - `tests/config/`: Tests for configuration functions
+- `tests/performance/`: Tests for performance measurement
+- `tests/reports/`: Contains generated test reports
 
 ## Shared Test Utilities
 

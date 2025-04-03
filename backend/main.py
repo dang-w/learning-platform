@@ -275,9 +275,13 @@ async def add_rate_limit_headers(request: Request, call_next):
 async def add_security_headers(request: Request, call_next):
     """Add security headers to all responses."""
     response = await call_next(request)
+    path = request.url.path
 
-    # Content Security Policy
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    # Apply strict CSP only to non-doc paths
+    if not (path.startswith("/docs") or path.startswith("/redoc") or path == "/openapi.json"):
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    # Note: For a production environment, you might want a more specific,
+    # permissive policy for /docs and /redoc if needed, rather than no policy.
 
     # XSS Protection
     response.headers["X-XSS-Protection"] = "1; mode=block"
