@@ -12,14 +12,15 @@ from datetime import timedelta
 from jose import JWTError
 import nest_asyncio
 import uuid
-from httpx import AsyncClient
+from httpx import AsyncClient, Headers, ASGITransport
+import redis.asyncio as redis
 
 # Import standardized utilities
 from utils.error_handlers import AuthenticationError, ResourceNotFoundError
 from utils.response_models import StandardResponse, ErrorResponse
 from utils.validators import validate_required_fields
 from database import get_database
-from utils.rate_limiter import redis_client
+from utils.rate_limiter import get_redis_client
 
 # Apply nest_asyncio to allow nested event loops
 nest_asyncio.apply()
@@ -51,35 +52,6 @@ from routers.notes import router as notes_router
 
 # Import the mock database instead of the real one
 from tests.mock_db import db, create_test_user
-
-# Create a session-scoped event loop for all async tests
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create a session-scoped event loop for all async tests."""
-    # Create a new event loop
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-
-    # Set it as the default event loop
-    asyncio.set_event_loop(loop)
-
-    # Apply nest_asyncio to allow nested event loops
-    nest_asyncio.apply(loop)
-
-    # Yield the loop for use in tests
-    yield loop
-
-    # Clean up pending tasks at the end of the session
-    pending = asyncio.all_tasks(loop)
-    for task in pending:
-        task.cancel()
-
-    # Run the event loop until all tasks are cancelled
-    if pending:
-        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-
-    # Close the loop at the end of the session
-    loop.close()
 
 # Mock user class for testing
 class MockUser:
@@ -123,9 +95,9 @@ class MockUser:
         return self.model_dump()
 
 # Setup test user fixture
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def setup_test_user():
-    """Create a test user in the database."""
+    """Create a test user in the database for each test."""
     try:
         # Create a test user
         test_user = await create_test_user()
@@ -177,45 +149,6 @@ def client(setup_test_user):
     # Clear dependency overrides
     app.dependency_overrides.clear()
 
-# Async client fixture for testing
-@pytest.fixture(scope="function")
-def event_loop():
-    """Create an event loop for each test."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    nest_asyncio.apply(loop)
-    yield loop
-    loop.close()
-
-@pytest_asyncio.fixture
-async def async_client(setup_test_user, event_loop):
-    """Create an async test client with authentication overrides."""
-    # Create an async client
-    async with AsyncClient(app=app, base_url="http://test", follow_redirects=True) as ac:
-        # Override the dependencies for authentication
-        if setup_test_user:
-            # For authenticated routes
-            async def override_get_current_user():
-                """Override the get_current_user dependency."""
-                return MockUser(username=setup_test_user["user"]["username"])
-
-            # Override the dependencies
-            app.dependency_overrides[get_current_user] = override_get_current_user
-            app.dependency_overrides[get_current_active_user] = override_get_current_user
-        else:
-            # For unauthenticated routes
-            async def override_get_current_user():
-                """Override to simulate authentication failure."""
-                raise AuthenticationError(detail="Not authenticated for testing")
-
-            # Override the dependencies
-            app.dependency_overrides[get_current_user] = override_get_current_user
-
-        yield ac
-
-        # Clear dependency overrides
-        app.dependency_overrides.clear()
-
 # Auth headers fixture for testing
 @pytest.fixture(scope="function")
 def auth_headers(setup_test_user):
@@ -247,9 +180,9 @@ async def test_db():
             db_conn["client"].close()
 
 # Patch database fixture for testing
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def patch_database():
-    """Patch the database module to use the mock database."""
+    """Patch database functions for each test."""
     # Import the modules that use the database
     import database
     import utils.db_utils
@@ -284,22 +217,46 @@ def patch_database():
     database.get_database = original_get_database
 
 # Clear rate limits before and after each test
-@pytest.fixture(autouse=True)
-async def clear_rate_limits():
-    """Clear rate limits before and after each test."""
-    if redis_client:
-        try:
-            # Clear all rate limit keys
-            for key in redis_client.scan_iter("rate_limit:*"):
-                redis_client.delete(key)
-
-            yield
-
-            # Cleanup after test
-            for key in redis_client.scan_iter("rate_limit:*"):
-                redis_client.delete(key)
-        except Exception as e:
-            logger.error(f"Error clearing rate limits: {str(e)}")
-            yield
+@pytest.fixture()
+async def clear_rate_limits(redis_client: redis.Redis = Depends(get_redis_client)):
+    """Clear rate limits before and after test execution using the injected Redis client."""
+    logger.info("Clearing rate limits before test...")
+    # Use the injected redis_client directly
+    keys = await redis_client.keys("rate_limit:*")
+    if keys:
+        logger.info(f"Found keys to delete: {keys}")
+        await redis_client.delete(*keys)
     else:
-        yield
+        logger.info("No rate limit keys found to delete.")
+
+    yield # Test runs here
+
+    logger.info("Clearing rate limits after test...")
+    # Re-fetch keys and delete again after the test
+    keys_after = await redis_client.keys("rate_limit:*")
+    if keys_after:
+        logger.info(f"Found keys to delete post-test: {keys_after}")
+        await redis_client.delete(*keys_after)
+    else:
+        logger.info("No rate limit keys found post-test.")
+    # Note: The redis_client closing is handled by the get_redis_client dependency's finally block
+
+# Async client fixture for testing
+@pytest_asyncio.fixture
+async def async_client():
+    """Create an async test client WITHOUT authentication overrides."""
+    # Create an async client
+    # Ensure the base_url reflects the test server setup
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", follow_redirects=True) as ac:
+        # Dependency overrides removed - rely on actual auth logic or specific test overrides
+        yield ac
+        # Clear any potentially remaining overrides from other fixtures/tests if necessary
+        app.dependency_overrides.clear()
+
+@pytest.fixture(scope="session", autouse=True)
+def event_loop():
+    """Create an instance of the default event loop for each test session."""
+    # Use asyncio.get_event_loop() which works with nest_asyncio
+    loop = asyncio.get_event_loop()
+    yield loop
+    # loop.close() # Avoid closing the loop if nest_asyncio manages it

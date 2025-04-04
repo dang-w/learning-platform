@@ -20,6 +20,8 @@ import psutil
 import platform
 from datetime import timezone
 from starlette_csrf import CSRFMiddleware
+from contextlib import asynccontextmanager
+import redis
 
 # Import authentication from auth module
 from auth import (
@@ -37,7 +39,11 @@ from database import db, verify_db_connection
 from utils.error_handlers import APIError, handle_exception
 from utils.response_models import ErrorResponse
 from utils.validators import validate_email, validate_password_strength
-from utils.rate_limiter import rate_limit_dependency, get_client_identifier
+from utils.rate_limiter import (
+    rate_limit_dependency, get_client_identifier,
+    get_redis_client,
+    reset_rate_limit
+)
 from utils.monitoring import (
     track_request_performance,
     log_auth_metrics,
@@ -88,11 +94,56 @@ else:
     logger.info(f"Loaded default .env. Current ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
     logger.info(f"ALLOW_DB_RESET value after loading .env: {os.getenv('ALLOW_DB_RESET')}")
 
-# Initialize FastAPI app
+# --- Lifespan Management ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    logger.info("Starting learning platform API...")
+
+    # Initialize monitoring
+    await startup_monitoring()
+
+    # Schedule session cleanup task (if needed, keep it simple)
+    # Note: A more robust solution might use APScheduler or similar
+    async def cleanup_sessions_periodically():
+        try:
+            while True:
+                await asyncio.sleep(3600) # Wait 1 hour
+                from routers.sessions import cleanup_expired_sessions
+                count = await cleanup_expired_sessions()
+                if count > 0:
+                    logger.info(f"Background Task: Cleaned up {count} expired sessions")
+        except asyncio.CancelledError:
+             logger.info("Session cleanup task cancelled.")
+        except Exception as e:
+            logger.error(f"Error in periodic session cleanup task: {str(e)}")
+
+    session_cleanup_task = asyncio.create_task(cleanup_sessions_periodically())
+    logger.info("Session cleanup background task scheduled.")
+
+    yield # Application runs here
+
+    # Shutdown logic
+    logger.info("Shutting down learning platform API...")
+
+    # Cancel background tasks
+    session_cleanup_task.cancel()
+    try:
+        await session_cleanup_task # Wait for task to acknowledge cancellation
+    except asyncio.CancelledError:
+        logger.info("Session cleanup task successfully cancelled during shutdown.")
+
+    # Shutdown monitoring
+    await shutdown_monitoring()
+    logger.info("API shutdown complete.")
+# --- End Lifespan Management ---
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="Learning Platform API",
     description="API for managing learning resources, tracking progress, and facilitating spaced repetition learning",
     version="1.0.0",
+    lifespan=lifespan # Add lifespan context manager
 )
 logger.info("FastAPI app initialized.") # Log app initialization
 
@@ -106,17 +157,21 @@ app.add_middleware(
     expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"],
 )
 
-# Add CSRF Middleware (Place after CORS)
-app.add_middleware(
-    CSRFMiddleware,
-    secret=CSRF_SECRET_KEY,
-    # Optional: Customize cookie name, header name, safe methods, etc.
-    # cookie_name="csrftoken",
-    # header_name="X-CSRF-Token",
-    # safe_methods={"GET", "HEAD", "OPTIONS", "TRACE"},
-    # cookie_secure=(ENVIRONMENT == "production"), # Set Secure flag in production
-    # cookie_samesite="lax", # Consider 'lax' or 'strict'
-)
+# Add CSRF Middleware (Place after CORS), but disable for test environment
+if ENVIRONMENT != "test":
+    app.add_middleware(
+        CSRFMiddleware,
+        secret=CSRF_SECRET_KEY,
+        # Optional: Customize cookie name, header name, safe methods, etc.
+        # cookie_name="csrftoken",
+        # header_name="X-CSRF-Token",
+        # safe_methods={"GET", "HEAD", "OPTIONS", "TRACE"},
+        # cookie_secure=(ENVIRONMENT == "production"), # Set Secure flag in production
+        # cookie_samesite="lax", # Consider 'lax' or 'strict'
+    )
+    logger.info(f"CSRF Middleware enabled for {ENVIRONMENT} environment.")
+else:
+    logger.info("CSRF Middleware disabled for test environment.")
 
 # Mount routers
 app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
@@ -138,37 +193,6 @@ logger.info("Included url_extractor_router.") # Log router inclusion
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
-# Startup event to schedule session cleanup
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting learning platform API...")
-
-    # Initialize monitoring
-    await startup_monitoring()
-
-    # Schedule session cleanup task
-    async def cleanup_sessions_periodically():
-        try:
-            while True:
-                # Wait for an hour (3600 seconds)
-                await asyncio.sleep(3600)
-
-                # Run the cleanup
-                from routers.sessions import cleanup_expired_sessions
-                count = await cleanup_expired_sessions()
-                if count > 0:
-                    logger.info(f"Cleaned up {count} expired sessions")
-        except Exception as e:
-            logger.error(f"Error in session cleanup task: {str(e)}")
-
-    # Create the background task for session cleanup
-    asyncio.create_task(cleanup_sessions_periodically())
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down learning platform API...")
-    await shutdown_monitoring()
-
 # Global exception handler
 @app.exception_handler(APIError)
 async def api_error_handler(request: Request, exc: APIError):
@@ -178,7 +202,7 @@ async def api_error_handler(request: Request, exc: APIError):
         content=ErrorResponse(
             message=exc.detail,
             error_code=exc.error_code
-        ).dict()
+        ).model_dump()
     )
 
 @app.exception_handler(Exception)
@@ -190,7 +214,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content=ErrorResponse(
             message="An unexpected error occurred",
             error_code="INTERNAL_ERROR"
-        ).dict()
+        ).model_dump()
     )
 
 # User creation model
@@ -317,21 +341,30 @@ async def metrics_endpoint():
 if ENVIRONMENT.lower() == "development":
     @app.post("/api/dev/reset-rate-limit")
     async def reset_rate_limit_endpoint(
-        key_prefix: str = "user_creation",
-        request: Request = None
+        request: Request, # Moved non-default argument first
+        key_prefix: str = "user_creation", # Default argument
+        redis_client: redis.Redis = Depends(get_redis_client) # Inject redis client
     ):
         """
         Reset rate limit counters for development purposes only.
         This endpoint is only available in development mode.
         """
-        from utils.rate_limiter import reset_rate_limit
+        from utils.rate_limiter import reset_rate_limit # Import locally or ensure top-level import
 
-        if request:
+        if request and redis_client:
             client_id = get_client_identifier(request)
-            success = reset_rate_limit(client_id, key_prefix)
-            return {"success": success, "message": f"Rate limit reset for {key_prefix}"}
+            # Pass the injected redis_client to the utility function
+            success = await reset_rate_limit(redis_client, client_id, key_prefix)
+            if success:
+                return {"success": True, "message": f"Rate limit reset for {key_prefix}:{client_id}"}
+            else:
+                # Return failure if reset failed (e.g., key didn't exist)
+                return {"success": False, "message": f"Rate limit key {key_prefix}:{client_id} not found or reset failed."}
+        elif not redis_client:
+             raise HTTPException(status_code=503, detail="Redis client unavailable for reset operation.")
         else:
-            return {"success": False, "message": "Request object required"}
+             # This case should ideally not happen if Request is required
+             raise HTTPException(status_code=400, detail="Request object required for client identification.")
 
 # Add request tracking middleware
 @app.middleware("http")

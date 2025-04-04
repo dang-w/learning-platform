@@ -1,8 +1,8 @@
 """Notes management endpoints."""
 from fastapi import APIRouter, HTTPException, status, Depends, Query, Request
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from bson import ObjectId
 import uuid
@@ -26,7 +26,7 @@ class NoteBase(BaseModel):
         ...,
         min_length=1,
         max_length=200,
-        description="Note title, alphanumeric with basic punctuation"
+        description="Title of the note"
     )
     content: str = Field(
         ...,
@@ -36,26 +36,35 @@ class NoteBase(BaseModel):
     )
     tags: List[str] = Field(
         default=[],
-        max_items=10,
-        min_items=0,
-        description="List of tags, max 10 tags"
+        max_length=10,
+        description="Tags associated with the note"
     )
 
-    @validator('title')
-    def validate_title(cls, v):
-        """Validate title contains only allowed characters."""
-        if not all(c.isalnum() or c in ' .,!?-' for c in v):
-            raise ValueError("Title can only contain alphanumeric characters and basic punctuation")
+    @field_validator('title')
+    @classmethod
+    def title_must_not_be_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError('Title must not be empty')
         return v
 
-    @validator('tags')
-    def validate_tags(cls, v):
-        """Validate tags length and format."""
-        if not all(isinstance(tag, str) and 1 <= len(tag) <= 30 for tag in v):
-            raise ValueError("Tags must be between 1 and 30 characters")
-        if not all(tag.isalnum() or '-' in tag for tag in v):
-            raise ValueError("Tags can only contain alphanumeric characters and hyphens")
-        return v
+    @field_validator('tags')
+    @classmethod
+    def tags_must_be_unique_and_lowercase(cls, v: List[str]) -> List[str]:
+        if not v:
+            return []
+        processed_tags = {tag.lower().strip() for tag in v if tag.strip()}
+        processed_tags.discard('')
+        if len(processed_tags) > 10:
+             raise ValueError('Cannot have more than 10 unique tags')
+        return sorted(list(processed_tags))
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat()
+        }
+    )
 
 class NoteCreate(NoteBase):
     """Note creation model."""
@@ -65,7 +74,12 @@ class NoteUpdate(BaseModel):
     """Note update model."""
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     content: Optional[str] = Field(None, min_length=1, max_length=50000)
-    tags: Optional[List[str]] = Field(None, max_items=10)
+    tags: Optional[List[str]] = Field(None, max_length=10)
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra='ignore'
+    )
 
 class NotePagination(BaseModel):
     """Pagination response model."""
@@ -73,6 +87,8 @@ class NotePagination(BaseModel):
     total: int
     skip: int
     limit: int
+    total_pages: int
+    current_page: int
 
 class Note(NoteBase):
     """Note response model."""
@@ -127,6 +143,8 @@ async def get_notes(
 
         # Get total count for pagination
         total = await db.notes.count_documents(note_filter)
+        total_pages = (total + limit - 1) // limit
+        current_page = (skip // limit) + 1
 
         # Query database with pagination
         notes_cursor = db.notes.find(note_filter)\
@@ -146,7 +164,9 @@ async def get_notes(
             "items": notes,
             "total": total,
             "skip": skip,
-            "limit": limit
+            "limit": limit,
+            "total_pages": total_pages,
+            "current_page": current_page
         }
     except HTTPException as e:
         logger.error(f"Error getting notes: {str(e)}")
@@ -206,7 +226,7 @@ async def create_note(
     try:
         user_id = get_user_id(current_user)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         note_dict = note.model_dump()
         note_dict["user_id"] = user_id
         note_dict["created_at"] = now
@@ -252,13 +272,16 @@ async def update_note(
                 detail="Note not found"
             )
 
-        update_data = note_update.model_dump(exclude_unset=True)
-        update_data["updated_at"] = datetime.utcnow()
-
-        await db.notes.update_one(
-            {"_id": object_id, "user_id": user_id},
-            {"$set": update_data}
-        )
+        update_data = {}
+        if note_update.title is not None: update_data["title"] = note_update.title
+        if note_update.content is not None: update_data["content"] = note_update.content
+        if note_update.tags is not None: update_data["tags"] = note_update.tags
+        if update_data:
+            update_data["updated_at"] = datetime.now(timezone.utc)
+            update_result = await db.notes.update_one(
+                {"_id": object_id, "user_id": user_id},
+                {"$set": update_data}
+            )
 
         updated_note = await db.notes.find_one({"_id": object_id})
         updated_note["id"] = str(updated_note["_id"])

@@ -23,7 +23,8 @@ from unittest.mock import patch
 from mongomock_motor import AsyncMongoMockClient
 
 # Import your application
-from main import app, get_db, get_current_user, create_access_token, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from main import app, get_current_user, create_access_token, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from database import get_db # Import get_db from database module
 
 # Create a mock MongoDB client
 mock_client = mongomock_motor.AsyncMongoMockClient()

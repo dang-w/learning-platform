@@ -6,7 +6,7 @@ that can be used for testing without requiring a real database connection.
 from typing import Dict, List, Any, Optional
 from bson import ObjectId
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import asyncio
 
 # Import standardized error handlers
@@ -319,10 +319,11 @@ async def create_test_user():
         "username": "testuser",
         "email": "test@example.com",
         "first_name": "Test",
-"last_name": "User",
+        "last_name": "User",
         "disabled": False,
         "is_active": True,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "resources": {
             "articles": [],

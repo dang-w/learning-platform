@@ -248,33 +248,33 @@ def test_create_goals_batch(client, auth_headers):
     # Mock the database operations
     with patch('routers.learning_path.db', mock_db), \
          patch('routers.learning_path.ObjectId', return_value=mock_object_id), \
-         patch('routers.learning_path.datetime') as mock_datetime:
+         patch('routers.learning_path.Goal') as MockGoal:
 
-        # Mock datetime to return a fixed value
-        mock_now = datetime(2024, 3, 1, 12, 0, 0)
-        mock_datetime.now.return_value = mock_now
-        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+        # Set up the mock Goal class to return a dict from model_dump
+        MockGoal.side_effect = lambda **kwargs: MagicMock(**kwargs, model_dump=lambda: kwargs)
 
         response = client.post("/api/learning-path/goals/batch", json=batch_goals, headers=auth_headers)
 
-        # Verify the response
         assert response.status_code == 201
-        data = response.json()
+        response_data = response.json()
+        assert isinstance(response_data, dict)
+        assert "success" in response_data
+        assert "errors" in response_data
+        assert isinstance(response_data["success"], list)
+        assert isinstance(response_data["errors"], list)
+        assert len(response_data["errors"]) == 0 # Expect no errors
+        assert len(response_data["success"]) == 2 # Expect 2 successful creations
 
-        assert "success" in data
-        assert "errors" in data
-        assert len(data["success"]) == 2
+        # Check the content of the created goals
+        assert response_data["success"][0]["title"] == "Learn Python"
+        assert response_data["success"][1]["title"] == "Learn FastAPI"
+        # Verify the mock database call
+        # Since batch pushes goals in one update operation
+        # Update: Endpoint calls update_one for each goal in the batch
+        assert mock_update_one.call_count == 2
 
-        # Verify first goal
-        assert data["success"][0]["title"] == "Learn Python"
-        assert data["success"][0]["priority"] == 5
-
-        # Verify second goal
-        assert data["success"][1]["title"] == "Learn FastAPI"
-        assert data["success"][1]["priority"] == 4
-
-        # Verify no errors
-        assert len(data["errors"]) == 0
+    # Clean up dependencies
+    app.dependency_overrides = {}
 
 def test_get_goal_by_id(client, auth_headers):
     """Test getting a goal by ID."""

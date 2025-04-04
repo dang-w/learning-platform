@@ -8,13 +8,12 @@ into the database initialization script.
 
 from datetime import datetime
 
-def generate_id(suffix):
-    """Generate a unique ID for a resource based on timestamp + suffix"""
-    return str(datetime.now().timestamp())[:10] + str(suffix)
+# Removed generate_id function as static IDs are now used.
 
 # AI/ML courses
 COURSES = [
     {
+        "id": "course-math-ml",
         "title": "Mathematics for Machine Learning",
         "url": "https://www.coursera.org/specializations/mathematics-machine-learning",
         "topics": ["mathematics", "machine learning", "foundations"],
@@ -23,6 +22,7 @@ COURSES = [
         "notes": "Coursera course by Imperial College London"
     },
     {
+        "id": "course-dl-spec",
         "title": "Deep Learning Specialization",
         "url": "https://www.coursera.org/specializations/deep-learning",
         "topics": ["deep learning", "neural networks", "ai"],
@@ -31,6 +31,7 @@ COURSES = [
         "notes": "Coursera specialization by Andrew Ng"
     },
     {
+        "id": "course-fastai-dl",
         "title": "Practical Deep Learning for Coders",
         "url": "https://course.fast.ai/",
         "topics": ["deep learning", "coding", "practical"],
@@ -39,6 +40,7 @@ COURSES = [
         "notes": "Fast.ai course by Jeremy Howard"
     },
     {
+        "id": "course-ng-ml",
         "title": "Machine Learning",
         "url": "https://www.coursera.org/learn/machine-learning",
         "topics": ["machine learning", "ai", "foundations"],
@@ -47,9 +49,10 @@ COURSES = [
         "notes": "Classic Coursera course by Andrew Ng from Stanford"
     },
     {
+        "id": "course-mit-dl-intro",
         "title": "MIT OpenCourseWare: Introduction to Deep Learning",
         "url": "http://introtodeeplearning.com/",
-        "topics": ["deep learning", "introduction", "MIT"],
+        "topics": ["deep learning", "introduction", "MIT", "course"], # Added topic
         "difficulty": "intermediate",
         "estimated_time": 100,
         "notes": "Comprehensive deep learning course by MIT"
@@ -59,6 +62,7 @@ COURSES = [
 # AI/ML books
 BOOKS = [
     {
+        "id": "book-dl-goodfellow",
         "title": "Deep Learning",
         "url": "https://www.deeplearningbook.org/",
         "topics": ["deep learning", "theory", "foundations"],
@@ -67,6 +71,7 @@ BOOKS = [
         "notes": "By Ian Goodfellow, Yoshua Bengio, and Aaron Courville"
     },
     {
+        "id": "book-ml-yearning",
         "title": "Machine Learning Yearning",
         "url": "https://www.deeplearning.ai/machine-learning-yearning/",
         "topics": ["machine learning", "best practices", "project management"],
@@ -75,6 +80,7 @@ BOOKS = [
         "notes": "By Andrew Ng"
     },
     {
+        "id": "book-nielsen-nn",
         "title": "Neural Networks and Deep Learning",
         "url": "http://neuralnetworksanddeeplearning.com/",
         "topics": ["neural networks", "deep learning", "foundations"],
@@ -83,6 +89,7 @@ BOOKS = [
         "notes": "By Michael Nielsen"
     },
     {
+        "id": "book-d2l",
         "title": "Dive into Deep Learning",
         "url": "https://d2l.ai/",
         "topics": ["deep learning", "pytorch", "tensorflow", "practical"],
@@ -95,6 +102,7 @@ BOOKS = [
 # AI/ML articles
 ARTICLES = [
     {
+        "id": "article-ml-swe-guide",
         "title": "ML for Software Engineers - GitHub Guide",
         "url": "https://github.com/ZuzooVn/machine-learning-for-software-engineers",
         "topics": ["machine learning", "software engineering", "guide"],
@@ -103,6 +111,7 @@ ARTICLES = [
         "notes": "Comprehensive GitHub guide for software engineers transitioning to ML"
     },
     {
+        "id": "article-se-ml-practices",
         "title": "Software Engineering for Machine Learning",
         "url": "https://se-ml.github.io/practices/",
         "topics": ["software engineering", "machine learning", "best practices"],
@@ -111,6 +120,7 @@ ARTICLES = [
         "notes": "Best practices guide for ML engineering"
     },
     {
+        "id": "article-ml-from-scratch",
         "title": "ML From Scratch",
         "url": "https://github.com/eriklindernoren/ML-From-Scratch",
         "topics": ["machine learning", "algorithms", "implementation"],
@@ -119,6 +129,7 @@ ARTICLES = [
         "notes": "Implementations of ML algorithms from scratch"
     },
     {
+        "id": "article-distill-momentum",
         "title": "Distill: Why Momentum Really Works",
         "url": "https://distill.pub/2017/momentum/",
         "topics": ["deep learning", "optimization", "visualization"],
@@ -131,14 +142,16 @@ ARTICLES = [
 # AI/ML videos
 VIDEOS = [
     {
+        "id": "video-mit-dl-intro",
         "title": "MIT OpenCourseWare: Introduction to Deep Learning Videos",
-        "url": "http://introtodeeplearning.com/",
-        "topics": ["deep learning", "introduction", "MIT"],
+        "url": "http://introtodeeplearning.com/", # Note: Same URL as course-mit-dl-intro
+        "topics": ["deep learning", "introduction", "MIT", "video"], # Added topic
         "difficulty": "beginner",
         "estimated_time": 180,
         "notes": "Video lectures from MIT's course on deep learning"
     },
     {
+        "id": "video-silver-rl",
         "title": "RL Course by David Silver",
         "url": "https://www.youtube.com/playlist?list=PLqYmG7hTraZDM-OYHWgPebj2MfCFzFObQ",
         "topics": ["reinforcement learning", "DeepMind", "advanced"],
@@ -147,17 +160,19 @@ VIDEOS = [
         "notes": "DeepMind's reinforcement learning course by David Silver"
     },
     {
+        "id": "video-stanford-cs231n",
         "title": "Stanford CS231n: CNNs for Visual Recognition",
         "url": "http://cs231n.stanford.edu/",
-        "topics": ["computer vision", "CNN", "deep learning"],
+        "topics": ["computer vision", "CNN", "deep learning", "stanford", "course", "video"], # Added topic
         "difficulty": "advanced",
         "estimated_time": 200,
         "notes": "Stanford's renowned computer vision course"
     },
     {
+        "id": "video-stanford-cs224n",
         "title": "Stanford CS224N: NLP with Deep Learning",
         "url": "https://web.stanford.edu/class/cs224n/",
-        "topics": ["NLP", "deep learning", "transformers"],
+        "topics": ["NLP", "deep learning", "transformers", "stanford", "course", "video"], # Added topic
         "difficulty": "advanced",
         "estimated_time": 220,
         "notes": "Stanford's comprehensive NLP course"
@@ -167,6 +182,7 @@ VIDEOS = [
 # AI/ML Platforms and Guides
 PLATFORMS_GUIDES = [
     {
+        "id": "pg-learnpython",
         "title": "LearnPython.org - Interactive Tutorial",
         "url": "https://www.learnpython.org/",
         "topics": ["python", "interactive", "tutorial", "beginner"],
@@ -175,6 +191,7 @@ PLATFORMS_GUIDES = [
         "notes": "Free interactive Python tutorial covering basics to advanced."
     },
     {
+        "id": "pg-codecademy-py",
         "title": "Codecademy Python Catalog",
         "url": "https://www.codecademy.com/catalog/language/python",
         "topics": ["python", "interactive", "courses", "data science", "OOP"],
@@ -183,6 +200,7 @@ PLATFORMS_GUIDES = [
         "notes": "Offers various free introductory Python modules and courses."
     },
     {
+        "id": "pg-futurecoder",
         "title": "futurecoder - Interactive Python",
         "url": "https://futurecoder.io/",
         "topics": ["python", "interactive", "tutorial", "beginner"],
@@ -191,6 +209,34 @@ PLATFORMS_GUIDES = [
         "notes": "Free, open-source platform for learning Python from scratch."
     },
     {
+        "id": "pg-python-docs",
+        "title": "Python Official Documentation",
+        "url": "https://www.python.org/doc/",
+        "topics": ["python", "documentation", "reference"],
+        "difficulty": "beginner",
+        "estimated_time": 0, # Reference material
+        "notes": "The official Python documentation."
+    },
+    {
+        "id": "pg-python-tutorial",
+        "title": "Python Official Tutorial",
+        "url": "https://docs.python.org/3/tutorial/index.html",
+        "topics": ["python", "tutorial", "beginner", "documentation"],
+        "difficulty": "beginner",
+        "estimated_time": 20,
+        "notes": "The official Python tutorial for beginners."
+    },
+    {
+        "id": "pg-pandas-docs",
+        "title": "Pandas User Guide",
+        "url": "https://pandas.pydata.org/docs/user_guide/index.html",
+        "topics": ["pandas", "documentation", "data analysis", "python"],
+        "difficulty": "intermediate",
+        "estimated_time": 0, # Reference material
+        "notes": "Official Pandas user guide."
+    },
+    {
+        "id": "pg-pandas-cheatsheet",
         "title": "Pandas Cheat Sheet (nbviewer)",
         "url": "https://nbviewer.org/github/pybokeh/jupyter_notebooks/blob/main/pandas/PandasCheatSheet.ipynb",
         "topics": ["pandas", "cheat sheet", "data analysis", "python"],
@@ -199,6 +245,34 @@ PLATFORMS_GUIDES = [
         "notes": "Detailed Jupyter Notebook covering common Pandas tasks."
     },
     {
+        "id": "pg-sklearn-docs",
+        "title": "Scikit-learn User Guide",
+        "url": "https://scikit-learn.org/stable/user_guide.html",
+        "topics": ["scikit-learn", "machine learning", "documentation", "python"],
+        "difficulty": "intermediate",
+        "estimated_time": 0, # Reference material
+        "notes": "Official Scikit-learn user guide."
+    },
+    {
+        "id": "pg-tf-tutorials",
+        "title": "TensorFlow Tutorials",
+        "url": "https://www.tensorflow.org/tutorials",
+        "topics": ["tensorflow", "deep learning", "tutorial", "python"],
+        "difficulty": "intermediate",
+        "estimated_time": 50, # Estimate for core tutorials
+        "notes": "Official TensorFlow tutorials."
+    },
+    {
+        "id": "pg-pytorch-tutorials",
+        "title": "PyTorch Tutorials",
+        "url": "https://pytorch.org/tutorials/",
+        "topics": ["pytorch", "deep learning", "tutorial", "python"],
+        "difficulty": "intermediate",
+        "estimated_time": 50, # Estimate for core tutorials
+        "notes": "Official PyTorch tutorials."
+    },
+    {
+        "id": "pg-hackernoon-rl",
         "title": "HackerNoon RL Course (Part 1)",
         "url": "https://hackernoon.com/reinforcement-learning-course-part-1",
         "topics": ["reinforcement learning", "tutorial", "beginner", "python"],
@@ -207,6 +281,7 @@ PLATFORMS_GUIDES = [
         "notes": "Beginner-friendly introduction to RL concepts with Python examples."
     },
     {
+        "id": "pg-dlaip-nlp-guide",
         "title": "DeepLearning.AI NLP Guide",
         "url": "https://www.deeplearning.ai/resources/natural-language-processing/",
         "topics": ["NLP", "guide", "introduction", "deep learning"],
@@ -215,6 +290,7 @@ PLATFORMS_GUIDES = [
         "notes": "Comprehensive guide covering NLP concepts, techniques, and tools."
     },
     {
+        "id": "pg-khan-lin-alg",
         "title": "Khan Academy: Linear Algebra",
         "url": "https://www.khanacademy.org/math/linear-algebra",
         "topics": ["mathematics", "linear algebra", "foundations"],
@@ -223,6 +299,7 @@ PLATFORMS_GUIDES = [
         "notes": "Covers vectors, matrices, transformations relevant to ML."
     },
     {
+        "id": "pg-khan-multi-calc",
         "title": "Khan Academy: Multivariable Calculus",
         "url": "https://www.khanacademy.org/math/multivariable-calculus",
         "topics": ["mathematics", "calculus", "foundations", "optimization"],
@@ -231,6 +308,7 @@ PLATFORMS_GUIDES = [
         "notes": "Covers derivatives, gradients needed for optimization."
     },
     {
+        "id": "pg-khan-stats-prob",
         "title": "Khan Academy: Statistics and Probability",
         "url": "https://www.khanacademy.org/math/statistics-probability",
         "topics": ["mathematics", "statistics", "probability", "foundations"],
@@ -239,6 +317,7 @@ PLATFORMS_GUIDES = [
         "notes": "Covers probability, distributions, regression basics for ML."
     },
     {
+        "id": "pg-mlops-guide",
         "title": "MLOps Guide (ml-ops.org)",
         "url": "https://ml-ops.org/content/ MLOps", # Note: Space might be typo, check later
         "topics": ["mlops", "guide", "principles", "architecture"],
@@ -247,6 +326,7 @@ PLATFORMS_GUIDES = [
         "notes": "Community-driven guide covering MLOps principles and practices."
     },
     {
+        "id": "pg-awesome-mlops",
         "title": "Awesome MLOps (GitHub List)",
         "url": "https://github.com/visenger/awesome-mlops",
         "topics": ["mlops", "resources", "tools", "community"],
@@ -255,6 +335,16 @@ PLATFORMS_GUIDES = [
         "notes": "Curated list of MLOps resources, tools, articles, etc."
     },
     {
+        "id": "pg-gcp-mlops-guide", # Added this resource
+        "title": "Google Cloud MLOps Guide",
+        "url": "https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning",
+        "topics": ["mlops", "gcp", "ci/cd", "deployment", "guide"],
+        "difficulty": "intermediate",
+        "estimated_time": 5, # Estimated read time
+        "notes": "Detailed guide on MLOps pipelines on Google Cloud."
+    },
+    {
+        "id": "pg-opencv-tutorials",
         "title": "OpenCV Tutorials",
         "url": "https://docs.opencv.org/4.x/d6/d00/tutorial_table_of_content_core.html",
         "topics": ["computer vision", "opencv", "tutorial", "image processing"],
@@ -263,14 +353,34 @@ PLATFORMS_GUIDES = [
         "notes": "Official tutorials for the fundamental CV library, OpenCV."
     },
     {
+        "id": "pg-pyimagesearch",
         "title": "PyImageSearch Tutorials",
         "url": "https://pyimagesearch.com/start-here/",
         "topics": ["computer vision", "python", "opencv", "deep learning", "projects"],
         "difficulty": "intermediate",
         "estimated_time": 150, # Estimated time for several introductory tutorials
         "notes": "Large collection of free, practical CV tutorials and projects."
+    },
+    {
+        "id": "pg-github-ml-topics",
+        "title": "GitHub Machine Learning Topic",
+        "url": "https://github.com/topics/machine-learning",
+        "topics": ["github", "machine learning", "projects", "community"],
+        "difficulty": "intermediate",
+        "estimated_time": 0, # Exploration
+        "notes": "Explore open-source ML projects on GitHub."
+    },
+    {
+        "id": "pg-kaggle-competitions",
+        "title": "Kaggle Competitions",
+        "url": "https://www.kaggle.com/competitions",
+        "topics": ["kaggle", "competitions", "machine learning", "practice"],
+        "difficulty": "intermediate",
+        "estimated_time": 0, # Variable
+        "notes": "Platform for data science competitions."
     }
 ]
+
 
 # Create formatted resources with standardized fields
 def get_formatted_resources():
@@ -282,88 +392,33 @@ def get_formatted_resources():
     """
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    # Generate resources with consistent formatting
+    # Combine all resource lists
+    all_resources_typed = {
+        "courses": COURSES,
+        "books": BOOKS,
+        "articles": ARTICLES,
+        "videos": VIDEOS,
+        "platforms_guides": PLATFORMS_GUIDES
+    }
+
     formatted_resources = {
         "courses": [],
         "books": [],
         "articles": [],
         "videos": [],
-        "platforms_guides": [] # Added new category
+        "platforms_guides": []
     }
 
-    # Format courses
-    for idx, course in enumerate(COURSES):
-        formatted_resources["courses"].append({
-            "id": generate_id(f"c{idx+1}"),
-            "title": course["title"],
-            "url": course["url"],
-            "topics": course["topics"],
-            "difficulty": course["difficulty"],
-            "estimated_time": course["estimated_time"],
-            "completed": False,
-            "date_added": current_date,
-            "completion_date": None,
-            "notes": course["notes"]
-        })
-
-    # Format books
-    for idx, book in enumerate(BOOKS):
-        formatted_resources["books"].append({
-            "id": generate_id(f"b{idx+1}"),
-            "title": book["title"],
-            "url": book["url"],
-            "topics": book["topics"],
-            "difficulty": book["difficulty"],
-            "estimated_time": book["estimated_time"],
-            "completed": False,
-            "date_added": current_date,
-            "completion_date": None,
-            "notes": book["notes"]
-        })
-
-    # Format articles
-    for idx, article in enumerate(ARTICLES):
-        formatted_resources["articles"].append({
-            "id": generate_id(f"a{idx+1}"),
-            "title": article["title"],
-            "url": article["url"],
-            "topics": article["topics"],
-            "difficulty": article["difficulty"],
-            "estimated_time": article["estimated_time"],
-            "completed": False,
-            "date_added": current_date,
-            "completion_date": None,
-            "notes": article["notes"]
-        })
-
-    # Format videos
-    for idx, video in enumerate(VIDEOS):
-        formatted_resources["videos"].append({
-            "id": generate_id(f"v{idx+1}"),
-            "title": video["title"],
-            "url": video["url"],
-            "topics": video["topics"],
-            "difficulty": video["difficulty"],
-            "estimated_time": video["estimated_time"],
-            "completed": False,
-            "date_added": current_date,
-            "completion_date": None,
-            "notes": video["notes"]
-        })
-
-    # Format platforms and guides (New section)
-    for idx, guide in enumerate(PLATFORMS_GUIDES):
-        formatted_resources["platforms_guides"].append({
-            "id": generate_id(f"pg{idx+1}"),
-            "title": guide["title"],
-            "url": guide["url"],
-            "topics": guide["topics"],
-            "difficulty": guide["difficulty"],
-            "estimated_time": guide.get("estimated_time", 0), # Use get for optional field
-            "completed": False,
-            "date_added": current_date,
-            "completion_date": None,
-            "notes": guide["notes"]
-        })
+    # Format resources, adding common fields
+    for resource_type, resource_list in all_resources_typed.items():
+        for resource in resource_list:
+            # Copy existing resource data and add standard fields
+            formatted_resource = resource.copy() # Use copy to avoid modifying constants
+            formatted_resource["completed"] = False
+            formatted_resource["date_added"] = current_date
+            formatted_resource["completion_date"] = None
+            # Ensure estimated_time exists, default to 0 if not
+            formatted_resource["estimated_time"] = resource.get("estimated_time", 0)
+            formatted_resources[resource_type].append(formatted_resource)
 
     return formatted_resources

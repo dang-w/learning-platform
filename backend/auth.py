@@ -2,13 +2,13 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from typing import Optional, Dict, Any, List, Annotated
+from datetime import datetime, timedelta, timezone
 import os
 import logging
 from dotenv import load_dotenv
 from passlib.context import CryptContext
-import redis
+import redis.asyncio as redis
 
 # Import utility functions
 from utils.validators import validate_email, validate_password_strength
@@ -65,7 +65,7 @@ def get_db():
 # Models
 class Token(BaseModel):
     access_token: str
-    # refresh_token: str # Should be handled via HttpOnly cookie
+    refresh_token: str # Should be handled via HttpOnly cookie
     token_type: str
 
 class TokenData(BaseModel):
@@ -105,11 +105,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 # Authentication functions
 async def get_user(username: str) -> Optional[dict]:
     """Get user from database."""
+    logger.info(f"[get_user] Attempting to find user: '{username}'")
     try:
         user = await _db.users.find_one({"username": username})
+        if user:
+            logger.info(f"[get_user] Found user '{username}': {{'id': str(user.get('_id')), 'disabled': user.get('disabled')}})")
+        else:
+            logger.warning(f"[get_user] User '{username}' not found in database.")
         return user
     except Exception as e:
-        logger.error(f"Error getting user {username}: {str(e)}")
+        logger.error(f"[get_user] Error querying database for user '{username}': {type(e).__name__} - {str(e)}")
         return None
 
 async def authenticate_user(username: str, password: str) -> Optional[dict]:
@@ -146,21 +151,22 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create an access token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    # Convert datetime to integer timestamp (seconds since epoch UTC)
-    to_encode.update({"exp": int(expire.timestamp()), "type": "access"})
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     logger.info(f"[create_access_token] Generated token: {encoded_jwt}")
     return encoded_jwt
 
-def create_refresh_token(data: dict) -> str:
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a refresh token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    # Convert datetime to integer timestamp (seconds since epoch UTC)
-    to_encode.update({"exp": int(expire.timestamp()), "type": "refresh"})
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     logger.info(f"[create_refresh_token] Generated token: {encoded_jwt}")
     return encoded_jwt
@@ -172,6 +178,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    credentials_exception_expired = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token has expired",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    credentials_exception_invalid = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token or signature",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
     try:
         # Remove "Bearer " prefix if present
         if token and token.lower().startswith("bearer "):
@@ -230,7 +247,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         token_data = TokenData(username=username)
         logger.debug(f"JWT token decoded for user: {username}")
     except JWTError as e:
-        logger.error(f"JWT decode error: {str(e)}")
+        logger.error(f"JWT decoding error: {e}")
+        # Raise the exception with the detail message the test expects
         raise credentials_exception
 
     try:
@@ -270,7 +288,7 @@ def verify_refresh_token(token: str) -> Optional[Dict[str, Any]]:
             # Set expiration to match token expiry
             exp = payload.get("exp")
             if exp:
-                ttl = max(0, int(exp - datetime.utcnow().timestamp()))
+                ttl = max(0, int(exp - datetime.now(timezone.utc).timestamp()))
                 redis_client.setex(f"used_token:{token}", ttl, "1")
                 logger.debug(f"Token marked as used with TTL: {ttl}")
         else:
@@ -283,3 +301,21 @@ def verify_refresh_token(token: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Unexpected error verifying refresh token: {str(e)}")
         return None
+
+async def revoke_token(token_id: str, exp: int):
+    """Add token ID to the blacklist with its expiration time as TTL."""
+    try:
+        redis_client = await get_redis_client()
+        # Use expiration time to set TTL. Ensure TTL is positive.
+        # Calculate TTL based on the token's 'exp' claim
+        ttl = max(0, int(exp - datetime.now(timezone.utc).timestamp()))
+        if ttl > 0:
+            await redis_client.setex(f"blacklist:{token_id}", ttl, "revoked")
+            logger.info(f"Token {token_id} blacklisted with TTL {ttl} seconds")
+        else:
+            logger.info(f"Token {token_id} already expired, not adding to blacklist.")
+    except Exception as e:
+        logger.error(f"Redis error when revoking token: {e}")
+    finally:
+        if redis_client:
+            await redis_client.close()

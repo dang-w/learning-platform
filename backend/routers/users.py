@@ -1,11 +1,11 @@
 """User management endpoints."""
 from fastapi import APIRouter, HTTPException, status, Depends, Request
-from pydantic import BaseModel, EmailStr, constr
+from pydantic import BaseModel, EmailStr, constr, Field, ConfigDict
 from typing import Optional, List, Dict, Any, Union
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
-from bson import json_util
+from bson import json_util, ObjectId
 from fastapi.responses import JSONResponse, FileResponse
 import tempfile
 import os
@@ -16,6 +16,7 @@ from utils.validators import validate_email, validate_password_strength
 from utils.rate_limiter import rate_limit_dependency_with_logging, create_user_rate_limit
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError
+from loguru import logger
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,11 +39,16 @@ class UserUpdate(BaseModel):
     firstName: Optional[str] = None  # Use camelCase to match frontend request
     lastName: Optional[str] = None   # Use camelCase to match frontend request
 
-class User(UserBase):
-    id: str
-    created_at: datetime
-    is_active: bool = True
+class User(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id")
+    username: str
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     disabled: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    is_active: bool = True
     resources: Dict[str, List[Any]] = {
         "articles": [],
         "videos": [],
@@ -59,8 +65,14 @@ class User(UserBase):
     review_log: Dict[str, Any] = {}
     milestones: List[Any] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_priority = 2,
+        json_encoders={
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat()
+        }
+    )
 
 class UserStatistics(BaseModel):
     """User statistics model."""
@@ -83,7 +95,8 @@ class NotificationPreferences(BaseModel):
 
 def normalize_user_data(user_dict: dict) -> dict:
     """
-    Normalize user data to ensure all required fields exist with proper types.
+    Normalize user data to ensure all required fields exist with proper types,
+    handling MongoDB's _id conversion.
 
     Args:
         user_dict: The user dictionary to normalize
@@ -91,65 +104,84 @@ def normalize_user_data(user_dict: dict) -> dict:
     Returns:
         A normalized user dictionary that conforms to the User model
     """
-    # Create a copy of the user dict to avoid modifying the original
+    logger.debug(f"Normalizing user data. Input keys: {list(user_dict.keys())}")
+    # Create a copy to avoid modifying the original dict if passed by reference elsewhere
     user_data = dict(user_dict)
 
-    # Convert MongoDB _id to id expected by Pydantic
-    if "_id" in user_data and "id" not in user_data:
-        # Convert ObjectId to string if needed
-        if hasattr(user_data["_id"], "__str__"):
-            user_data["id"] = str(user_data["_id"])
-        else:
-            user_data["id"] = user_data["_id"]
+    # Convert MongoDB _id to id string field and remove original _id
+    if "_id" in user_data:
+        _id_value = user_data.pop("_id")  # Remove original _id key
+        try:
+            user_data["id"] = str(_id_value)
+            logger.debug(f"Converted _id ({type(_id_value)}) to id (str): {user_data['id']}")
+        except Exception as e:
+            logger.error(f"Error converting _id to string: {e}. Original _id: {_id_value}", exc_info=True)
+            user_data["id"] = None # Set id to None if conversion fails
+    elif "id" not in user_data:
+        logger.warning("Neither '_id' nor 'id' found in user data. Setting 'id' to None.")
+        user_data["id"] = None # Ensure id field exists, even if null
+
+    # Ensure 'username' exists (it's required in the User model)
+    if "username" not in user_data:
+        # This case should ideally not happen if data comes from DB for existing users,
+        # but good for robustness, especially during creation flow if normalization
+        # happens before all fields are set.
+        logger.warning("Username missing during normalization.")
+        user_data["username"] = "" # Provide a default empty string
+
+    # Ensure 'email' exists
+    if "email" not in user_data:
+         logger.warning("Email missing during normalization.")
+         user_data["email"] = "" # Provide a default
 
     # Handle resources field
-    if "resources" not in user_data or not isinstance(user_data["resources"], dict):
+    if "resources" not in user_data or not isinstance(user_data.get("resources"), dict):
         user_data["resources"] = {
-            "articles": [],
-            "videos": [],
-            "courses": [],
-            "books": []
+            "articles": [], "videos": [], "courses": [], "books": []
         }
     else:
-        # Ensure all resource types exist in the dictionary
-        for resource_type in ["articles", "videos", "courses", "books"]:
-            if resource_type not in user_data["resources"]:
-                user_data["resources"][resource_type] = []
-            # Ensure each resource list is actually a list
-            elif not isinstance(user_data["resources"][resource_type], list):
-                user_data["resources"][resource_type] = []
+        # Ensure all resource types exist and are lists
+        default_resource_types = ["articles", "videos", "courses", "books"]
+        for res_type in default_resource_types:
+            if res_type not in user_data["resources"] or not isinstance(user_data["resources"].get(res_type), list):
+                user_data["resources"][res_type] = []
 
-    # Ensure other list fields exist
-    for field in ["study_sessions", "review_sessions", "learning_paths", "reviews",
-                 "concepts", "goals", "metrics", "milestones"]:
-        if field not in user_data or not isinstance(user_data[field], list):
+    # Ensure other list fields exist and are lists
+    list_fields = ["study_sessions", "review_sessions", "learning_paths", "reviews",
+                   "concepts", "goals", "metrics", "milestones"]
+    for field in list_fields:
+        if field not in user_data or not isinstance(user_data.get(field), list):
             user_data[field] = []
 
     # Ensure review_log is a dictionary
-    if "review_log" not in user_data or not isinstance(user_data["review_log"], dict):
+    if "review_log" not in user_data or not isinstance(user_data.get("review_log"), dict):
         user_data["review_log"] = {}
 
-    # Ensure boolean fields have proper values
+    # Ensure boolean fields have default values if missing
     if "disabled" not in user_data:
         user_data["disabled"] = False
     if "is_active" not in user_data:
-        user_data["is_active"] = True
+        user_data["is_active"] = True # Default to active
 
-    # Ensure created_at is present
+    # Ensure datetime fields exist or set defaults (optional: could leave as None if model allows)
     if "created_at" not in user_data:
-        user_data["created_at"] = datetime.utcnow()
+         # Check if the model field allows None before setting a default
+         user_data["created_at"] = None # Align with Optional[datetime]
+    # Do the same for updated_at if needed, depends on model definition
 
-    # Ensure first_name and last_name exist
+    # Ensure optional string fields exist or set defaults (e.g., empty string or None)
     if "first_name" not in user_data:
-        user_data["first_name"] = ""
+        user_data["first_name"] = None # Align with Optional[str]
     if "last_name" not in user_data:
-        user_data["last_name"] = ""
+        user_data["last_name"] = None # Align with Optional[str]
 
+
+    logger.debug(f"Normalization complete. Output keys: {list(user_data.keys())}")
     # <<< Log the final normalized data >>>
     return user_data
 
 @router.post("/", response_model=User, status_code=status.HTTP_201_CREATED,
-            dependencies=[Depends(create_user_rate_limit)])
+            dependencies=[Depends(create_user_rate_limit)], response_model_by_alias=False)
 async def create_user(user: UserCreate, request: Request):
     """Create a new user."""
     try:
@@ -183,26 +215,44 @@ async def create_user(user: UserCreate, request: Request):
                 detail="Email already registered"
             )
 
-        # Create user document
+        # Prepare user document for insertion (excluding plain password)
         user_dict = user.model_dump()
-        user_dict["created_at"] = datetime.utcnow()
+        user_dict["created_at"] = datetime.now(timezone.utc)
+        user_dict["updated_at"] = user_dict["created_at"] # Set initial updated_at
         user_dict["hashed_password"] = get_password_hash(user.password)
         user_dict["is_active"] = True
-
+        user_dict["disabled"] = False # Ensure default
+        # Initialize empty lists/dicts for fields managed elsewhere or optional
+        user_dict["resources"] = {"articles": [], "videos": [], "courses": [], "books": []}
+        user_dict["study_sessions"] = []
+        user_dict["review_sessions"] = []
+        user_dict["learning_paths"] = []
+        user_dict["reviews"] = []
+        user_dict["concepts"] = []
+        user_dict["goals"] = []
+        user_dict["metrics"] = []
+        user_dict["review_log"] = {}
+        user_dict["milestones"] = []
         # Remove plain password before saving
         del user_dict["password"]
 
-        # Normalize user data to ensure it conforms to the User model
-        user_dict = normalize_user_data(user_dict)
-
         # Insert user into database
         result = await db.users.insert_one(user_dict)
+        logger.info(f"User {user.username} inserted with ID: {result.inserted_id}")
 
-        # Add the generated ID to the user dict
-        user_dict["id"] = str(result.inserted_id)
+        # Fetch the complete user document from DB to ensure all fields are present
+        created_user_doc = await db.users.find_one({"_id": result.inserted_id})
 
-        logger.info(f"Created new user: {user.username}")
-        return User(**user_dict)
+        if not created_user_doc:
+             logger.error(f"Failed to fetch user immediately after creation for username: {user.username}")
+             raise HTTPException(status_code=500, detail="Failed to retrieve created user details")
+
+        # Normalize the fetched data (handles _id -> id conversion, default fields etc.)
+        normalized_user_data = normalize_user_data(created_user_doc)
+
+        logger.info(f"Returning created user: {user.username}, ID: {normalized_user_data.get('id')}")
+        # Create the Pydantic model from the normalized dictionary for the response
+        return User(**normalized_user_data)
 
     except HTTPException as he:
         # Re-raise HTTP exceptions directly to preserve status code and detail
@@ -215,7 +265,7 @@ async def create_user(user: UserCreate, request: Request):
             detail="Error creating user"
         )
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=User, response_model_by_alias=False)
 async def read_users_me(current_user: dict = Depends(get_current_active_user)):
     """Get current user profile."""
     # Check if current_user is already a User object or MockUser (for tests)
@@ -224,34 +274,38 @@ async def read_users_me(current_user: dict = Depends(get_current_active_user)):
     elif hasattr(current_user, 'dict') and callable(current_user.dict):
         user_data = current_user.dict()
     else:
-        # Normalize user data to ensure it conforms to the User model
-        user_data = normalize_user_data(current_user)
-    return User(**user_data)
+        # Assume it's already a dict-like structure if dependency injection worked
+        user_data = dict(current_user) # Ensure it's a mutable dict
 
-@router.get("/me/", response_model=User)
+    logger.debug(f"[read_users_me] Data before normalization: {user_data}")
+
+    # Normalize the data before creating the response model
+    normalized_user_data = normalize_user_data(user_data)
+    logger.debug(f"[read_users_me] Data after normalization: {normalized_user_data}")
+
+    try:
+        user_model = User(**normalized_user_data)
+        logger.debug(f"[read_users_me] Pydantic User model created: {user_model.model_dump(exclude_unset=True)}")
+        return user_model
+    except Exception as e:
+        logger.error(f"[read_users_me] Error creating User model from normalized data: {e}", exc_info=True)
+        logger.error(f"[read_users_me] Normalized data that caused error: {normalized_user_data}")
+        raise HTTPException(status_code=500, detail="Internal server error processing user data.")
+
+@router.get("/me/", response_model=User, response_model_by_alias=False)
 async def read_users_me_with_slash(current_user: dict = Depends(get_current_active_user)):
-    """Get current user profile (endpoint with trailing slash)."""
+    """Get current user profile (trailing slash)."""
+    # Delegate to the non-slash version to avoid code duplication
     return await read_users_me(current_user)
 
 @router.get("/{username}", response_model=User)
 async def read_user(username: str):
-    """Get user by username."""
-    user = await db.users.find_one({"username": username})
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
-    # Check if user is already a User object or MockUser (for tests)
-    if hasattr(user, 'model_dump') and callable(user.model_dump):
-        user_data = user.model_dump()
-    elif hasattr(user, 'dict') and callable(user.dict):
-        user_data = user.dict()
-    else:
-        # Normalize user data to ensure it conforms to the User model
-        user_data = normalize_user_data(user)
-    return User(**user_data)
+    """Get user profile by username."""
+    user_dict = await db.users.find_one({"username": username})
+    if user_dict:
+        normalized_user_data = normalize_user_data(user_dict)
+        return User(**normalized_user_data)
+    raise HTTPException(status_code=404, detail="User not found")
 
 @router.get("/me/statistics", response_model=UserStatistics)
 async def get_user_statistics(current_user: dict = Depends(get_current_active_user)):
@@ -374,8 +428,11 @@ async def export_user_data(current_user: dict = Depends(get_current_active_user)
             },
             "statistics": (await get_user_statistics(current_user)).model_dump(),
             "preferences": (await get_notification_preferences(current_user)).model_dump(),
-            "export_date": datetime.utcnow()
+            "export_date": datetime.now(timezone.utc)
         }
+
+        # Use ISO format for consistency
+        export_data["export_date"] = export_data["export_date"].isoformat()
 
         # Create a temporary file to store the export
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
@@ -386,7 +443,7 @@ async def export_user_data(current_user: dict = Depends(get_current_active_user)
         return FileResponse(
             tmp_path,
             media_type='application/json',
-            filename=f'user_data_export_{current_user["username"]}_{datetime.utcnow().strftime("%Y%m%d")}.json'
+            filename=f'user_data_export_{current_user["username"]}_{datetime.now(timezone.utc).strftime("%Y%m%d")}.json'
         )
     except Exception as e:
         logger.error(f"Error exporting user data: {str(e)}")
@@ -472,9 +529,15 @@ async def update_user_me(
         # Add basic validation if needed (e.g., length)
         db_update_dict["last_name"] = update_payload["lastName"]
 
-    # Add updated_at timestamp if any fields are being updated
+    # If password is included, hash it
+    if "password" in update_payload:
+        hashed_password = get_password_hash(update_payload["password"])
+        db_update_dict["hashed_password"] = hashed_password
+
+    # Add updated_at timestamp
     if db_update_dict:
-        db_update_dict["updated_at"] = datetime.utcnow()
+        db_update_dict["updated_at"] = datetime.now(timezone.utc)
+        await db.users.update_one({"_id": user_id}, {"$set": db_update_dict})
     else:
          # Should have been caught by the initial check, but as a safeguard:
          raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid fields provided for update.")

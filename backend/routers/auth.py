@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Optional, Dict, Any
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, EmailStr
 import os
 from jose import jwt, JWTError
@@ -368,24 +368,60 @@ async def logout(
         clear_refresh_token_cookie(response)
         return response
 
-@router.get("/me", response_model=User,
-            dependencies=[Depends(get_current_active_user)])
-async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
-    """
-    Get the current authenticated user's information.
-    This endpoint is useful for client applications to retrieve user data after authentication.
-    """
+@router.get("/me", response_model=User)
+async def get_me(current_user: Any = Depends(get_current_active_user)):
+    """Get information about the currently authenticated user."""
+    logger.debug(f"Retrieving info for user: Type={type(current_user)}")
     try:
-        # Import normalize_user_data function
-        from routers.users import normalize_user_data
+        # Handle both dict (from DB) and object (from mock/test) cases
+        if isinstance(current_user, dict):
+            user_id = str(current_user.get("_id")) if current_user.get("_id") else None
+            username = current_user.get("username")
+            email = current_user.get("email")
+            first_name = current_user.get("first_name")
+            last_name = current_user.get("last_name")
+            disabled = current_user.get("disabled", False)
+            created_at = current_user.get("created_at")
+            # Ensure datetime is timezone-aware if present
+            if created_at and isinstance(created_at, datetime) and created_at.tzinfo is None:
+                 created_at = created_at.replace(tzinfo=timezone.utc)
+        elif hasattr(current_user, 'username'): # Check if it's an object with expected attributes
+            user_id = getattr(current_user, "id", None) or getattr(current_user, "_id", None)
+            username = getattr(current_user, "username", None)
+            email = getattr(current_user, "email", None)
+            first_name = getattr(current_user, "first_name", None)
+            last_name = getattr(current_user, "last_name", None)
+            disabled = getattr(current_user, "disabled", False)
+            created_at_str = getattr(current_user, "created_at", None)
+            created_at = datetime.fromisoformat(created_at_str) if created_at_str else None
+            # Ensure datetime is timezone-aware if present
+            if created_at and created_at.tzinfo is None:
+                 created_at = created_at.replace(tzinfo=timezone.utc)
+        else:
+            raise ValueError("Unexpected format for current_user")
 
-        # Return the normalized user data
-        return normalize_user_data(current_user)
+        if not username:
+            raise ValueError("Username could not be determined")
+
+        # Construct the User model response
+        user_response = User(
+            id=str(user_id) if user_id else None,
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            disabled=disabled,
+            created_at=created_at
+            # Add other fields required by User model if necessary
+        )
+
+        return user_response
+
     except Exception as e:
-        logger.error(f"Error retrieving current user info: {str(e)}")
+        logger.error(f"Error retrieving current user info: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error retrieving user information"
+            detail="Failed to retrieve user information"
         )
 
 @router.get("/statistics", response_model=Dict[str, Any])
@@ -437,8 +473,26 @@ async def get_auth_statistics(current_user: dict = Depends(get_current_active_us
         login_times = [m.get("timestamp") for m in auth_metrics if m.get("type") == "login" and "timestamp" in m]
         last_login = max(login_times) if login_times else None
 
-        # Calculate days since creation
-        days_since_creation = (datetime.utcnow() - user.get("created_at")).days if user.get("created_at") else None
+        # Optionally: Add account creation date if available
+        if user.get("created_at"):
+            # Ensure created_at is datetime object
+            if isinstance(user["created_at"], str):
+                try:
+                    created_at_dt = datetime.fromisoformat(user["created_at"])
+                    days_since_creation = (datetime.now(timezone.utc) - created_at_dt).days
+                except ValueError:
+                    days_since_creation = None # Handle parsing error
+            elif isinstance(user["created_at"], datetime):
+                 # Make created_at timezone-aware if it's naive
+                if user["created_at"].tzinfo is None:
+                    created_at_dt = user["created_at"].replace(tzinfo=timezone.utc)
+                else:
+                    created_at_dt = user["created_at"]
+                days_since_creation = (datetime.now(timezone.utc) - created_at_dt).days
+            else:
+                days_since_creation = None # Handle unexpected type
+        else:
+            days_since_creation = None
 
         # Compile statistics
         statistics = {

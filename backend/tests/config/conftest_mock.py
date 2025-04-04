@@ -5,12 +5,14 @@ import os
 import asyncio
 import logging
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import jwt
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+from bson import ObjectId
+import nest_asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -70,9 +72,9 @@ def create_test_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create a test JWT token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -635,14 +637,14 @@ with patch('motor.motor_asyncio.AsyncIOMotorClient', return_value=mock_mongo_cli
     url_extractor.get_current_active_user = mock_get_current_active_user
 
     # Override specific endpoints
-    for route in resources.router.routes:
+    for route in resources.routes:
         if getattr(route, "path", "") == "/statistics" and getattr(route, "methods", set()) == {"GET"}:
             route.endpoint = mock_get_resource_statistics
         elif getattr(route, "path", "") == "/{resource_type}" and getattr(route, "methods", set()) == {"GET"}:
             route.endpoint = mock_get_resources_by_type
 
     # Override learning path router endpoints
-    for route in learning_path.router.routes:
+    for route in learning_path.routes:
         if getattr(route, "path", "") == "/" and "POST" in getattr(route, "methods", set()):
             route.endpoint = mock_create_learning_path
         elif getattr(route, "path", "") == "/" and "GET" in getattr(route, "methods", set()):
