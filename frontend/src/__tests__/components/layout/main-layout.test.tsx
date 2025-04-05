@@ -104,7 +104,7 @@ describe('MainLayout', () => {
     // Verify sidebar elements
     expect(screen.getByText('Open sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('nav-dashboard')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-resources')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-library')).toBeInTheDocument();
   });
 
   it('renders children without layout on auth pages', async () => {

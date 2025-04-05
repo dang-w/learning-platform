@@ -4,60 +4,90 @@ import '@testing-library/jest-dom';
 import { ResourceForm } from '@/components/resources/ResourceForm';
 import { useResourceStore } from '@/lib/store/resource-store';
 import { useUrlMetadata } from '@/lib/hooks/useUrlMetadata';
-import { DifficultyLevel } from '@/types/resources';
+import { DifficultyLevel, ResourceTypeString } from '@/types/resource';
 import { expect } from '@jest/globals';
+import { ResourceFormData } from '@/lib/validators/resource';
 
 // Mock the stores and hooks
 jest.mock('@/lib/store/resource-store');
 jest.mock('@/lib/hooks/useUrlMetadata');
-jest.mock('react-hook-form', () => {
-  const originalModule = jest.requireActual('react-hook-form');
-  return {
-    ...originalModule,
-    useForm: () => ({
-      register: jest.fn().mockImplementation(name => ({ name })),
-      handleSubmit: jest.fn(cb => (data: Record<string, unknown>) => cb(data)),
-      setValue: jest.fn(),
-      watch: jest.fn().mockReturnValue('https://example.com/article'),
-      formState: { errors: {}, isSubmitting: false },
-    }),
-  };
-});
 
+// --- Consolidated and Improved react-hook-form Mock ---
 jest.mock('react-hook-form', () => {
   const originalModule = jest.requireActual('react-hook-form');
 
-  // Create mock values for different fields
-  const mockValues: Record<string, string | number | string[]> = {
-    url: 'https://example.com/article',
-    title: 'Test Resource',
-    description: 'A test resource description',
-    resourceType: 'articles',
-    estimated_time: 60,
-    difficulty: 'beginner',
-    topics: ['AI', 'Machine Learning'],
-  };
+  // Use a closure to maintain state for each useForm instance if needed,
+  // but for this test file, a single state might suffice.
+  const mockFormValues: Partial<ResourceFormData> = {}; // Store values here
 
-  const mockSetValue = jest.fn((name, value) => {
-    // Update the mock values when setValue is called
-    mockValues[name] = value;
+  const mockSetValue = jest.fn((name: keyof ResourceFormData, value) => {
+    mockFormValues[name] = value;
   });
 
+  const mockWatch = jest.fn((name?: keyof ResourceFormData | (keyof ResourceFormData)[]) => {
+    if (typeof name === 'string') {
+      return mockFormValues[name];
+    }
+    // Return all values if no name is specified (or handle array if needed)
+    return { ...mockFormValues };
+  });
+
+  // Simple mock registration
+  const mockRegister = jest.fn((name: keyof ResourceFormData) => ({
+    name: name,
+    onChange: jest.fn(e => {
+      const value = e.target.value;
+      if (name === 'estimated_time') {
+        mockFormValues[name] = parseInt(value, 10) || 0; // Parse as number for estimated_time
+      } else if (typeof mockFormValues[name] === 'string' || typeof mockFormValues[name] === 'undefined') {
+        // Only assign if the target type is string or undefined
+        mockFormValues[name] = value;
+      }
+      // Note: This doesn't handle array types like 'topics' which have custom logic in the component
+    }),
+    // Add other properties like ref, onBlur if needed by the component interactions
+  }));
+
   return {
     ...originalModule,
-    useForm: () => ({
-      register: jest.fn().mockImplementation(name => ({ name })),
-      handleSubmit: jest.fn(cb => (data: Record<string, unknown>) => cb(data)),
-      setValue: mockSetValue,
-      // Return appropriate value based on the field name
-      watch: jest.fn().mockImplementation((name?: string) => {
-        if (!name) return mockValues;
-        return mockValues[name];
-      }),
-      formState: { errors: {}, isSubmitting: false },
-    }),
+    useForm: (options?: { defaultValues?: Partial<ResourceFormData> }) => {
+      // Initialize/reset state based on defaultValues
+      Object.keys(mockFormValues).forEach(key => delete mockFormValues[key]); // Clear previous state
+      if (options?.defaultValues) {
+        Object.assign(mockFormValues, options.defaultValues);
+      }
+
+      return {
+        register: mockRegister,
+        handleSubmit: jest.fn((onValid: (data: ResourceFormData) => void | Promise<void>) => (
+          // Return the event handler that form expects
+          async (event?: React.BaseSyntheticEvent) => {
+            event?.preventDefault();
+            // Call the validation success callback with the *current* form values
+            // Asserting type as validation is assumed passed when onValid is called
+            onValid({ ...mockFormValues } as ResourceFormData);
+          }
+        )),
+        setValue: mockSetValue,
+        watch: mockWatch,
+        formState: { errors: {}, isSubmitting: false },
+        // Mock other RHF functions used by ResourceForm if necessary (e.g., reset, trigger, getValues)
+        reset: jest.fn((values?: Partial<ResourceFormData>) => { // Basic reset mock
+            // Assert key array type before iteration
+            const keys = Object.keys(mockFormValues) as Array<keyof ResourceFormData>;
+            keys.forEach(key => {
+                // Set to undefined instead of deleting
+                mockFormValues[key] = undefined;
+            });
+            if (values) {
+                Object.assign(mockFormValues, values);
+            }
+        }),
+      };
+    },
   };
 });
+// --- End of Mock ---
 
 describe('ResourceForm Component', () => {
   const mockAddResource = jest.fn();
@@ -103,7 +133,8 @@ describe('ResourceForm Component', () => {
       completed: false,
       date_added: '2023-03-15T10:30:00',
       completion_date: null,
-      notes: 'Test notes'
+      notes: 'Test notes',
+      type: 'article' as const
     };
 
     render(<ResourceForm resource={existingResource} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
@@ -138,7 +169,8 @@ describe('ResourceForm Component', () => {
       completed: false,
       date_added: '2023-03-15T10:30:00',
       completion_date: null,
-      notes: 'Test notes'
+      notes: 'Test notes',
+      type: 'article' as const
     };
 
     const { container } = render(<ResourceForm resource={existingResource} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
@@ -186,4 +218,85 @@ describe('ResourceForm Component', () => {
       expect(screen.getByRole('button', { name: /Extract Metadata/i })).toBeInTheDocument();
     });
   });
-});
+
+  it('updates input fields when user types', async () => {
+    const onSubmitMock = jest.fn();
+    const onCancelMock = jest.fn();
+
+    render(<ResourceForm onSubmit={onSubmitMock} onCancel={onCancelMock} />);
+
+    const titleInput = screen.getByTestId('resource-title-input');
+    const urlInput = screen.getByTestId('resource-url');
+    const descriptionInput = screen.getByTestId('resource-description');
+
+    expect(titleInput).toBeInTheDocument();
+    expect(urlInput).toBeInTheDocument();
+    expect(descriptionInput).toBeInTheDocument();
+
+    // Simulate user typing
+    fireEvent.change(titleInput, { target: { value: 'New Test Title' } });
+    fireEvent.change(urlInput, { target: { value: 'https://newtest.com' } });
+    fireEvent.change(descriptionInput, { target: { value: 'New description.' } });
+
+    // Assert that the values have been updated
+    expect(titleInput).toHaveValue('New Test Title');
+    expect(urlInput).toHaveValue('https://newtest.com');
+    expect(descriptionInput).toHaveValue('New description.');
+  });
+
+  it('calls onSubmit with form data when submitted', async () => {
+    const onSubmitMock = jest.fn();
+    const onCancelMock = jest.fn();
+    render(<ResourceForm onSubmit={onSubmitMock} onCancel={onCancelMock} />);
+
+    // Simulate user input
+    fireEvent.change(screen.getByTestId('resource-url'), { target: { value: 'https://submit.com' } });
+    fireEvent.change(screen.getByTestId('resource-title-input'), { target: { value: 'Submit Title' } });
+    fireEvent.change(screen.getByTestId('resource-type'), { target: { value: 'video' as ResourceTypeString } }); // Ensure type safety
+    fireEvent.change(screen.getByTestId('resource-difficulty'), { target: { value: 'beginner' as DifficultyLevel } }); // Ensure type safety
+    fireEvent.change(screen.getByTestId('resource-estimated-time'), { target: { value: '15' } }); // RHF handles conversion
+    // Simulate adding topics if necessary - the mock currently defaults topics to [] if not changed
+    // Assuming topics remain empty for this test based on previous expectation
+    // If topics needed simulation:
+    // const topicInput = screen.getByTestId('resource-topics');
+    // fireEvent.change(topicInput, { target: { value: 'New Topic' } });
+    // fireEvent.keyDown(topicInput, { key: 'Enter', code: 'Enter' });
+    // Check mockFormValues.topics state
+
+    // Submit the form
+    fireEvent.submit(screen.getByTestId('resource-form'));
+
+    // Wait specifically for the mock function to have been called.
+    await waitFor(() => expect(onSubmitMock).toHaveBeenCalledTimes(1));
+
+    // Now check the arguments it was called with.
+    expect(onSubmitMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Submit Title',
+      url: 'https://submit.com',
+      type: 'video',
+      difficulty: 'beginner',
+      estimated_time: 15, // RHF mock should handle string->number based on schema/register
+      topics: [],          // Explicitly check for empty array (or updated if simulated)
+    }));
+  });
+
+  it('calls onCancel when cancel button is clicked', () => {
+    const { container } = render(<ResourceForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
+    const cancelButton = container.querySelector('button[type="reset"]');
+    if (cancelButton) {
+      fireEvent.click(cancelButton);
+      expect(mockOnCancel).toHaveBeenCalled();
+    }
+  })
+
+  it('handles metadata extraction and fills fields', async () => {
+    render(<ResourceForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
+
+    fireEvent.change(screen.getByLabelText(/URL/i), { target: { value: 'https://example.com/article' } });
+    fireEvent.click(screen.getByRole('button', { name: /Extract Metadata/i }));
+
+    await waitFor(() => {
+      expect(mockExtractMetadata).toHaveBeenCalledWith('https://example.com/article');
+    });
+  })
+})

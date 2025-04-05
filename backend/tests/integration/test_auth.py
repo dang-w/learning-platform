@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from unittest.mock import patch, MagicMock, AsyncMock
 from main import app
 from auth import create_access_token, get_current_user, get_current_active_user
@@ -22,12 +23,13 @@ def clear_dependency_overrides():
     app.dependency_overrides.clear()
 
 @pytest.mark.integration
-def test_authentication(client, auth_headers):
+@pytest.mark.asyncio
+async def test_authentication(async_client: AsyncClient, auth_headers):
     """
     Test that authentication works with a valid token.
     """
     # Make a request with the auth headers
-    response = client.get("/api/users/me/", headers=auth_headers)
+    response = await async_client.get("/api/users/me/", headers=auth_headers)
 
     # Verify the response using the standardized response model
     user_data = verify_response(response)
@@ -37,18 +39,16 @@ def test_authentication(client, auth_headers):
     assert "last_name" in user_data
 
 @pytest.mark.integration
-def test_authentication_failure():
+@pytest.mark.asyncio
+async def test_authentication_failure(async_client: AsyncClient):
     """
     Test that authentication fails with an invalid token.
     """
-    # Create a test client
-    client = TestClient(app)
-
     # Create invalid auth headers
     invalid_headers = {"Authorization": "Bearer invalid_token"}
 
     # Make a request with invalid auth headers
-    response = client.get("/api/users/me/", headers=invalid_headers)
+    response = await async_client.get("/api/users/me/", headers=invalid_headers)
 
     # Verify the response is unauthorized
     assert response.status_code == 401

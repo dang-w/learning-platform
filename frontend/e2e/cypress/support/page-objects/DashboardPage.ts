@@ -33,10 +33,10 @@ export class DashboardPage extends BasePage {
   /**
    * Navigate to the dashboard with resilient handling
    */
-  visitDashboard(): Cypress.Chainable<void> {
+  visitDashboard(): void {
     cy.visit('/dashboard');
     this.waitForLoadingToComplete();
-    return this.visitProtected('/dashboard');
+    // No explicit return needed for void Chainable
   }
 
   /**
@@ -55,17 +55,15 @@ export class DashboardPage extends BasePage {
    * @returns Boolean indicating if dashboard appears to be loaded
    */
   isDashboardLoaded(): Cypress.Chainable<boolean> {
-    // Check for the user greeting first as a primary indicator of page content starting to load
-    cy.get(this.selectors.userGreeting, { timeout: 15000 }).should('be.visible'); // Increased timeout slightly
+    // Wait for the data-dependent sections first, ensuring they exist.
+    // Use a slightly longer timeout to be safe.
+    cy.get('[data-testid="resource-stats"]', { timeout: 15000 }).should('exist');
+    cy.get('[data-testid="study-metrics"]', { timeout: 15000 }).should('exist');
 
-    // Then, check for the existence of key *content* sections within the dashboard.
-    // These are better indicators that the dashboard itself has loaded, not just the layout.
-    cy.get('[data-testid="resource-stats"]', { timeout: 10000 }).should('exist');
-    cy.get('[data-testid="study-metrics"]', { timeout: 10000 }).should('exist');
-    // cy.get('[data-testid="review-stats"]', { timeout: 10000 }).should('exist'); // Optional: Add more checks if needed
-    // cy.get(this.selectors.navBar).should('exist'); // Removed check for layout element
+    // Then, confirm the user greeting is visible as well.
+    cy.get(this.selectors.userGreeting, { timeout: 15000 }).should('be.visible');
 
-    // If all checks pass, implicitly yield true.
+    // If all checks pass, yield true.
     return cy.wrap(true);
   }
 

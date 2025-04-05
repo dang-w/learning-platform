@@ -50,6 +50,13 @@ describe('Authentication Flow', () => {
         }
       });
     });
+
+    // Ensure user exists via API (already done above)
+    cy.log(`User ${testUser.username} existence ensured. Proceeding to test.`);
+
+    // Start each test from the login page in a logged-out state
+    authPage.visitLogin();
+    cy.log('Navigated to login page for clean state.');
   });
 
   it('should show validation errors for invalid registration', () => {
@@ -101,40 +108,19 @@ describe('Authentication Flow', () => {
     cy.wait('@registerRequest').its('response.statusCode').should('match', /^20[01]$/); // Allow 200 or 201
     cy.log('Registration request successful!');
 
+    // Add a short delay to allow backend processes (e.g., auth sync) to complete
+    cy.wait(500);
+
     // Take screenshot after registration attempt
     authPage.takeScreenshot('after-registration');
 
-    // Try to login with the newly registered user
-    cy.intercept('POST', '/api/auth/token').as('loginRequest');
-    cy.log('Intercepting login request');
-
-    authPage.login(testUser.username, testUser.password);
-
-    cy.log('Waiting for login request to complete...');
-    cy.wait('@loginRequest').its('response.statusCode').should('eq', 200);
-    cy.log('Login request successful!');
-
-    // Verify login success by checking for dashboard - using aliases to avoid chaining issues
-    dashboardPage.isDashboardLoaded().as('dashboardLoaded');
-    cy.get('@dashboardLoaded').then(isLoaded => {
-      if (isLoaded) {
-        dashboardPage.takeScreenshot('successful-login');
-      } else {
-        // This fallback should ideally not be needed if intercepts pass
-        cy.log('Dashboard not loaded despite successful API calls? Trying fallback.');
-        // If dashboard isn't loaded, use direct token login as fallback
-        cy.loginWithToken(testUser.username);
-
-        // Now try to navigate to dashboard
-        dashboardPage.visitDashboard();
-
-        // Check if dashboard loaded - using aliases to avoid chaining
-        dashboardPage.elementExists(dashboardPage['selectors'].navBar).as('tokenDashboardLoaded');
-        cy.get('@tokenDashboardLoaded').then((isDashboardLoaded) => {
-          dashboardPage.takeScreenshot(isDashboardLoaded ? 'token-login-success' : 'login-failure');
-        });
-      }
-    });
+    // Verify successful login by checking URL and a core dashboard element
+    cy.log('Verifying dashboard URL after registration...');
+    cy.url({ timeout: 15000 }).should('include', '/dashboard'); // Increased timeout for URL check
+    cy.log('Verifying user greeting is visible on dashboard...');
+    cy.get('[data-testid="user-greeting"]', { timeout: 15000 }).should('be.visible'); // Use direct selector with timeout
+    cy.log('Dashboard loaded successfully after registration.');
+    dashboardPage.takeScreenshot('successful-registration-dashboard-visible');
   });
 
   it('should allow login with existing user', () => {

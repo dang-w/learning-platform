@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/auth/auth-guard';
 import { renderWithProviders } from '@/lib/utils/test-utils';
@@ -28,10 +28,20 @@ describe('AuthGuard', () => {
     expect(screen.getByTestId('loading-screen')).toBeInTheDocument();
   });
 
-  it('should render children when authenticated', () => {
-    useAuthStore.setState({ isLoading: false, isAuthenticated: true });
-
+  it('should render children when authenticated', async () => {
     renderWithProviders(<AuthGuard>Protected Content</AuthGuard>);
+
+    act(() => {
+      useAuthStore.setState({
+        isLoading: false,
+        isAuthenticated: true,
+        isDashboardReady: true
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-screen')).not.toBeInTheDocument();
+    });
 
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
   });
@@ -58,11 +68,7 @@ describe('AuthGuard', () => {
   });
 
   it('should handle auth state changes', async () => {
-    const { rerender } = renderWithProviders(<AuthGuard>Protected Content</AuthGuard>);
-
-    rerender(
-      <AuthGuard>Protected Content</AuthGuard>
-    );
+    renderWithProviders(<AuthGuard>Protected Content</AuthGuard>);
 
     await waitFor(() => {
       expect(screen.queryByTestId('loading-screen')).not.toBeInTheDocument();

@@ -1,19 +1,21 @@
 """Resources router."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import List, Optional, Dict, Any, Annotated
+from datetime import datetime, timezone
 import os
 from dotenv import load_dotenv
 import logging
 import httpx # Use httpx for async requests
 from bs4 import BeautifulSoup
+import math # Add math import for ceiling division
+from motor.motor_asyncio import AsyncIOMotorDatabase # Add this import
 
 # Load environment variables
 load_dotenv()
 
 # Import database connection from shared module
-from database import db
+from database import get_db # Import get_db dependency function
 
 # Import utility functions
 from utils.db_utils import get_document_by_id, update_document, delete_document
@@ -53,6 +55,9 @@ except Exception as e:
     ALL_CENTRAL_RESOURCES_LIST = []
     CENTRAL_RESOURCES_DICT = {}
 
+# Define valid difficulty levels and resource types
+DIFFICULTY_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert']
+RESOURCE_TYPES = ['article', 'video', 'course', 'book', 'documentation', 'tool', 'other']
 
 # Models
 class ResourceBase(BaseModel):
@@ -136,7 +141,7 @@ class ResourceBatchCreateTest(BaseModel):
     resources: List[BatchResourceItem]
 
 # Helper functions
-async def get_next_resource_id(db, username, resource_type):
+async def get_next_resource_id(db: AsyncIOMotorDatabase, username: str, resource_type: str):
     """Get the next available integer ID for a user-added resource."""
     try:
         # Ensure username is a string
@@ -192,36 +197,76 @@ def get_username(current_user):
 
 @router.get("/library", response_model=List[LibraryResource])
 async def get_central_library_resources(
-    topic: Optional[str] = None,
-    type: Optional[str] = None,
-    difficulty: Optional[str] = None,
-    # Add pagination later if needed: page: int = 1, page_size: int = 50
-    current_user: dict = Depends(get_current_active_user)
+    # Non-default parameters first
+    response: Response, # Inject Response object
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Add db dependency
+    current_user: dict = Depends(get_current_active_user),
+    # Default parameters after
+    topic: List[str] = Query(None), # Changed from Optional[str]
+    type: List[str] = Query(None), # Changed from Optional[str]
+    difficulty: List[str] = Query(None), # Changed from Optional[str]
+    search: Optional[str] = Query(None), # Allow searching
+    page: int = Query(1, ge=1, description="Page number starting from 1"),
+    limit: int = Query(10, ge=1, le=100, description="Number of items per page")
 ):
     """
     Get resources from the central library, merging user completion status.
-    Supports filtering by topic, type, and difficulty.
+    Supports filtering by topic, type, difficulty, search, and pagination.
     """
     username = get_username(current_user)
-    filtered_resources = list(ALL_CENTRAL_RESOURCES_LIST) # Start with a copy
+    # Make a copy to avoid modifying the original list in memory
+    filtered_resources = list(ALL_CENTRAL_RESOURCES_LIST)
+    logger.info(f"Initial library resource count: {len(filtered_resources)}") # Log initial count
 
-    # Apply filters
+    # Apply filters first
     if topic:
+        # topic is now a list of strings
+        logger.info(f"Filtering library by topics: {topic}")
+        topics_lower = [t.lower() for t in topic]
         filtered_resources = [
             r for r in filtered_resources
-            if any(t.lower() == topic.lower() for t in r.get("topics", []))
+            if any(res_topic.lower() in topics_lower for res_topic in r.get("topics", []))
         ]
+        logger.info(f"Resources after topic filter: {len(filtered_resources)}")
     if type:
-        # Map frontend type (e.g., 'guide') to backend category key if needed
-        # For now, assuming type matches keys like 'courses', 'platforms_guides'
-        # Make sure 'type' added during load matches expected filter values
-        filtered_resources = [r for r in filtered_resources if r.get("type", "").lower() == type.lower()]
+        # type is now a list of strings
+        logger.info(f"Filtering library by types: {type}")
+        types_lower = [t.lower() for t in type]
+        filtered_resources = [r for r in filtered_resources if r.get("type", "").lower() in types_lower]
+        logger.info(f"Resources after type filter: {len(filtered_resources)}")
     if difficulty:
-        filtered_resources = [r for r in filtered_resources if r.get("difficulty", "").lower() == difficulty.lower()]
+        # difficulty is now a list of strings
+        logger.info(f"Filtering library by difficulties: {difficulty}")
+        difficulties_lower = [d.lower() for d in difficulty]
+        filtered_resources = [r for r in filtered_resources if r.get("difficulty", "").lower() in difficulties_lower]
+        logger.info(f"Resources after difficulty filter: {len(filtered_resources)}")
+    if search:
+        logger.info(f"Filtering library by search: '{search}'")
+        search_lower = search.lower()
+        filtered_resources = [
+            r for r in filtered_resources
+            if search_lower in r.get("title", "").lower() or \
+               search_lower in r.get("notes", "").lower() or \
+               any(search_lower in t.lower() for t in r.get("topics", []))
+        ]
+        logger.info(f"Resources after search filter: {len(filtered_resources)}")
 
-    # Fetch user's completion status for the filtered resources
+    # Calculate pagination details AFTER filtering
+    total_items = len(filtered_resources)
+    total_pages = math.ceil(total_items / limit) if limit > 0 else 0
+
+    # Set response headers
+    response.headers["X-Total-Pages"] = str(total_pages)
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Pages"
+
+    # Apply pagination slicing
+    start_index = (page - 1) * limit
+    end_index = start_index + limit
+    paginated_metadata = filtered_resources[start_index:end_index]
+
+    # Fetch user's completion status ONLY for the paginated resources
     user_statuses = {}
-    resource_ids_to_fetch = [r['id'] for r in filtered_resources]
+    resource_ids_to_fetch = [r['id'] for r in paginated_metadata]
     if resource_ids_to_fetch:
         status_cursor = db.user_library_status.find({
             "username": username,
@@ -230,9 +275,9 @@ async def get_central_library_resources(
         async for status_doc in status_cursor:
             user_statuses[status_doc["resource_id"]] = status_doc
 
-    # Merge status into results
+    # Merge status into the paginated results
     results_with_status = []
-    for resource in filtered_resources:
+    for resource in paginated_metadata:
         resource_copy = resource.copy()
         status_info = user_statuses.get(resource_copy['id'])
         if status_info:
@@ -258,9 +303,6 @@ async def get_central_library_resources(
         except Exception as model_exc: # Catch Pydantic validation error specifically if needed
              logger.warning(f"Skipping resource due to validation error: {resource_copy.get('id')}, Error: {model_exc}")
 
-
-    # Apply pagination here if implemented
-
     return results_with_status
 
 @router.get("/topics", response_model=List[str])
@@ -285,6 +327,7 @@ async def get_central_library_topics():
 async def update_central_library_resource_status(
     resource_id: str, # Central library uses string IDs
     status_update: LibraryStatusUpdate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Add db dependency
     current_user: dict = Depends(get_current_active_user)
 ):
     """
@@ -293,98 +336,69 @@ async def update_central_library_resource_status(
     """
     username = get_username(current_user)
 
-    # 1. Validate that the resource_id exists in the central library
-    if resource_id not in CENTRAL_RESOURCES_DICT:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Resource with ID {resource_id} not found in the central library."
-        )
+    # Find the metadata from the central dictionary
+    resource_metadata = CENTRAL_RESOURCES_DICT.get(resource_id)
+    if not resource_metadata:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found in central library")
 
-    # 2. Prepare the update data for the user_library_status collection
-    update_data = {
-        "username": username,
-        "resource_id": resource_id,
+    # Prepare the update document for the user_library_status collection
+    update_doc = {
         "completed": status_update.completed,
-        "last_updated": datetime.now().isoformat()
+        "notes": status_update.notes if status_update.notes is not None else "",
+        "last_updated": datetime.now(timezone.utc) # Use timezone-aware datetime
     }
     if status_update.completed:
-        update_data["completion_date"] = datetime.now().isoformat()
+        update_doc["completion_date"] = datetime.now(timezone.utc) # Set completion date only when marking complete
     else:
-        update_data["completion_date"] = None # Clear completion date if marking incomplete
+        # Ensure completion_date is unset if marking as not completed
+        update_doc["completion_date"] = None
 
-    if status_update.notes is not None:
-        update_data["notes"] = status_update.notes
-    else:
-        # If notes are not provided in the PATCH, we keep the existing ones or set to empty if no record exists yet
-        # We query first to handle this case, or use $unset conditionally if needed
-        pass # Handle notes below after potential query
-
-    # 3. Upsert the status in the user_library_status collection
-    # We use upsert=True: create if not exists, update if exists.
-    # Filter by username and resource_id
-    status_filter = {"username": username, "resource_id": resource_id}
-
-    # Prepare $set and $setOnInsert operations
-    set_on_insert_data = {"first_added": datetime.now().isoformat()}
-    set_data = update_data.copy()
-    set_data.pop('username') # Don't need to $set these fields in the filter
-    set_data.pop('resource_id')
-
-    # Handle notes: only set notes if explicitly provided in the request
-    if status_update.notes is None:
-        set_data.pop('notes', None) # Don't update notes if not provided
-        # If inserting, we might want notes to default to empty string
-        set_on_insert_data['notes'] = "" # Default notes to empty on insert if not provided
-
-
-    result = await db.user_library_status.update_one(
-        status_filter,
-        {
-            "$set": set_data,
-            "$setOnInsert": set_on_insert_data
-        },
-        upsert=True
-    )
-
-    # Log the operation result (optional)
-    if result.upserted_id:
-        logger.info(f"Created status record for user {username}, resource {resource_id}")
-    elif result.modified_count > 0:
-        logger.info(f"Updated status record for user {username}, resource {resource_id}")
-    else:
-         # This case might occur if the status submitted is identical to the existing status
-         logger.info(f"Status record for user {username}, resource {resource_id} was not modified (status likely unchanged).")
-
-    # 4. Construct the response by fetching the updated status and merging with central data
-    # Fetch the potentially updated/created status document
-    updated_status_doc = await db.user_library_status.find_one(status_filter)
-
-    # Get the base resource data from the central dictionary
-    base_resource_data = CENTRAL_RESOURCES_DICT[resource_id].copy()
-
-    # Merge status into the base data
-    if updated_status_doc:
-        base_resource_data['completed'] = updated_status_doc.get('completed', False)
-        base_resource_data['completion_date'] = updated_status_doc.get('completion_date')
-        base_resource_data['notes'] = updated_status_doc.get('notes', base_resource_data.get('notes', '')) # Prioritize user notes
-    else:
-        # Should not happen with upsert=True, but handle defensively
-        base_resource_data['completed'] = False
-        base_resource_data['completion_date'] = None
-        # Keep original notes if no user status found
-
-    # Validate and return using the LibraryResource model
     try:
-        return LibraryResource(**base_resource_data)
-    except Exception as model_exc:
-        logger.error(f"Failed to validate merged resource data for {resource_id} after status update: {model_exc}")
-        raise HTTPException(status_code=500, detail="Failed to construct response after status update.")
+        # Upsert the status document
+        result = await db.user_library_status.update_one( # Use injected db
+            {"username": username, "resource_id": resource_id},
+            {
+                "$set": update_doc,
+                "$setOnInsert": {"username": username, "resource_id": resource_id}
+            },
+            upsert=True
+        )
+
+        # Fetch the potentially updated status details
+        updated_status = await db.user_library_status.find_one( # Use injected db
+            {"username": username, "resource_id": resource_id}
+        )
+
+        # Construct the response by merging metadata and status
+        response_data = resource_metadata.copy()
+        if updated_status:
+            response_data["completed"] = updated_status.get("completed", False)
+            response_data["notes"] = updated_status.get("notes", "")
+            # Ensure completion_date is handled correctly (present if completed, None otherwise)
+            response_data["completion_date"] = updated_status.get("completion_date").isoformat() if updated_status.get("completed") and updated_status.get("completion_date") else None
+        else:
+            # Should not happen with upsert, but handle defensively
+            response_data["completed"] = False
+            response_data["notes"] = ""
+            response_data["completion_date"] = None
+
+        return LibraryResource(**response_data)
+
+    except Exception as e:
+        logger.error(f"Error updating central library resource status for user {username}, resource {resource_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update central library resource status"
+        )
 
 # --- User-Added Resource Endpoints (Existing, may need clarification comments) ---
 
 # Statistics endpoint - Needs to be defined BEFORE /{resource_type}
 @router.get("/statistics", response_model=Dict[str, Any])
-async def get_resource_statistics(current_user: dict = Depends(get_current_active_user)):
+async def get_resource_statistics(
+    current_user: Annotated[dict, Depends(get_current_active_user)],
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)] # Inject db
+):
     """Get statistics about the user-added resources."""
     username = get_username(current_user)
     user = await db.users.find_one({"username": username})
@@ -471,116 +485,135 @@ async def get_resource_statistics(current_user: dict = Depends(get_current_activ
 
 @router.get("/user", response_model=List[UserResource])
 async def get_all_user_added_resources(
-    topic: Optional[str] = None,
-    type: Optional[str] = None,
-    difficulty: Optional[str] = None,
-    completed: Optional[bool] = None,
-    # Add pagination later if needed: page: int = 1, page_size: int = 50
-    current_user: dict = Depends(get_current_active_user)
+    # Non-default parameters first
+    response: Response, # Inject Response object
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Add db dependency
+    current_user: dict = Depends(get_current_active_user),
+    # Default parameters after
+    topic: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    difficulty: Optional[str] = Query(None),
+    completed: Optional[bool] = Query(None),
+    page: int = Query(1, ge=1, description="Page number starting from 1"),
+    limit: int = Query(10, ge=1, le=100, description="Number of items per page")
 ):
     """
-    Get all resources *added by* the current user, aggregated into a single list.
-    Supports filtering by topic, type, difficulty, and completion status.
+    Get all resources *added by* the current user, supporting filtering and pagination.
     """
     username = get_username(current_user)
     user = await db.users.find_one({"username": username})
 
+    if not user or 'resources' not in user:
+        response.headers["X-Total-Pages"] = "0"
+        response.headers["Access-Control-Expose-Headers"] = "X-Total-Pages"
+        return []
+
     all_user_resources = []
-    if user and "resources" in user and isinstance(user["resources"], dict):
-        # Iterate through allowed user-addable types
-        for resource_type in ["articles", "videos", "courses", "books"]:
-            if resource_type in user["resources"] and isinstance(user["resources"][resource_type], list):
-                for resource_data in user["resources"][resource_type]:
-                    if isinstance(resource_data, dict):
-                        # Add 'type' field for consistency and potential filtering
-                        resource_copy = resource_data.copy()
-                        resource_copy['type'] = resource_type
-                        all_user_resources.append(resource_copy)
+    # Consolidate all resource types into one list for easier filtering/pagination
+    for res_type, resources in user.get('resources', {}).items():
+        if isinstance(resources, list):
+            for res in resources:
+                if isinstance(res, dict):
+                    res_copy = res.copy()
+                    res_copy['type'] = res_type # Ensure type field is present
+                    # Convert date string to datetime for comparison if needed, or ensure consistency
+                    # For now, assume date_added is a comparable string or handle conversion
+                    all_user_resources.append(res_copy)
 
-    # --- Apply Filters ---
-    filtered_resources = list(all_user_resources) # Start with a copy
-
+    # Apply filtering
+    filtered_user_resources = all_user_resources
     if topic:
-        filtered_resources = [
-            r for r in filtered_resources
+        filtered_user_resources = [
+            r for r in filtered_user_resources
             if any(t.lower() == topic.lower() for t in r.get("topics", []))
         ]
     if type:
-        # Filter by the 'type' field we added
-        filtered_resources = [r for r in filtered_resources if r.get("type", "").lower() == type.lower()]
+        filtered_user_resources = [r for r in filtered_user_resources if r.get("type", "").lower() == type.lower()]
     if difficulty:
-        filtered_resources = [r for r in filtered_resources if r.get("difficulty", "").lower() == difficulty.lower()]
+        filtered_user_resources = [r for r in filtered_user_resources if r.get("difficulty", "").lower() == difficulty.lower()]
     if completed is not None:
-         filtered_resources = [r for r in filtered_resources if r.get("completed", False) == completed]
+        filtered_user_resources = [r for r in filtered_user_resources if r.get("completed") == completed]
 
-    # --- Validate and Return ---
-    validated_output = []
-    for r_data in filtered_resources:
+    # Calculate pagination details AFTER filtering
+    total_items = len(filtered_user_resources)
+    total_pages = math.ceil(total_items / limit) if limit > 0 else 0
+
+    # Set response headers
+    response.headers["X-Total-Pages"] = str(total_pages)
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Pages"
+
+    # Apply pagination slicing
+    start_index = (page - 1) * limit
+    end_index = start_index + limit
+    paginated_resources = filtered_user_resources[start_index:end_index]
+
+    # Ensure results match the UserResource model
+    validated_results = []
+    for resource in paginated_resources:
+        # Add default values for missing optional fields if necessary
+        resource.setdefault('notes', '')
+        resource.setdefault('priority', 'medium')
+        resource.setdefault('source', 'web')
+        resource.setdefault('completion_date', None)
         try:
-            validated_output.append(UserResource(**r_data))
-        except Exception as model_exc:
-            logger.warning(f"Skipping user resource during GET /user due to validation error: Type={r_data.get('type')}, ID={r_data.get('id')}, Error: {model_exc}")
+            validated_results.append(UserResource(**resource))
+        except Exception as e:
+            logger.error(f"Error validating user resource {resource.get('id')}: {e}")
+            # Optionally skip invalid resources or handle differently
 
-    # Apply pagination here if implemented
+    return validated_results
 
-    return validated_output
-
-# Add comment: Operates on user-added resources stored in db.users
 # Note: This endpoint returns data grouped by type, whereas /user returns a flat list.
 @router.get("/", response_model=Dict[str, List[UserResource]])
-async def get_all_user_resources_grouped(current_user: dict = Depends(get_current_active_user)):
+async def get_all_user_resources_grouped(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: Annotated[dict, Depends(get_current_active_user)]
+):
     """Get all resources *added by* the current user, grouped by type."""
     username = get_username(current_user)
+    try:
+        user = await db.users.find_one({"username": username})
+        if not user:
+            logger.warning(f"User {username} not found for grouped resources.")
+            return {"articles": [], "videos": [], "courses": [], "books": []} # Return empty structure
 
-    user = await db.users.find_one({"username": username})
-    user_resources_raw = {}
-    if user and "resources" in user and isinstance(user['resources'], dict):
-        user_resources_raw = user["resources"]
+        user_resources = user.get("resources", {})
+        grouped_resources = {
+            "articles": user_resources.get("articles", []),
+            "videos": user_resources.get("videos", []),
+            "courses": user_resources.get("courses", []),
+            "books": user_resources.get("books", [])
+        }
 
-    # Validate and format the output
-    formatted_output: Dict[str, List[UserResource]] = {
-        "articles": [],
-        "videos": [],
-        "courses": [],
-        "books": []
-        # Note: Does not include 'platforms_guides' as user cannot add this type currently
-    }
+        # Ensure all resources have the 'type' field
+        for type_key, resources_list in grouped_resources.items():
+            for resource_dict in resources_list:
+                resource_dict['type'] = type_key
 
-    for resource_type, resource_list in user_resources_raw.items():
-        if resource_type in formatted_output and isinstance(resource_list, list):
-            valid_resources_for_type = []
-            for resource_data in resource_list:
-                if isinstance(resource_data, dict):
-                     # Add 'type' field for model validation
-                    resource_data_typed = resource_data.copy()
-                    resource_data_typed['type'] = resource_type
-                    try:
-                        validated_resource = UserResource(**resource_data_typed)
-                        valid_resources_for_type.append(validated_resource)
-                    except Exception as model_exc: # Catch Pydantic validation error specifically if needed
-                        logger.warning(f"Skipping user resource due to validation error: Type={resource_type}, ID={resource_data.get('id')}, Error: {model_exc}")
-            formatted_output[resource_type] = valid_resources_for_type
+        return grouped_resources
+    except Exception as e:
+        logger.error(f"Error fetching grouped resources for user {username}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error fetching resources")
 
-    return formatted_output
-
-# Add comment: Operates on user-added resources stored in db.users
+# Get resources by type (e.g., /api/resources/articles)
 @router.get("/{resource_type}", response_model=List[UserResource])
 async def get_user_resources_by_type(
     resource_type: str,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: Annotated[dict, Depends(get_current_active_user)],
     completed: Optional[bool] = None,
-    topic: Optional[str] = None,
-    current_user: dict = Depends(get_current_active_user)
+    topic: Optional[str] = None
 ):
     """Get resources of a specific type *added by* the user with optional filtering."""
     try:
         # Validate the type against user-addable types
-        if resource_type not in ["articles", "videos", "courses", "books"]:
+        if resource_type not in RESOURCE_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid resource type for user-added resources: {resource_type}"
             )
 
-        username = current_user["username"]
+        username = get_username(current_user)
 
         user = await db.users.find_one({"username": username})
         resources = []
@@ -622,11 +655,12 @@ async def get_user_resources_by_type(
 async def create_user_resource(
     resource_type: str,
     resource: ResourceBase, # Base model sufficient for creation input
-    current_user: dict = Depends(get_current_active_user)
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Non-default first
+    current_user: dict = Depends(get_current_active_user) # Default last
 ):
     """Create a new resource *added by* the user."""
     # Validate resource type (only user-addable types)
-    if resource_type not in ["articles", "videos", "courses", "books"]:
+    if resource_type not in RESOURCE_TYPES:
          raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid resource type for user-added resources: {resource_type}. Cannot add type 'platforms_guides'."
@@ -646,7 +680,7 @@ async def create_user_resource(
         username = get_username(current_user)
 
         resource_dict = resource.model_dump()
-        resource_dict["id"] = await get_next_resource_id(db, username, resource_type) # Use helper for integer ID
+        resource_dict["id"] = await get_next_resource_id(db, username, resource_type)
         resource_dict["date_added"] = datetime.now().isoformat()
         resource_dict["completed"] = False
         resource_dict["completion_date"] = None
@@ -655,10 +689,10 @@ async def create_user_resource(
         resource_dict["priority"] = "medium" # Default or get from input if model changes
         resource_dict["source"] = "user" # Indicate it's user-added
 
-        # Get user document
+        # Get user document using injected db
         user = await db.users.find_one({"username": username})
 
-        # Initialize resources structure if it doesn't exist
+        # Initialize resources structure if it doesn't exist using injected db
         if not user or "resources" not in user or not isinstance(user.get("resources"), dict):
             await db.users.update_one(
                 {"username": username},
@@ -668,7 +702,7 @@ async def create_user_resource(
                 upsert=True
             )
         elif resource_type not in user.get("resources", {}):
-             # Ensure the specific resource type list exists
+             # Ensure the specific resource type list exists using injected db
              await db.users.update_one(
                 {"username": username},
                 {"$set": {f"resources.{resource_type}": []}},
@@ -676,7 +710,7 @@ async def create_user_resource(
             )
 
 
-        # Add to user's resources
+        # Add to user's resources using injected db
         result = await db.users.update_one(
             {"username": username},
             {"$push": {f"resources.{resource_type}": resource_dict}}
@@ -711,83 +745,80 @@ async def update_user_resource(
     resource_type: str,
     resource_id: int, # User resources use integer IDs
     resource_update: ResourceUpdate,
-    current_user: dict = Depends(get_current_active_user)
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Non-default first
+    current_user: dict = Depends(get_current_active_user) # Default last
 ):
     """Update an existing resource *added by* the user."""
     username = get_username(current_user)
 
     # Validate type
-    if resource_type not in ["articles", "videos", "courses", "books"]:
+    if resource_type not in RESOURCE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid resource type for user-added resource: {resource_type}"
         )
 
-    # Get user's resources
+    # Get user's resources using injected db
     user = await db.users.find_one({"username": username})
-    if not user or "resources" not in user or not isinstance(user.get("resources"), dict) or resource_type not in user["resources"]:
+    if not user or resource_type not in user.get("resources", {}):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource type not found for user")
+
+    # Validate URL if provided in the update
+    if resource_update.url:
+        try:
+            validate_url(resource_update.url)
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
+
+    # Construct update payload dynamically
+    update_fields = resource_update.model_dump(exclude_unset=True)
+    if not update_fields:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Resources of type {resource_type} not found for user."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided for update."
         )
 
-    # Find the resource to update
-    resources = user["resources"][resource_type]
-    resource_index = -1 # Use -1 to indicate not found initially
-    for i, r in enumerate(resources):
-        # Check if 'r' is a dict and has 'id' matching resource_id
-        if isinstance(r, dict) and r.get("id") == resource_id:
-            resource_index = i
-            break
+    # Add updated_at timestamp
+    # update_fields["updated_at"] = datetime.now().isoformat() # Consider if this should be set automatically
 
-    if resource_index == -1:
+    # Prepare $set payload targeting the specific element in the array
+    set_payload = {
+        f"resources.{resource_type}.$.{field}": value
+        for field, value in update_fields.items()
+    }
+
+    # Perform the update using injected db
+    update_result = await db.users.update_one(
+        {"username": username, f"resources.{resource_type}.id": resource_id},
+        {"$set": set_payload}
+    )
+
+    if update_result.matched_count == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User-added resource with ID {resource_id} not found in type {resource_type}"
         )
 
-    # Update resource fields
-    update_data = resource_update.model_dump(exclude_unset=True) # Exclude unset fields
-    # Prevent changing ID or type via update
-    update_data.pop('id', None)
-    update_data.pop('type', None)
-
-    # Update the dictionary in the list
-    original_resource = resources[resource_index]
-    original_resource.update(update_data)
-
-    # Save updated resources list back to the user document
-    result = await db.users.update_one(
-        {"username": username, f"resources.{resource_type}.id": resource_id}, # More specific filter
-        {"$set": {f"resources.{resource_type}.$": original_resource}} # Use positional operator $
-    )
-
-    if result.matched_count == 0:
-         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User-added resource with ID {resource_id} not found during update."
-        )
-    if result.modified_count == 0:
-        # This might happen if the update data is identical to existing data
-        logger.info(f"Resource {resource_id} (type {resource_type}) for user {username} was not modified (data might be identical).")
-        # Return the resource anyway, as it reflects the current state
-        # Pass it back through the model validation
-        original_resource['type'] = resource_type
-        return UserResource(**original_resource)
-
-
-    # Fetch the updated resource to return it (or construct from original_resource)
+    # Fetch the updated resource data after update
     updated_user = await db.users.find_one({"username": username})
-    updated_resource_data = next((r for r in updated_user["resources"][resource_type] if isinstance(r, dict) and r.get("id") == resource_id), None)
+    updated_resource_data = None
+    if updated_user and resource_type in updated_user.get("resources", {}):
+        for r in updated_user["resources"][resource_type]:
+            if isinstance(r, dict) and r.get("id") == resource_id:
+                updated_resource_data = r
+                break
 
-    if updated_resource_data:
-        updated_resource_data['type'] = resource_type
-        return UserResource(**updated_resource_data)
-    else:
-        # Should not happen if modified_count was 1, but handle defensively
-        logger.error(f"Resource {resource_id} (type {resource_type}) for user {username} modified but not found after update.")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated resource.")
+    if not updated_resource_data:
+        # Should theoretically not happen if update matched, but good practice to check
+        logger.error(f"Resource {resource_id} of type {resource_type} not found after supposedly successful update for user {username}.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated resource")
 
+    # Add type for model validation
+    updated_resource_data['type'] = resource_type
+    return UserResource(**updated_resource_data)
 
 # Add comment: Operates on user-added resources stored in db.users
 @router.patch("/{resource_type}/{resource_id}/complete", response_model=UserResource)
@@ -795,348 +826,305 @@ async def mark_user_resource_completed(
     resource_type: str,
     resource_id: int, # User resources use integer IDs
     completion_data: ResourceComplete,
-    current_user: dict = Depends(get_current_active_user)
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Non-default first
+    current_user: dict = Depends(get_current_active_user) # Default last
 ):
     """
-    Mark a specific user-added resource as completed.
-    Finds the resource within the user's document and updates its status.
-    Uses find/modify-in-python/update logic for mock DB compatibility.
+    Mark a user-added resource as completed or not completed, and update notes.
     """
     username = get_username(current_user)
-    # Ensure the resource type is one that users can add (e.g., not platforms_guides)
-    if resource_type not in ["articles", "videos", "courses", "books"]:
-         raise HTTPException(
+
+    # Validate type
+    if resource_type not in RESOURCE_TYPES:
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid resource type for user-added resource: {resource_type}"
         )
-    now_iso = datetime.now().isoformat()
 
-    # --- Revised Logic: Find, Modify in Python, Update --- #
-    # 1. Find the user document
+    # Get user's resources using injected db
     user = await db.users.find_one({"username": username})
-    if not user:
-        logger.error(f"Authenticated user '{username}' not found in DB for resource completion.")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if not user or resource_type not in user.get("resources", {}):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource type not found for user")
 
-    # 2. Find the resource within the user's document in Python
-    resource_found = False
-    resource_index = -1
-    target_array_path = f"resources.{resource_type}" # e.g., "resources.articles"
-    resource_list = user.get("resources", {}).get(resource_type, [])
-
-    if not isinstance(resource_list, list):
-         logger.error(f"Data corruption: Expected list for {target_array_path} for user {username}, found {type(resource_list)}")
-         raise HTTPException(status_code=500, detail="Internal server error processing user resources.")
-
-    for i, resource in enumerate(resource_list):
-        # Ensure comparison is between integers if resource ID is stored as int
-        if isinstance(resource, dict) and resource.get("id") == resource_id:
-            resource_found = True
-            resource_index = i
+    # Find the resource to check current status
+    current_resource = None
+    for r in user["resources"][resource_type]:
+        if isinstance(r, dict) and r.get("id") == resource_id:
+            current_resource = r
             break
 
-    if not resource_found:
-        logger.warning(f"Resource ID {resource_id} not found in {target_array_path} for user {username}")
+    if not current_resource:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User-added resource with ID {resource_id} not found in type {resource_type}"
         )
 
-    # 3. Update the resource fields in the Python list
-    resource_to_update = resource_list[resource_index] # Get a reference to the dict in the list
+    # Determine new completion status and date
+    # new_completed_status = not current_resource.get("completed", False)
+    new_completed_status = True # Endpoint now always sets to completed=True
+    new_completion_date = datetime.now().isoformat() if new_completed_status else None
+    new_notes = completion_data.notes if completion_data.notes is not None else current_resource.get("notes", "")
 
-    if not isinstance(resource_to_update, dict):
-         logger.error(f"Data corruption: Expected dict for resource at index {resource_index} in {target_array_path} for user {username}")
-         raise HTTPException(status_code=500, detail="Internal server error processing resource.")
+    # Prepare $set payload
+    set_payload = {
+        f"resources.{resource_type}.$.completed": new_completed_status,
+        f"resources.{resource_type}.$.completion_date": new_completion_date,
+        f"resources.{resource_type}.$.notes": new_notes
+    }
 
-    if resource_to_update.get('completed') is True:
-        logger.info(f"Resource {resource_type}/{resource_id} for user {username} is already marked completed.")
-        # Update notes even if already completed
-        if completion_data.notes is not None:
-             resource_to_update['notes'] = completion_data.notes
-    else:
-        resource_to_update['completed'] = True
-        resource_to_update['completion_date'] = now_iso
-        if completion_data.notes is not None:
-            resource_to_update['notes'] = completion_data.notes
-        logger.info(f"Marking resource {resource_type}/{resource_id} completed for user {username}.")
-
-    # 4. Use update_one to $set the entire modified array back into the user document
-    # Note: This replaces the whole array for the specific resource_type
+    # Perform the update using injected db
     update_result = await db.users.update_one(
-        {"username": username},
-        {"$set": {target_array_path: resource_list}} # Set the modified list back
+        {"username": username, f"resources.{resource_type}.id": resource_id},
+        {"$set": set_payload}
     )
 
-    if update_result.modified_count == 0 and update_result.matched_count > 0:
-         # This could happen if the only change was notes on an already completed item,
-         # and the notes were the same as before. Or a concurrent update conflict.
-         # We'll assume success if notes were updated or state changed. Check if notes were part of the update.
-         if completion_data.notes is not None and resource_to_update['notes'] == completion_data.notes:
-             logger.info(f"Resource {resource_type}/{resource_id} completion status unchanged, notes updated to same value for {username}.")
-         elif not resource_to_update['completed']: # Should be completed now unless error
-             logger.error(f"DB update reported no modification for {username}, resource {resource_id}, but state change expected.")
-             raise HTTPException(status_code=500, detail="Failed to save resource completion status (no modification).")
-         # If only notes changed to the same value, or it was already complete and notes weren't provided, no modification is OK.
+    if update_result.matched_count == 0:
+        # This case should ideally be caught by the find_one check above, but double-check
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User-added resource with ID {resource_id} not found in type {resource_type} (during update)"
+        )
 
-    elif update_result.matched_count == 0:
-         # This means the user document itself wasn't found, which contradicts the initial find_one. Very unlikely.
-         logger.error(f"Failed to find user {username} during final update for resource {resource_id} completion.")
-         raise HTTPException(status_code=500, detail="Failed to save resource completion status (user disappeared?).")
+    # Fetch the updated resource data after update
+    updated_user = await db.users.find_one({"username": username})
+    updated_resource_data = None
+    if updated_user and resource_type in updated_user.get("resources", {}):
+        for r in updated_user["resources"][resource_type]:
+            if isinstance(r, dict) and r.get("id") == resource_id:
+                updated_resource_data = r
+                break
 
+    if not updated_resource_data:
+        logger.error(f"Resource {resource_id} of type {resource_type} not found after marking complete for user {username}.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated resource")
 
-    logger.info(f"Successfully marked/updated resource {resource_type}/{resource_id} status for user {username}.")
-    # Return the updated resource object from the list (add type back for model)
-    resource_to_update['type'] = resource_type
-    try:
-        return UserResource(**resource_to_update)
-    except Exception as e:
-         logger.error(f"Validation error creating response for completed resource {resource_id} user {username}: {e}")
-         raise HTTPException(status_code=500, detail="Failed to create response model for updated resource.")
+    # Add type for model validation
+    updated_resource_data['type'] = resource_type
+    return UserResource(**updated_resource_data)
 
 # Add comment: Operates on user-added resources stored in db.users
 @router.delete("/{resource_type}/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_resource(
     resource_type: str,
     resource_id: int, # User resources use integer IDs
-    current_user: dict = Depends(get_current_active_user)
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Non-default first
+    current_user: dict = Depends(get_current_active_user) # Default last
 ):
     """Delete a specific resource *added by* the user."""
     username = get_username(current_user)
 
     # Validate type
-    if resource_type not in ["articles", "videos", "courses", "books"]:
+    if resource_type not in RESOURCE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid resource type for user-added resource: {resource_type}"
         )
 
-    # Use $pull to remove the resource from the array
+    # Use $pull to remove the resource from the array using injected db
     update_result = await db.users.update_one(
         {"username": username},
         {"$pull": {f"resources.{resource_type}": {"id": resource_id}}}
     )
 
-    if update_result.matched_count == 0:
-        # User not found
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
     if update_result.modified_count == 0:
-        # Resource with that ID wasn't found in the array
-        logger.warning(f"Resource ID {resource_id} (type {resource_type}) not found for deletion for user {username}.")
+        # If modified_count is 0, it means the resource wasn't found (or user didn't exist)
+        # We could check matched_count first, but modified_count=0 implies not found/deleted
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User-added resource with ID {resource_id} not found in type {resource_type}"
         )
 
-    logger.info(f"Successfully deleted resource {resource_type}/{resource_id} for user {username}.")
-    # No content to return for 204
+    # No content to return
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # Add comment: Operates on user-added resources stored in db.users
 @router.get("/{resource_type}/{resource_id}", response_model=UserResource)
 async def get_user_resource_by_id(
     resource_type: str,
     resource_id: int, # User resources use integer IDs
-    current_user: dict = Depends(get_current_active_user)
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], # Non-default first
+    current_user: dict = Depends(get_current_active_user) # Default last
 ):
     """Get a specific resource *added by* the user by its type and ID."""
     username = get_username(current_user)
-    validate_resource_type(resource_type)
 
+    # Validate type
+    if resource_type not in RESOURCE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid resource type for user-added resource: {resource_type}"
+        )
+
+    # Get user document using injected db
     user = await db.users.find_one({"username": username})
+    if not user or resource_type not in user.get("resources", {}):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource or resource type not found for user")
 
-    resource_data = None
-    if user and "resources" in user and isinstance(user["resources"], dict) and resource_type in user["resources"]:
-        resource_list = user["resources"][resource_type]
-        if isinstance(resource_list, list):
-            # Find the resource with the matching ID in the list
-            resource_data = next((r for r in resource_list if isinstance(r, dict) and r.get("id") == resource_id), None)
+    # Find the specific resource by ID
+    found_resource = None
+    for r in user["resources"][resource_type]:
+        if isinstance(r, dict) and r.get("id") == resource_id:
+            found_resource = r
+            break
 
-    if resource_data is None:
+    if not found_resource:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User-added resource with ID {resource_id} not found in type {resource_type}"
         )
 
-    # Add type for model validation and return
-    resource_data['type'] = resource_type
-    try:
-         return UserResource(**resource_data)
-    except Exception as e:
-         logger.error(f"Validation error creating response for get resource {resource_id} user {username}: {e}")
-         raise HTTPException(status_code=500, detail="Failed to create response model for resource.")
+    # Add type for model validation
+    found_resource['type'] = resource_type
+    return UserResource(**found_resource)
 
 # Add comment: Operates on user-added resources stored in db.users
 @router.get("/next", response_model=List[UserResource])
 async def get_next_user_resources(
+    # Non-default args first
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    # Default args after
     count: int = 5,
     current_user: dict = Depends(get_current_active_user)
 ):
-    """Get the next N uncompleted resources *added by* the user."""
+    """Get the next 'count' uncompleted resources added by the user, ordered by date added."""
     username = get_username(current_user)
+
+    # Get user document using injected db
     user = await db.users.find_one({"username": username})
-    if not user or "resources" not in user or not isinstance(user.get("resources"), dict):
+    if not user or "resources" not in user:
         return []
 
-    # Collect all uncompleted user-added resources
-    uncompleted = []
-    for resource_type, resource_list in user["resources"].items():
-         # Only consider valid user-addable types and ensure it's a list
-        if resource_type in ["articles", "videos", "courses", "books"] and isinstance(resource_list, list):
+    uncompleted_resources = []
+    user_resources = user.get("resources", {})
+
+    # Aggregate uncompleted resources across all types
+    for res_type, resource_list in user_resources.items():
+        if isinstance(resource_list, list):
             for resource in resource_list:
-                # Check if resource is a dict and not completed
-                if isinstance(resource, dict) and not resource.get("completed", False):
+                if isinstance(resource, dict) and not resource.get("completed"):
+                    # Add type for model validation
                     resource_copy = resource.copy()
-                    resource_copy["type"] = resource_type  # Add type for model validation/display
-                    # Validate before adding
+                    resource_copy['type'] = res_type
                     try:
-                        uncompleted.append(UserResource(**resource_copy))
+                        # Validate before adding
+                        uncompleted_resources.append(UserResource(**resource_copy))
                     except Exception as model_exc:
-                        logger.warning(f"Skipping next user resource due to validation error: Type={resource_type}, ID={resource.get('id')}, Error: {model_exc}")
+                        logger.warning(f"Skipping user resource during next fetch due to validation error: Type={res_type}, ID={resource.get('id')}, Error: {model_exc}")
 
 
-    # Sort by date added (newest first)
-    uncompleted.sort(key=lambda x: getattr(x, 'date_added', ""), reverse=True)
+    # Sort by date added (ascending)
+    uncompleted_resources.sort(key=lambda r: r.date_added)
 
-    # Return up to 'count' resources
-    return uncompleted[:count]
-
-
-# --- Batch Operations (Currently operate on user-added resources) ---
+    # Return the next 'count' resources
+    return uncompleted_resources[:count]
 
 # Add comment: Operates on user-added resources stored in db.users
 @router.post("/batch", response_model=List[UserResource], status_code=status.HTTP_201_CREATED)
 async def create_batch_user_resources_api(
-    batch_data: ResourceBatchRequest, # Uses the generic request model
+    # Non-default args first
+    batch_data: ResourceBatchRequest,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    # Default args after
     current_user: dict = Depends(get_current_active_user)
 ):
-    """
-    Create multiple resources *added by the user* in a single batch request.
-    This endpoint is specifically designed to match frontend expectations for adding user resources.
-    """
-    try:
-        username = get_username(current_user)
+    """Create multiple resources *added by* the user in a single batch request."""
+    username = get_username(current_user)
+    created_resources = []
+    errors = []
 
-        # Array to store created resources validated against UserResource model
-        created_resources: List[UserResource] = []
-        # Structure to hold updates for the database push
-        updates_by_type: Dict[str, List[Dict]] = {
-            "articles": [], "videos": [], "courses": [], "books": []
-        }
+    # Get user document initially using injected db
+    user = await db.users.find_one({"username": username})
 
-        # Pre-fetch starting IDs for efficiency (though might have slight race condition risk if called concurrently)
-        # A more robust approach might involve a counter collection or retry logic.
-        next_ids = {
-            rtype: await get_next_resource_id(db, username, rtype)
-            for rtype in updates_by_type.keys()
-        }
+    # Initialize resources structure if it doesn't exist using injected db
+    if not user or "resources" not in user or not isinstance(user.get("resources"), dict):
+        await db.users.update_one(
+            {"username": username},
+            {"$set": {"resources": {"articles": [], "videos": [], "courses": [], "books": []}}},
+            upsert=True
+        )
+        # Fetch the user again after potential upsert
+        user = await db.users.find_one({"username": username})
 
-        # Process each resource
-        for idx, resource_data in enumerate(batch_data.resources):
-            try:
-                # Determine resource type (default to 'articles')
-                resource_type = resource_data.get("type") or resource_data.get("resource_type", "articles")
-                if resource_type not in updates_by_type:
-                    logger.warning(f"Skipping resource item {idx} with invalid type: {resource_type}")
-                    continue # Skip invalid types
+    # Ensure user exists after potential upsert
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-                # Validate URL
-                url = resource_data.get("url", "")
-                if not validate_url(url):
-                    logger.warning(f"Skipping resource item {idx} with invalid URL: {url}")
-                    continue # Skip invalid URLs
+    # Pre-calculate next IDs if possible, or handle within loop carefully
+    # For simplicity, getting next ID inside loop (less efficient but safer for concurrency without transactions)
 
-                # Assign ID and increment for the type
-                resource_id = next_ids[resource_type]
-                next_ids[resource_type] += 1
+    for index, resource_dict_raw in enumerate(batch_data.resources):
+        # Extract resource type first for validation
+        resource_type = resource_dict_raw.get("resource_type")
 
-                # Create resource dictionary for DB update
-                new_resource_db = {
-                    "id": resource_id,
-                    "title": resource_data.get("title", f"Resource {resource_id}"),
-                    "url": url,
-                    "topics": resource_data.get("tags", []) or resource_data.get("topics", []),
-                    "difficulty": resource_data.get("difficulty", "beginner"),
-                    "estimated_time": resource_data.get("estimated_time", 30),
-                    "completed": False,
-                    "completion_date": None,
-                    "date_added": datetime.now().isoformat(),
-                    "notes": resource_data.get("notes", "") or resource_data.get("description", ""),
-                    "priority": resource_data.get("priority", "medium"),
-                    "source": resource_data.get("source", "user") # Mark as user-added
-                }
+        # 1. Validate resource type
+        if not resource_type or resource_type not in RESOURCE_TYPES:
+            errors.append({"index": index, "error": f"Invalid or missing resource_type: {resource_type}"}) # Use index
+            continue # Skip this resource
 
-                # Add to the correct list for DB update
-                updates_by_type[resource_type].append(new_resource_db)
+        # 2. Validate payload against ResourceBase (or a specific BatchItem model)
+        try:
+            # Use ResourceBase for initial validation of core fields
+            resource_base = ResourceBase(**resource_dict_raw)
+        except Exception as pydantic_error:
+            errors.append({"index": index, "error": f"Validation Error: {str(pydantic_error)}"}) # Use index
+            continue # Skip this resource
 
-                # Create validated object for response
-                new_resource_resp_data = new_resource_db.copy()
-                new_resource_resp_data['type'] = resource_type
-                created_resources.append(UserResource(**new_resource_resp_data))
+        # 3. Validate URL
+        try:
+            validate_url(resource_base.url)
+        except ValidationError as url_error:
+            errors.append({"index": index, "error": f"URL Validation Error: {str(url_error)}"}) # Use index
+            continue # Skip this resource
 
-            except Exception as item_exc:
-                logger.error(f"Error processing batch resource item {idx}: {str(item_exc)}")
-                # Continue to next resource if one fails processing
+        # If validation passes, create the full resource document
+        try:
+            resource_dict = resource_base.model_dump()
+            # Use the injected db for get_next_resource_id
+            # Note: This might still have race conditions without transactions. Fetch user state inside get_next_resource_id.
+            resource_dict["id"] = await get_next_resource_id(db, username, resource_type)
+            resource_dict["date_added"] = datetime.now().isoformat()
+            resource_dict["completed"] = False
+            resource_dict["completion_date"] = None
+            resource_dict["notes"] = resource_dict_raw.get("notes", "")
+            resource_dict["priority"] = resource_dict_raw.get("priority", "medium")
+            resource_dict["source"] = resource_dict_raw.get("source", "user")
 
+            # Add to user's resources array using injected db
+            update_result = await db.users.update_one(
+                {"username": username},
+                {"$push": {f"resources.{resource_type}": resource_dict}}
+            )
 
-        # Perform the database updates if there are any resources to add
-        if any(updates_by_type.values()):
-             # Ensure user document and resources field exist
-            user = await db.users.find_one({"username": username})
-            if not user:
-                # If user doesn't exist, something is wrong with auth - raise error
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            if update_result.modified_count == 0:
+                # This indicates a problem, potentially the user doc structure issue or concurrency
+                logger.error(f"Batch Create: Failed to push resource at index {index} for user {username}. Update Result: {update_result.raw_result}")
+                errors.append({"index": index, "error": "Failed to add resource to database (no modification)"}) # Use index
+                continue # Skip this one
 
-            update_operations = {}
-            if "resources" not in user or not isinstance(user.get("resources"), dict):
-                 # Initialize the entire resources object if missing
-                 init_resources = {rtype: [] for rtype in updates_by_type.keys()}
-                 update_operations["$set"] = {"resources": init_resources}
+            # Add type for response model and add to successful list
+            resource_dict['type'] = resource_type
+            created_resources.append(UserResource(**resource_dict))
 
-            # Prepare $push operations for each type that has new resources
-            push_ops = {}
-            for rtype, resources_to_add in updates_by_type.items():
-                if resources_to_add:
-                    # Ensure the list for this type exists before pushing
-                    if "resources" not in user or not isinstance(user.get("resources"), dict) or rtype not in user["resources"]:
-                        # Add the field initialization to $set if it wasn't already handled
-                        if "$set" not in update_operations: update_operations["$set"] = {}
-                        if "resources" not in update_operations["$set"]: update_operations["$set"]["resources"] = {}
-                        update_operations["$set"][f"resources.{rtype}"] = [] # Initialize specific type list
+        except Exception as create_exc:
+            logger.exception(f"Batch Create: Error processing resource at index {index} for user {username}: {str(create_exc)}") # Use index
+            errors.append({"index": index, "error": f"Internal server error during creation: {str(create_exc)}"}) # Use index
 
-                    push_ops[f"resources.{rtype}"] = {"$each": resources_to_add}
-
-            if push_ops:
-                update_operations["$push"] = push_ops
-
-            # Execute the update
-            if update_operations:
-                result = await db.users.update_one({"username": username}, update_operations, upsert=False) # Don't upsert, user must exist
-                if result.matched_count == 0:
-                     logger.error(f"Batch update failed to match user {username}.")
-                     # This indicates a potential issue, maybe user was deleted between check and update?
-                     # Don't raise 500 immediately, but log failure. The response will be empty or partial.
-                     # If partial success is okay, return `created_resources`. If atomicity needed, this needs transactions.
-                     pass # Allow partial success for now
-                elif result.modified_count == 0 and update_operations:
-                    logger.warning(f"Batch update for user {username} resulted in no modifications, though updates were prepared.")
-
-
-        return created_resources
-
-    except HTTPException as http_exc:
-        raise http_exc # Re-raise known HTTP exceptions
-    except Exception as e:
-        logger.exception(f"Critical error in batch user resource creation for {username}: {str(e)}")
+    # After processing all items, check for errors
+    if errors:
+        # Decide on response: partial success (207 Multi-Status) or fail all (400/500)?
+        # For now, returning successful ones and error details for failed ones in a custom structure might be best.
+        # FastAPI doesn't have a built-in 207, so we might use 200 OK with a complex body
+        # Or raise 400 if *any* error occurred, detailing the errors.
+        # Choosing 400 for simplicity here if any errors occur.
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create batch resources: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"message": "Batch creation failed for some resources.", "errors": errors, "created": created_resources}
         )
 
+    # If no errors, return the list of created resources with 201
+    return created_resources
 
-# --- Metadata Endpoint ---
-
-# Add comment: Utility endpoint, not directly tied to user/library resources yet
+# --- Metadata Extraction Endpoint ---
 @router.post("/metadata", response_model=MetadataResponse)
 async def extract_url_metadata(request: MetadataRequest, current_user: dict = Depends(get_current_active_user)):
     """

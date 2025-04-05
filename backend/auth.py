@@ -9,6 +9,7 @@ import logging
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 import redis.asyncio as redis
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Import utility functions
 from utils.validators import validate_email, validate_password_strength
@@ -50,17 +51,11 @@ if REDIS_ENABLED:
 else:
     logger.info("Redis disabled by configuration. Token reuse prevention will be disabled.")
 
-# Database connection - import the get_db function instead of db directly
-# This makes it easier to mock the database for testing
-from database import db as _db  # Import with alias to avoid conflicts
+# Import the actual get_db dependency function
+from database import get_db
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Function to get the database instance
-def get_db():
-    """Get the database instance."""
-    return _db
 
 # Models
 class Token(BaseModel):
@@ -103,11 +98,11 @@ class UserInDB(User):
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 # Authentication functions
-async def get_user(username: str) -> Optional[dict]:
+async def get_user(username: str, db: Annotated[AsyncIOMotorDatabase, Depends(get_db)]) -> Optional[dict]:
     """Get user from database."""
     logger.info(f"[get_user] Attempting to find user: '{username}'")
     try:
-        user = await _db.users.find_one({"username": username})
+        user = await db.users.find_one({"username": username})
         if user:
             logger.info(f"[get_user] Found user '{username}': {{'id': str(user.get('_id')), 'disabled': user.get('disabled')}})")
         else:
@@ -117,10 +112,14 @@ async def get_user(username: str) -> Optional[dict]:
         logger.error(f"[get_user] Error querying database for user '{username}': {type(e).__name__} - {str(e)}")
         return None
 
-async def authenticate_user(username: str, password: str) -> Optional[dict]:
+async def authenticate_user(
+    username: str,
+    password: str,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)]
+) -> Optional[dict]:
     """Authenticate a user."""
     logger.info(f"[authenticate_user] Attempting to authenticate user: {username}")
-    user = await get_user(username)
+    user = await get_user(username, db)
     if not user:
         logger.warning(f"[authenticate_user] User not found: {username}")
         return None
@@ -171,7 +170,10 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
     logger.info(f"[create_refresh_token] Generated token: {encoded_jwt}")
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)]
+) -> dict:
     """Get current user from token."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -246,23 +248,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
 
         token_data = TokenData(username=username)
         logger.debug(f"JWT token decoded for user: {username}")
+
+        # Fetch user from DB using the username from token
+        user = await get_user(username=token_data.username, db=db)
+        if user is None:
+            logger.warning(f"User {token_data.username} from token not found in DB")
+            raise credentials_exception
+
+        return user
     except JWTError as e:
         logger.error(f"JWT decoding error: {e}")
         # Raise the exception with the detail message the test expects
         raise credentials_exception
 
-    try:
-        user = await get_user(username=token_data.username)
-        if user is None:
-            logger.warning(f"User not found: {token_data.username}")
-            raise credentials_exception
-        return user
-    except Exception as e:
-        logger.error(f"Failed to get user: {str(e)}")
-        raise credentials_exception
-
-async def get_current_active_user(current_user: dict = Depends(get_current_user)) -> dict:
-    """Get current active user."""
+async def get_current_active_user(
+    current_user: Annotated[dict, Depends(get_current_user)]
+) -> dict:
+    """Get current active user, ensuring they are not disabled."""
     if current_user.get("disabled"):
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user

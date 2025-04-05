@@ -36,7 +36,7 @@ export default defineConfig({
   e2e: {
     baseUrl: 'http://localhost:3000',
     specPattern: join(E2E_BASE_DIR, 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}'),
-    supportFile: join(E2E_BASE_DIR, 'cypress/support/e2e.js'),
+    supportFile: join(E2E_BASE_DIR, 'cypress/support/e2e.ts'),
     fixturesFolder: join(E2E_BASE_DIR, 'cypress/fixtures'),
     downloadsFolder: join(E2E_BASE_DIR, 'cypress/downloads'),
     screenshotsFolder: join(E2E_BASE_DIR, 'cypress/screenshots'),

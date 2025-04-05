@@ -11,6 +11,7 @@ When using this template, replace the endpoints with the actual endpoints you wa
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from fastapi import HTTPException, status
+from httpx import AsyncClient, Headers, ASGITransport
 
 # Import the app and auth functions
 from main import app
@@ -29,6 +30,9 @@ test_data = {
     "description": "Test Description"
 }
 
+# Dummy Resource ID
+dummy_resource_id = "123"
+
 @pytest.fixture(scope="function", autouse=True)
 def clear_dependency_overrides():
     """Clear dependency overrides before and after each test."""
@@ -40,163 +44,98 @@ def clear_dependency_overrides():
     # Clear overrides after the test
     app.dependency_overrides.clear()
 
-@pytest.mark.skip(reason="This is a template test and not meant to be run directly")
-def test_get_resource_authenticated(client, auth_headers):
+@pytest.fixture
+def api_prefix():
+    """API Prefix for endpoints."""
+    return "/api/template"
+
+@pytest.fixture
+def sample_resource():
+    """Sample resource data for testing."""
+    return {
+        "name": "Test Resource",
+        "description": "This is a test resource.",
+        "url": "https://example.com",
+        "tags": ["test", "example"]
+    }
+
+@pytest.mark.skip(reason="This is a template test, skipping execution")
+@pytest.mark.asyncio
+async def test_get_resource_authenticated(async_client, auth_headers, api_prefix):
     """Test getting a resource when authenticated."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
+    # Ensure test user is setup and auth_headers are available
+    # GET request to fetch the resource
+    response = await async_client.get(f"{api_prefix}/{dummy_resource_id}", headers=auth_headers)
+    # Check for successful response
+    assert response.status_code == 200
+    # Verify response data structure and content
+    resource_data = response.json()
+    assert "id" in resource_data
+    assert resource_data["name"] == "Test Resource"
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Create an AsyncMock for the database operations
-    mock_db = MagicMock()
-    mock_db.resources = MagicMock()
-    mock_db.resources.find_one = AsyncMock(return_value=test_data)
-
-    # Patch the main module's db object
-    with patch("main.db", mock_db):
-        response = client.get("/resources/test_id", headers=auth_headers)
-
-        assert response.status_code == 200
-        resource_data = response.json()
-        assert resource_data["id"] == test_data["id"]
-        assert resource_data["name"] == test_data["name"]
-        assert resource_data["description"] == test_data["description"]
-
-@pytest.mark.skip(reason="This is a template test and not meant to be run directly")
-def test_get_resource_unauthenticated(client):
+@pytest.mark.skip(reason="This is a template test, skipping execution")
+@pytest.mark.asyncio
+async def test_get_resource_unauthenticated(async_client, api_prefix):
     """Test getting a resource when unauthenticated."""
-    # Override the dependencies with a synchronous function that raises an exception
-    def override_get_current_user():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    app.dependency_overrides[get_current_user] = override_get_current_user
-    app.dependency_overrides[get_current_active_user] = override_get_current_user
-
-    response = client.get("/resources/test_id")
-
+    # GET request without authentication headers
+    response = await async_client.get(f"{api_prefix}/{dummy_resource_id}")
+    # Check for unauthorized status code
     assert response.status_code == 401
-    error_response = response.json()
-    assert "detail" in error_response
-    assert error_response["detail"] == "Not authenticated"
 
-@pytest.mark.skip(reason="This is a template test and not meant to be run directly")
-def test_get_resource_not_found(client, auth_headers):
-    """Test getting a resource that doesn't exist."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
+@pytest.mark.skip(reason="This is a template test, skipping execution")
+@pytest.mark.asyncio
+async def test_get_resource_not_found(async_client, auth_headers, api_prefix):
+    """Test getting a non-existent resource."""
+    # GET request for a non-existent resource ID
+    non_existent_id = "nonexistent123"
+    response = await async_client.get(f"{api_prefix}/{non_existent_id}", headers=auth_headers)
+    # Check for not found status code
+    assert response.status_code == 404
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Create an AsyncMock for the database operations
-    mock_db = MagicMock()
-    mock_db.resources = MagicMock()
-    mock_db.resources.find_one = AsyncMock(return_value=None)
-
-    # Patch the main module's db object
-    with patch("main.db", mock_db):
-        response = client.get("/resources/nonexistent_id", headers=auth_headers)
-
-        assert response.status_code == 404
-        error_response = response.json()
-        assert "detail" in error_response
-        assert "not found" in error_response["detail"]
-
-@pytest.mark.skip(reason="This is a template test and not meant to be run directly")
-def test_create_resource(client, auth_headers):
+@pytest.mark.skip(reason="This is a template test, skipping execution")
+@pytest.mark.asyncio
+async def test_create_resource(async_client, auth_headers, api_prefix, sample_resource):
     """Test creating a new resource."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
+    # POST request to create a new resource
+    response = await async_client.post(api_prefix, json=sample_resource, headers=auth_headers)
+    # Check for successful creation status code
+    assert response.status_code == 201
+    # Verify response data matches the created resource
+    resource_data = response.json()
+    assert resource_data["name"] == sample_resource["name"]
+    assert "id" in resource_data
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # New resource data
-    new_resource = {
-        "name": "New Resource",
-        "description": "New Description"
-    }
-
-    # Create an AsyncMock for the database operations
-    mock_db = MagicMock()
-    mock_db.resources = MagicMock()
-    mock_db.resources.insert_one = AsyncMock()
-    mock_db.resources.insert_one.return_value = MagicMock()
-    mock_db.resources.insert_one.return_value.inserted_id = "new_resource_id"
-
-    # Patch the main module's db object
-    with patch("main.db", mock_db):
-        response = client.post("/resources/", json=new_resource, headers=auth_headers)
-
-        assert response.status_code == 201
-        resource_data = response.json()
-        assert resource_data["name"] == new_resource["name"]
-        assert resource_data["description"] == new_resource["description"]
-        assert "id" in resource_data
-
-@pytest.mark.skip(reason="This is a template test and not meant to be run directly")
-def test_update_resource(client, auth_headers):
+@pytest.mark.skip(reason="This is a template test, skipping execution")
+@pytest.mark.asyncio
+async def test_update_resource(async_client, auth_headers, api_prefix, sample_resource):
     """Test updating an existing resource."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
+    # First, create a resource to update
+    create_response = await async_client.post(api_prefix, json=sample_resource, headers=auth_headers)
+    assert create_response.status_code == 201
+    resource_id = create_response.json()["id"]
+    # Data for updating the resource
+    update_data = {"description": "Updated description.", "tags": ["updated"]}
+    # PUT request to update the resource
+    response = await async_client.put(f"{api_prefix}/{resource_id}", json=update_data, headers=auth_headers)
+    # Check for successful update status code
+    assert response.status_code == 200
+    # Verify response data reflects the update
+    updated_resource = response.json()
+    assert updated_resource["description"] == update_data["description"]
+    assert updated_resource["tags"] == update_data["tags"]
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Updated resource data
-    updated_resource = {
-        "name": "Updated Resource",
-        "description": "Updated Description"
-    }
-
-    # Create an AsyncMock for the database operations
-    mock_db = MagicMock()
-    mock_db.resources = MagicMock()
-    mock_db.resources.find_one = AsyncMock(return_value=test_data)
-    mock_db.resources.update_one = AsyncMock()
-    mock_db.resources.update_one.return_value = MagicMock()
-    mock_db.resources.update_one.return_value.modified_count = 1
-
-    # Patch the main module's db object
-    with patch("main.db", mock_db):
-        response = client.put("/resources/test_id", json=updated_resource, headers=auth_headers)
-
-        assert response.status_code == 200
-        resource_data = response.json()
-        assert resource_data["name"] == updated_resource["name"]
-        assert resource_data["description"] == updated_resource["description"]
-        assert resource_data["id"] == test_data["id"]
-
-@pytest.mark.skip(reason="This is a template test and not meant to be run directly")
-def test_delete_resource(client, auth_headers):
+@pytest.mark.skip(reason="This is a template test, skipping execution")
+@pytest.mark.asyncio
+async def test_delete_resource(async_client, auth_headers, api_prefix, sample_resource):
     """Test deleting an existing resource."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
-
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Create an AsyncMock for the database operations
-    mock_db = MagicMock()
-    mock_db.resources = MagicMock()
-    mock_db.resources.find_one = AsyncMock(return_value=test_data)
-    mock_db.resources.delete_one = AsyncMock()
-    mock_db.resources.delete_one.return_value = MagicMock()
-    mock_db.resources.delete_one.return_value.deleted_count = 1
-
-    # Patch the main module's db object
-    with patch("main.db", mock_db):
-        response = client.delete("/resources/test_id", headers=auth_headers)
-
-        assert response.status_code == 204
+    # First, create a resource to delete
+    create_response = await async_client.post(api_prefix, json=sample_resource, headers=auth_headers)
+    assert create_response.status_code == 201
+    resource_id = create_response.json()["id"]
+    # DELETE request to remove the resource
+    response = await async_client.delete(f"{api_prefix}/{resource_id}", headers=auth_headers)
+    # Check for successful deletion status code (No Content)
+    assert response.status_code == 204
+    # Optionally, verify the resource is gone with a GET request
+    get_response = await async_client.get(f"{api_prefix}/{resource_id}", headers=auth_headers)
+    assert get_response.status_code == 404

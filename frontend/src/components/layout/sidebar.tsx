@@ -16,7 +16,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, testId: 'nav-dashboard' },
-  { name: 'Resources', href: '/resources', icon: BookOpenIcon, testId: 'nav-resources' },
+  { name: 'Library', href: '/library', icon: BookOpenIcon, testId: 'nav-library' },
   { name: 'Learning Path', href: '/learning-path', icon: AcademicCapIcon, testId: 'nav-learning-path' },
   { name: 'Knowledge', href: '/knowledge', icon: LightBulbIcon, testId: 'nav-knowledge' },
   { name: 'Notes', href: '/notes', icon: DocumentTextIcon, testId: 'nav-notes' },
@@ -34,6 +34,7 @@ export default function Sidebar() {
         <button
           type="button"
           className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+          data-testid="open-sidebar"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           <span className="sr-only">Open sidebar</span>
@@ -47,8 +48,8 @@ export default function Sidebar() {
 
       {/* Mobile menu */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-10 lg:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setIsMobileMenuOpen(false)} />
+        <div className="fixed inset-0 z-10 lg:hidden" data-testid="mobile-menu-content">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" data-testid="mobile-menu-backdrop" onClick={() => setIsMobileMenuOpen(false)} />
           <div className="fixed inset-y-0 left-0 max-w-xs w-full bg-white shadow-xl">
             <div className="h-full flex flex-col py-6 overflow-y-auto">
               <div className="px-4 flex items-center justify-between">
@@ -56,6 +57,7 @@ export default function Sidebar() {
                 <button
                   type="button"
                   className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                  data-testid="close-sidebar"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span className="sr-only">Close sidebar</span>
@@ -101,7 +103,7 @@ export default function Sidebar() {
             <div className="flex items-center flex-shrink-0 px-4">
               <h2 className="text-xl font-bold text-indigo-600">AI/ML Learning</h2>
             </div>
-            <nav className="mt-5 flex-1 px-4 space-y-1">
+            <nav className="mt-5 flex-1 px-4 space-y-1" data-testid="desktop-nav">
               {navigation.map((item) => {
                 const isActive = pathname.startsWith(item.href);
                 return (

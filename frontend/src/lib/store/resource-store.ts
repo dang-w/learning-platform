@@ -1,20 +1,10 @@
 import { create } from 'zustand'
 import resourcesApi from '@/lib/api/resources'
-import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput } from '@/types/resources'
-
-interface ResourceStatistics {
-  total: number
-  completed: number
-  by_type: Record<ResourceType, {
-    total: number
-    completed: number
-    completion_percentage: number
-  }>
-}
+import { Resource, ResourceTypeString as ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resource'
 
 interface ResourceState {
   resources: Resource[]
-  statistics: ResourceStatistics | null
+  statistics: ResourceStats | null
   isLoading: boolean
   error: string | null
   selectedResource: Resource | null

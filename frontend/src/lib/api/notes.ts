@@ -17,7 +17,7 @@ const notesApi = {
       params.append('skip', skip.toString());
       params.append('limit', limit.toString());
 
-      const url = `/api/notes?${params.toString()}`;
+      const url = `/api/notes/?${params.toString()}`;
       const response = await apiClient.get<NotePagination>(url);
       return response.data;
     } catch (error) {

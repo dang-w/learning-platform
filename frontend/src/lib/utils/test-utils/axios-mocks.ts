@@ -10,7 +10,11 @@ interface TestAxiosError extends Error {
   status?: number;
 }
 
-export function createAxiosErrorResponse(status: number, message: string): AxiosError {
+export function createAxiosErrorResponse(
+  status: number,
+  message: string,
+  config: Partial<InternalAxiosRequestConfig> = {}
+): AxiosError {
   const response: AxiosResponse = {
     data: { message },
     status,
@@ -23,7 +27,7 @@ export function createAxiosErrorResponse(status: number, message: string): Axios
   const error = new Error(`Request failed with status code ${status}`) as TestAxiosError;
   error.response = response;
   error.isAxiosError = true;
-  error.config = {} as InternalAxiosRequestConfig; // Add config
+  error.config = config as InternalAxiosRequestConfig; // Add provided or default config
   error.request = {}; // Add request
   error.code = status === 401 ? 'ERR_UNAUTHORIZED' : `ERR_BAD_REQUEST_${status}`;
   error.status = status; // Explicitly set status property

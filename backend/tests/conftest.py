@@ -14,6 +14,7 @@ import nest_asyncio
 import uuid
 from httpx import AsyncClient, Headers, ASGITransport
 import redis.asyncio as redis
+import utils.db_utils
 
 # Import standardized utilities
 from utils.error_handlers import AuthenticationError, ResourceNotFoundError
@@ -23,7 +24,7 @@ from database import get_database
 from utils.rate_limiter import get_redis_client
 
 # Apply nest_asyncio to allow nested event loops
-nest_asyncio.apply()
+# nest_asyncio.apply()
 
 # Register custom markers
 def pytest_configure(config):
@@ -118,37 +119,6 @@ async def setup_test_user():
         logger.error(f"Error setting up test user: {e}")
         raise
 
-# Client fixture for testing
-@pytest.fixture(scope="function")
-def client(setup_test_user):
-    """Create a test client with authentication overrides."""
-    # Create a test client
-    test_client = TestClient(app)
-
-    # Override the dependencies for authentication
-    if setup_test_user:
-        # For authenticated routes
-        async def override_get_current_user():
-            """Override the get_current_user dependency."""
-            return MockUser(username=setup_test_user["user"]["username"])
-
-        # Override the dependencies
-        app.dependency_overrides[get_current_user] = override_get_current_user
-        app.dependency_overrides[get_current_active_user] = override_get_current_user
-    else:
-        # For unauthenticated routes
-        async def override_get_current_user():
-            """Override to simulate authentication failure."""
-            raise AuthenticationError(detail="Not authenticated for testing")
-
-        # Override the dependencies
-        app.dependency_overrides[get_current_user] = override_get_current_user
-
-    yield test_client
-
-    # Clear dependency overrides
-    app.dependency_overrides.clear()
-
 # Auth headers fixture for testing
 @pytest.fixture(scope="function")
 def auth_headers(setup_test_user):
@@ -182,22 +152,40 @@ async def test_db():
 # Patch database fixture for testing
 @pytest.fixture(scope="function", autouse=True)
 def patch_database():
-    """Patch database functions for each test."""
+    """Patch database functions for each test and clear mock data."""
     # Import the modules that use the database
     import database
-    import utils.db_utils
+    import utils.db_utils # Ensure utils.db_utils is imported if used below
+    # Import the global mock db instance and the MockDatabase class from tests.mock_db
+    from tests.mock_db import db as mock_db_instance, MockDatabase
 
-    # Save the original database
+    # --- Start: Clear mock data before test ---
+    logger.debug("Clearing mock database collections before test run.")
+
+    # Reset the _collections dictionary directly
+    if isinstance(mock_db_instance, MockDatabase): # Add safety check
+        mock_db_instance._collections = {}
+        logger.debug("Reset mock database collections to empty dictionary.")
+    else:
+        logger.error(f"patch_database fixture: mock_db_instance is not a MockDatabase instance! Type: {type(mock_db_instance)}")
+        # Optionally raise an error here if this state is unexpected and should halt tests
+        # raise TypeError("Mock database instance is of unexpected type.")
+
+    # --- End: Clear mock data ---
+
+    # Save the original database references
     original_db = database.db
     original_get_database = database.get_database
+    original_utils_db = getattr(utils.db_utils, 'db', None) # Handle if utils.db_utils might not have db
 
-    # Replace with the mock database
-    database.db = db
-    utils.db_utils.db = db
+    # Replace with the mock database instance
+    database.db = mock_db_instance
+    utils.db_utils.db = mock_db_instance
 
     # Define a mock get_database function
     async def mock_get_database():
-        return {"db": db, "client": None}
+        # Return the *same* mock_db_instance used above
+        return {"db": mock_db_instance, "client": None}
 
     # Replace the get_database function
     database.get_database = mock_get_database
@@ -210,11 +198,17 @@ def patch_database():
     # Replace verify_db_connection with the mock
     database.verify_db_connection = mock_verify_db_connection
 
-    yield
+    yield # Test runs here
 
-    # Restore the original database
+    # Restore the original database references
     database.db = original_db
     database.get_database = original_get_database
+    if original_utils_db is not None:
+        utils.db_utils.db = original_utils_db
+    else:
+        # If it didn't exist before, remove it
+        if hasattr(utils.db_utils, 'db'):
+             delattr(utils.db_utils, 'db')
 
 # Clear rate limits before and after each test
 @pytest.fixture()
@@ -252,11 +246,3 @@ async def async_client():
         yield ac
         # Clear any potentially remaining overrides from other fixtures/tests if necessary
         app.dependency_overrides.clear()
-
-@pytest.fixture(scope="session", autouse=True)
-def event_loop():
-    """Create an instance of the default event loop for each test session."""
-    # Use asyncio.get_event_loop() which works with nest_asyncio
-    loop = asyncio.get_event_loop()
-    yield loop
-    # loop.close() # Avoid closing the loop if nest_asyncio manages it

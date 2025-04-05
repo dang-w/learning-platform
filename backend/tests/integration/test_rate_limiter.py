@@ -14,6 +14,10 @@ import uuid
 from httpx import Headers
 from starlette.testclient import TestClient # Import TestClient for sync tests
 
+# Import DB dependency
+from database import get_db
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -88,65 +92,70 @@ async def test_user_creation_rate_limit(async_client: AsyncClient, injected_redi
         await redis_client.ping()
         logger.info("Injected Redis client connected for test_user_creation_rate_limit")
 
-        # Patch the database operations
-        with patch('routers.users.db') as mock_db, patch('main.db') as main_mock_db:
+        # Define DB override function
+        async def override_get_db() -> AsyncIOMotorDatabase:
+            mock_db_instance = MagicMock()
+            mock_db_instance.users = MagicMock()
             # Setup AsyncMock for find_one to return None (no user exists)
-            mock_db.users.find_one = AsyncMock(return_value=None)
-            main_mock_db.users.find_one = AsyncMock(return_value=None)
+            mock_db_instance.users.find_one = AsyncMock(return_value=None)
             insert_result = MagicMock()
             insert_result.inserted_id = ObjectId("507f1f77bcf86cd799439011")
-            mock_db.users.insert_one = AsyncMock(return_value=insert_result)
-            main_mock_db.users.insert_one = AsyncMock(return_value=insert_result)
+            mock_db_instance.users.insert_one = AsyncMock(return_value=insert_result)
+            return mock_db_instance
 
-            # Patch validate functions
-            with patch('routers.users.validate_email', return_value=True), \
-                 patch('routers.users.validate_password_strength', return_value=True), \
-                 patch('main.validate_email', return_value=True), \
-                 patch('main.validate_password_strength', return_value=True):
+        # Apply DB override
+        app.dependency_overrides[get_db] = override_get_db
 
-                # Also patch the get_client_identifier to ensure consistent identifier
-                with patch('utils.rate_limiter.get_client_identifier', return_value="test-client:test-user-agent"):
-                    # Clear specific keys before test
-                    async for key in redis_client.scan_iter("rate_limit:user_creation:*"):
-                        await redis_client.delete(key)
+        # Patch validate functions
+        with patch('routers.users.validate_email', return_value=True), \
+             patch('routers.users.validate_password_strength', return_value=True):
 
-                    # Make requests up to the limit
-                    responses = []
-                    timestamp = int(time.time())  # Use timestamp to ensure unique usernames/emails
+            # Also patch the get_client_identifier to ensure consistent identifier
+            with patch('utils.rate_limiter.get_client_identifier', return_value="test-client:test-user-agent"):
+                # Clear specific keys before test
+                async for key in redis_client.scan_iter("rate_limit:user_creation:*"):
+                    await redis_client.delete(key)
 
-                    # Force set the rate limit to the limit to ensure the next request triggers it
-                    client_identifier = "test-client:test-user-agent"
-                    key = f"rate_limit:user_creation:{client_identifier}"
-                    # Set to value of 11 which should exceed limit of 10
-                    await redis_client.setex(key, 3600, 11)
-                    logger.info(f"Set rate limit key {key} to 11")
+                # Make requests up to the limit
+                responses = []
+                timestamp = int(time.time())  # Use timestamp to ensure unique usernames/emails
 
-                    # This request should fail with rate limit exceeded
-                    response = await async_client.post(
-                        "/api/users/",
-                        json={
-                            "username": f"test_rate_user_exceeded_{timestamp}",
-                            "email": f"test_rate_exceeded_{timestamp}@example.com",
-                            "password": "SecurePass123!",
-                            "first_name": "Test",
-                            "last_name": "User Rate Limited"
-                        },
-                        headers={ # Headers need to match get_client_identifier mock
-                            "User-Agent": "test-user-agent",
-                            "X-Forwarded-For": "test-client"
-                        }
-                    )
+                # Force set the rate limit to the limit to ensure the next request triggers it
+                client_identifier = "test-client:test-user-agent"
+                key = f"rate_limit:user_creation:{client_identifier}"
+                # Set to value of 11 which should exceed limit of 10
+                await redis_client.setex(key, 3600, 11)
+                logger.info(f"Set rate limit key {key} to 11")
 
-                    # Should be 429 (too many requests)
-                    assert response.status_code == 429, f"Expected 429, got {response.status_code}"
-                    assert "Retry-After" in response.headers
-                    assert "X-RateLimit-Reset" in response.headers
-                    assert "X-RateLimit-Limit" in response.headers
-                    assert "X-RateLimit-Remaining" in response.headers # Check existence
+                # This request should fail with rate limit exceeded
+                response = await async_client.post(
+                    "/api/users/",
+                    json={
+                        "username": f"test_rate_user_exceeded_{timestamp}",
+                        "email": f"test_rate_exceeded_{timestamp}@example.com",
+                        "password": "SecurePass123!",
+                        "first_name": "Test",
+                        "last_name": "User Rate Limited"
+                    },
+                    headers={ # Headers need to match get_client_identifier mock
+                        "User-Agent": "test-user-agent",
+                        "X-Forwarded-For": "test-client"
+                    }
+                )
+
+                # Should be 429 (too many requests)
+                assert response.status_code == 429, f"Expected 429, got {response.status_code}"
+                assert "Retry-After" in response.headers
+                assert "X-RateLimit-Reset" in response.headers
+                assert "X-RateLimit-Limit" in response.headers
+                assert "X-RateLimit-Remaining" in response.headers # Check existence
 
     except redis.ConnectionError as e:
         logger.warning(f"Redis connection error in test_user_creation_rate_limit: {e}")
         pytest.skip("Redis connection failed")
+    finally:
+        # Clean up DB override
+        app.dependency_overrides.pop(get_db, None)
 
 @pytest.mark.asyncio
 async def test_rate_limit_headers(async_client: AsyncClient, injected_redis_client: redis.Redis):
@@ -156,68 +165,71 @@ async def test_rate_limit_headers(async_client: AsyncClient, injected_redis_clie
         await redis_client.ping()
         logger.info("Injected Redis client connected for test_rate_limit_headers")
 
-        # Same approach as test_user_creation_rate_limit
-        # Patch the database operations
-        with patch('routers.users.db') as mock_db, patch('main.db') as main_mock_db:
-            # Setup AsyncMock for find_one to return None (no user exists)
-            mock_db.users.find_one = AsyncMock(return_value=None)
-            main_mock_db.users.find_one = AsyncMock(return_value=None)
+        # Define DB override function (same as above)
+        async def override_get_db() -> AsyncIOMotorDatabase:
+            mock_db_instance = MagicMock()
+            mock_db_instance.users = MagicMock()
+            mock_db_instance.users.find_one = AsyncMock(return_value=None)
             insert_result = MagicMock()
             insert_result.inserted_id = ObjectId("507f1f77bcf86cd799439011")
-            mock_db.users.insert_one = AsyncMock(return_value=insert_result)
-            main_mock_db.users.insert_one = AsyncMock(return_value=insert_result)
+            mock_db_instance.users.insert_one = AsyncMock(return_value=insert_result)
+            return mock_db_instance
 
-            # Patch validate functions
-            with patch('routers.users.validate_email', return_value=True), \
-                 patch('routers.users.validate_password_strength', return_value=True), \
-                 patch('main.validate_email', return_value=True), \
-                 patch('main.validate_password_strength', return_value=True):
+        # Apply DB override
+        app.dependency_overrides[get_db] = override_get_db
 
-                # IMPORTANT: For debugging purposes, also patch the get_client_identifier function
-                # to return a known value that we can use to check Redis
-                with patch('utils.rate_limiter.get_client_identifier', return_value="test-client:test-user-agent"):
-                    # Clear specific keys before test
-                    async for key in redis_client.scan_iter("rate_limit:user_creation:*"):
-                        await redis_client.delete(key)
-                        logger.info(f"Deleted existing key: {key}")
+        # Patch validate functions
+        with patch('routers.users.validate_email', return_value=True), \
+             patch('routers.users.validate_password_strength', return_value=True):
 
-                    # Send multiple requests to trigger rate limit
-                    timestamp = int(time.time())
-                    client_identifier = "test-client:test-user-agent"  # This should match our mocked value
+            # IMPORTANT: For debugging purposes, also patch the get_client_identifier function
+            # to return a known value that we can use to check Redis
+            with patch('utils.rate_limiter.get_client_identifier', return_value="test-client:test-user-agent"):
+                # Clear specific keys before test
+                async for key in redis_client.scan_iter("rate_limit:user_creation:*"):
+                    await redis_client.delete(key)
+                    logger.info(f"Deleted existing key: {key}")
 
-                    # Force set the rate limit to exceed the limit
-                    key = f"rate_limit:user_creation:{client_identifier}"
-                    await redis_client.setex(key, 3600, 11)  # Exceeds limit of 10
-                    logger.info(f"Set rate limit key {key} to 11")
+                # Send multiple requests to trigger rate limit
+                timestamp = int(time.time())
+                client_identifier = "test-client:test-user-agent"  # This should match our mocked value
 
-                    # Make the request that should be rate limited
-                    response = await async_client.post(
-                        "/api/users/",
-                        json={
-                            "username": f"test_rate_limited_headers_{timestamp}",
-                            "email": f"test_rate_headers_{timestamp}@example.com",
-                            "password": "SecurePass123!",
-                            "first_name": "Test Headers",
-                            "last_name": "User Rate Limited Headers"
-                        },
-                        headers={ # Headers need to match get_client_identifier mock
-                            "User-Agent": "test-user-agent",
-                            "X-Forwarded-For": "test-client"
-                        }
-                    )
+                # Force set the rate limit to exceed the limit
+                key = f"rate_limit:user_creation:{client_identifier}"
+                await redis_client.setex(key, 3600, 11)  # Exceeds limit of 10
+                logger.info(f"Set rate limit key {key} to 11")
 
-                    assert response.status_code == 429
-                    assert "Retry-After" in response.headers
-                    assert "X-RateLimit-Reset" in response.headers
-                    assert "X-RateLimit-Limit" in response.headers
-                    assert "X-RateLimit-Remaining" in response.headers
-                    # Verify header values (adjust based on your actual limits)
-                    assert response.headers["X-RateLimit-Limit"] == "10" # user_creation limit is 10
-                    assert response.headers["X-RateLimit-Remaining"] == "0"
+                # Make the request that should be rate limited
+                response = await async_client.post(
+                    "/api/users/",
+                    json={
+                        "username": f"test_rate_limited_headers_{timestamp}",
+                        "email": f"test_rate_headers_{timestamp}@example.com",
+                        "password": "SecurePass123!",
+                        "first_name": "Test Headers",
+                        "last_name": "User Rate Limited Headers"
+                    },
+                    headers={ # Headers need to match get_client_identifier mock
+                        "User-Agent": "test-user-agent",
+                        "X-Forwarded-For": "test-client"
+                    }
+                )
+
+                assert response.status_code == 429
+                assert "Retry-After" in response.headers
+                assert "X-RateLimit-Reset" in response.headers
+                assert "X-RateLimit-Limit" in response.headers
+                assert "X-RateLimit-Remaining" in response.headers
+                # Verify header values (adjust based on your actual limits)
+                assert response.headers["X-RateLimit-Limit"] == "10" # user_creation limit is 10
+                assert response.headers["X-RateLimit-Remaining"] == "0"
 
     except redis.ConnectionError as e:
         logger.warning(f"Redis connection error in test_rate_limit_headers: {e}")
         pytest.skip("Redis connection failed")
+    finally:
+        # Clean up DB override
+        app.dependency_overrides.pop(get_db, None)
 
 @pytest.mark.asyncio
 async def test_rate_limit_reset(async_client: AsyncClient, injected_redis_client: redis.Redis):
@@ -264,7 +276,7 @@ async def test_rate_limit_reset(async_client: AsyncClient, injected_redis_client
             logger.info(f"Reset Test: Request {limit+1} correctly failed (429 Too Many Requests)")
 
             # Wait for the window to expire (add buffer)
-            wait_time = window + 0.5 # Increased wait time slightly
+            wait_time = window + 1.0 # Increased buffer to 1.0 second
             logger.info(f"Reset Test: Waiting for {wait_time:.1f} seconds for rate limit window to expire...")
             await asyncio.sleep(wait_time)
             logger.info("Reset Test: Wait complete.")

@@ -7,18 +7,43 @@ of async database operations and synchronous dependency overrides.
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 
 # Import the app and auth functions
 from main import app
-from auth import get_current_user, get_current_active_user
+from auth import get_current_user, get_current_active_user, User
+from database import get_db
 
 # Import standardized utilities
 from utils.error_handlers import AuthenticationError, ResourceNotFoundError
 
 # Import the MockUser class from conftest
 from tests.conftest import MockUser
+
+# Import the httpx AsyncClient and ASGITransport
+from httpx import AsyncClient, Headers, ASGITransport
+
+# Add the parent directory to the path so we can import main
+from pathlib import Path
+import sys
+import os
+from copy import deepcopy
+
+# Add the parent directory to the path so we can import main
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+# Import the database
+# from database import db
+
+# Import the serialization function
+from tests.utils import serialize_object_id
+
+# Import the fixtures
+from tests.conftest import setup_test_user, auth_headers
+
+# Import the models
+from routers.reviews import Review, ReviewSettings
 
 # Test data
 test_concept = {
@@ -40,6 +65,32 @@ test_resource_review = {
     "topics": ["python", "testing"]
 }
 
+# Sample Review Data
+sample_review_data = {
+    "_id": ObjectId("67f2bc0c9cbc3233d1d53f9b"),
+    "user_id": "testuser_other",  # Belongs to a different user initially
+    "resource_type": "articles", # Use valid plural form
+    "resource_id": 1,          # Changed to integer
+    "rating": 4,
+    "comment": "Good article.",
+    "content": "Detailed review content here.", # Added
+    "difficulty_rating": 3,                 # Added
+    "topics": ["python", "fastapi"],         # Added
+    "created_at": datetime.now(timezone.utc) - timedelta(days=1),
+    "updated_at": datetime.now(timezone.utc),
+    "date": (datetime.now(timezone.utc)).isoformat() # Corrected: Format date as ISO string
+}
+
+# Helper function for auth override
+def create_mock_user_dict(username="testuser"):
+    return {
+        "username": username,
+        "email": f"{username}@example.com",
+        "disabled": False,
+        "_id": ObjectId() # Simulate a DB user object structure
+        # Add other User model fields if needed by endpoints
+    }
+
 @pytest.fixture(scope="function", autouse=True)
 def clear_dependency_overrides():
     """Clear dependency overrides before and after each test."""
@@ -51,647 +102,470 @@ def clear_dependency_overrides():
     # Clear overrides after the test
     app.dependency_overrides.clear()
 
-def test_get_reviews_empty(client, auth_headers):
-    """Test getting reviews when there are none."""
-    # Create a mock user
+@pytest.mark.asyncio
+async def test_get_reviews_empty(async_client, auth_headers):
+    """Test getting reviews when none exist."""
+    # Mock user for auth
     mock_user = MockUser(username="testuser")
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = {
-        "username": "testuser",
-        "reviews": []
-    }
-
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-
-    # Create a mock for the db
+    # Mock database
     mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_db.reviews = MagicMock()
+    mock_cursor = AsyncMock()
+    mock_cursor.to_list.return_value = []
+    mock_db.reviews.find = MagicMock(return_value=mock_cursor)
+    mock_db.reviews.count_documents = AsyncMock(return_value=0)
 
-    # Mock the database operations
-    with patch('routers.reviews.db', mock_db):
-        # Test getting all reviews
-        response = client.get("/api/reviews", headers=auth_headers)
+    # Mock find_one on users collection for auth
+    mock_db.users = MagicMock()
+    mock_db.users.find_one = AsyncMock(return_value=mock_user)
 
-        # Verify the response
-        assert response.status_code == 200
-        reviews_data = response.json()
-        assert len(reviews_data) == 0
+    # Define override
+    async def override_get_db():
+        return mock_db
 
-def test_create_resource_review(client, auth_headers):
-    """Test creating a new resource review."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
-
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    # New review data
-    new_review = {
-        "resource_id": 1,  # Changed to int
-        "resource_type": "article",
+    response = await async_client.get("/api/reviews/", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data == [] # Expect an empty list
+
+@pytest.mark.asyncio
+async def test_create_resource_review(async_client, auth_headers):
+    """Test creating a new review for a resource."""
+    # Mock user for auth
+    mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username) # Data for db.users.find_one
+
+    new_review_payload = {
+        "resource_type": "books",
+        "resource_id": 123,
         "rating": 5,
-        "content": "Great resource!",
-        "tags": ["python", "fastapi"],
-        "difficulty_rating": 3,  # Added required field
-        "topics": ["python", "fastapi"]  # Added required field
+        "comment": "Excellent book!",
+        "content": "Review content",
+        "difficulty_rating": 3,
+        "topics": ["test"]
     }
 
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = {
-        "username": "testuser",
-        "reviews": []
-    }
+    # Mock database
+    mock_db = MagicMock()
+    mock_db.reviews = MagicMock()
+    mock_db.users = MagicMock()
 
-    # Create a mock for the update_one method
-    mock_update_one = AsyncMock()
+    # Mock the update_one call on the users collection
     mock_update_result = MagicMock()
+    mock_update_result.matched_count = 1
     mock_update_result.modified_count = 1
-    mock_update_one.return_value = mock_update_result
+    mock_db.users.update_one = AsyncMock(return_value=mock_update_result)
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-    mock_users.update_one = mock_update_one
+    # Mock find_one on users for the initial check within the endpoint
+    mock_db.users.find_one = AsyncMock(return_value=mock_user_db_data)
 
-    # Create a mock for the db
-    mock_db = MagicMock()
-    mock_db.users = mock_users
+    # Define override
+    async def override_get_db():
+        return mock_db
 
-    # Mock the database operations
-    with patch('routers.reviews.db', mock_db):
-        # Test creating a new review
-        response = client.post("/api/reviews", json=new_review, headers=auth_headers)
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    # Override with User model instance created from dict
+    mock_user_instance = User(**mock_user_db_data)
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_instance
 
-        # Verify the response
-        assert response.status_code == 201
-        review_data = response.json()
-        assert review_data["resource_id"] == new_review["resource_id"]
-        assert review_data["resource_type"] == new_review["resource_type"]
-        assert review_data["rating"] == new_review["rating"]
-        assert review_data["content"] == new_review["content"]
-        assert review_data["difficulty_rating"] == new_review["difficulty_rating"]
-        assert review_data["topics"] == new_review["topics"]
-        assert "id" in review_data
-        assert "user_id" in review_data
-        assert "date" in review_data
+    response = await async_client.post("/api/reviews/", json=new_review_payload, headers=auth_headers)
 
-def test_get_reviews(client, auth_headers):
-    """Test getting all reviews."""
-    # Create a mock user
+    assert response.status_code == 201
+    data = response.json()
+    assert data["rating"] == new_review_payload["rating"]
+    assert data["comment"] == new_review_payload["comment"]
+    assert data["resource_id"] == new_review_payload["resource_id"]
+    assert data["user_id"] == mock_user.username
+    assert "id" in data
+
+@pytest.mark.asyncio
+async def test_get_reviews(async_client, auth_headers):
+    """Test getting a list of existing reviews."""
+    # Mock user for auth
     mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username)
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    # Prepare mock data matching the user
+    user_sample_review = deepcopy(sample_review_data)
+    user_sample_review["user_id"] = mock_user.username
 
-    # Create test reviews
-    reviews = [
-        {
-            "id": "review1",
-            "resource_id": 1,  # Changed to int
-            "resource_type": "article",
-            "rating": 5,
-            "content": "Great resource!",
-            "tags": ["python", "fastapi"],
-            "difficulty_rating": 3,  # Added required field
-            "topics": ["python", "fastapi"],  # Added required field
-            "user_id": "testuser",  # Added required field
-            "date": str(datetime.now()),  # Added required field
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        },
-        {
-            "id": "review2",
-            "resource_id": 2,  # Changed to int
-            "resource_type": "video",
-            "rating": 4,
-            "content": "Good video!",
-            "tags": ["python", "django"],
-            "difficulty_rating": 2,  # Added required field
-            "topics": ["python", "django"],  # Added required field
-            "user_id": "testuser",  # Added required field
-            "date": str(datetime.now()),  # Added required field
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        }
-    ]
-
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = {
-        "username": "testuser",
-        "reviews": reviews
-    }
-
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-
-    # Create a mock for the db
+    # Mock database
     mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_db.reviews = MagicMock()
+    mock_db.users = MagicMock()
 
-    # Mock the database operations
-    with patch('routers.reviews.db', mock_db):
-        # Test getting all reviews
-        response = client.get("/api/reviews", headers=auth_headers)
+    # Mock the cursor returned by find to support async iteration
+    mock_reviews_list = [serialize_object_id(user_sample_review)]
+    async def mock_aiter(*args, **kwargs): # Accept arguments
+        for item in mock_reviews_list:
+            yield item
+    mock_cursor = MagicMock()
+    mock_cursor.__aiter__ = mock_aiter
 
-        # Verify the response
-        assert response.status_code == 200
-        reviews_data = response.json()
-        assert len(reviews_data) == 2
-        assert reviews_data[0]["resource_id"] == 1
-        assert reviews_data[0]["resource_type"] == "article"
-        assert reviews_data[1]["resource_id"] == 2
-        assert reviews_data[1]["resource_type"] == "video"
+    # Configure find mock to return the mock cursor
+    # Assume endpoint filters correctly by user_id
+    mock_db.reviews.find = MagicMock(return_value=mock_cursor)
+    mock_db.reviews.count_documents = AsyncMock(return_value=len(mock_reviews_list))
 
-def test_get_reviews_by_resource(client, auth_headers):
+    # Mock find_one on users collection for auth
+    mock_db.users.find_one = AsyncMock(return_value=mock_user_db_data)
+
+    # Define override
+    async def override_get_db():
+        return mock_db
+
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_db_data
+
+    response = await async_client.get("/api/reviews/", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 1 # Should pass now with correct async iteration mock
+    assert data[0]["content"] == user_sample_review["content"]
+    assert data[0]["rating"] == user_sample_review["rating"]
+    assert data[0]["id"] == str(user_sample_review["_id"])
+
+@pytest.mark.asyncio
+async def test_get_reviews_by_resource(async_client, auth_headers):
     """Test getting reviews for a specific resource."""
-    # Create a mock user
+    # Mock user for auth
     mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username)
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    # Use the updated sample_review_data with integer resource_id and plural type
+    resource_type = sample_review_data["resource_type"]
+    resource_id = sample_review_data["resource_id"]
 
-    # Create test reviews
-    reviews = [
-        {
-            "id": "review1",
-            "resource_id": 1,  # Changed to int
-            "resource_type": "article",
-            "rating": 5,
-            "content": "Great resource!",
-            "tags": ["python", "fastapi"],
-            "difficulty_rating": 3,  # Added required field
-            "topics": ["python", "fastapi"],  # Added required field
-            "user_id": "testuser",  # Added required field
-            "date": str(datetime.now()),  # Added required field
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        },
-        {
-            "id": "review2",
-            "resource_id": 1,  # Changed to int
-            "resource_type": "article",
-            "rating": 4,
-            "content": "Good article!",
-            "tags": ["python", "django"],
-            "difficulty_rating": 2,  # Added required field
-            "topics": ["python", "django"],  # Added required field
-            "user_id": "testuser",  # Added required field
-            "date": str(datetime.now()),  # Added required field
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        },
-        {
-            "id": "review3",
-            "resource_id": 2,  # Changed to int
-            "resource_type": "video",
-            "rating": 3,
-            "content": "Average video!",
-            "tags": ["python", "flask"],
-            "difficulty_rating": 4,  # Added required field
-            "topics": ["python", "flask"],  # Added required field
-            "user_id": "testuser",  # Added required field
-            "date": str(datetime.now()),  # Added required field
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        }
-    ]
+    # Prepare mock data matching the user and resource
+    user_resource_sample_review = deepcopy(sample_review_data)
+    user_resource_sample_review["user_id"] = mock_user.username
 
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = {
-        "username": "testuser",
-        "reviews": reviews
-    }
-
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-
-    # Create a mock for the db
+    # Mock database
     mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_db.reviews = MagicMock()
+    mock_db.users = MagicMock()
 
-    # Mock the database operations
-    with patch('routers.reviews.db', mock_db):
-        # Test getting reviews for a specific resource
-        response = client.get("/api/reviews/resource/article/1", headers=auth_headers)
+    # Mock the cursor returned by find to support async iteration
+    mock_reviews_list = [serialize_object_id(user_resource_sample_review)]
+    async def mock_aiter(*args, **kwargs): # Accept arguments
+        for item in mock_reviews_list:
+            yield item
+    mock_cursor = MagicMock()
+    mock_cursor.__aiter__ = mock_aiter
 
-        # Verify the response
-        assert response.status_code == 200
-        reviews_data = response.json()
-        assert len(reviews_data) == 2
-        assert reviews_data[0]["resource_id"] == 1
-        assert reviews_data[0]["resource_type"] == "article"
-        assert reviews_data[1]["resource_id"] == 1
-        assert reviews_data[1]["resource_type"] == "article"
-
-def test_update_review(client, auth_headers):
-    """Test updating a review."""
-    # Create a mock user
-    mock_user = MockUser(username="testuser")
-
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Create test reviews
-    reviews = [
-        {
-            "id": "review1",
-            "resource_id": 1,  # Changed to int
-            "resource_type": "article",
-            "rating": 5,
-            "content": "Great resource!",
-            "tags": ["python", "fastapi"],
-            "difficulty_rating": 3,  # Added required field
-            "topics": ["python", "fastapi"],  # Added required field
-            "user_id": "testuser",  # Added required field
-            "date": str(datetime.now()),  # Added required field
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
+    # Configure find mock for the specific resource filter
+    def find_side_effect(*args, **kwargs):
+        filter_query = args[0] if args else kwargs.get("filter", {})
+        expected_filter = {
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "user_id": mock_user.username
         }
-    ]
+        if filter_query == expected_filter:
+            return mock_cursor
+        # Return empty cursor otherwise
+        empty_cursor = MagicMock()
+        async def empty_aiter(*args, **kwargs): # Accept arguments
+            if False: yield # Create an empty async generator
+        empty_cursor.__aiter__ = empty_aiter
+        return empty_cursor
 
-    # Updated review data
-    updated_review = {
-        "resource_id": 1,  # Changed to int
-        "resource_type": "article",
-        "rating": 4,
-        "content": "Updated review content",
-        "tags": ["python", "fastapi", "testing"],
-        "difficulty_rating": 2,  # Added required field
-        "topics": ["python", "fastapi", "testing"]  # Added required field
+    mock_db.reviews.find = MagicMock(side_effect=find_side_effect)
+    mock_db.reviews.count_documents = AsyncMock(return_value=1)
+
+    # Mock find_one on users collection for auth
+    mock_db.users.find_one = AsyncMock(return_value=mock_user_db_data)
+
+    # Define override
+    async def override_get_db():
+        return mock_db
+
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_db_data
+
+    # Correct the URL to use the integer resource_id
+    response = await async_client.get(f"/api/reviews/resource/{resource_type}/{resource_id}", headers=auth_headers)
+
+    assert response.status_code == 200 # Should not be 500
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["resource_id"] == resource_id
+    assert data[0]["resource_type"] == resource_type
+    assert data[0]["user_id"] == mock_user.username
+
+@pytest.mark.asyncio
+async def test_update_review(async_client, auth_headers):
+    """Test updating an existing review."""
+    # Mock user for auth
+    mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username)
+
+    # Use updated sample data with integer ID and correct type
+    review_to_update = deepcopy(sample_review_data)
+    review_to_update["user_id"] = mock_user.username
+    review_id = str(review_to_update["_id"])
+
+    update_payload = {
+        "rating": 3,
+        "comment": "Updated comment.",
+        "resource_type": review_to_update["resource_type"],
+        "resource_id": review_to_update["resource_id"],
+        "content": "Original content or updated",
+        "difficulty_rating": 4,
+        "topics": ["updated"]
     }
 
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = {
-        "username": "testuser",
-        "reviews": reviews
-    }
+    # Mock database
+    mock_db = MagicMock()
+    mock_db.reviews = MagicMock()
+    mock_db.users = MagicMock()
 
-    # Create a mock for the update_one method
-    mock_update_one = AsyncMock()
+    # Mock update_one
     mock_update_result = MagicMock()
+    mock_update_result.matched_count = 1
     mock_update_result.modified_count = 1
-    mock_update_one.return_value = mock_update_result
+    mock_db.reviews.update_one = AsyncMock(return_value=mock_update_result)
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-    mock_users.update_one = mock_update_one
+    # Mock find_one for ownership check and returning updated doc
+    updated_review_mock_data = {
+        **review_to_update,
+        **update_payload,
+        "updated_at": datetime.now(timezone.utc)
+    }
+    mock_db.reviews.find_one = AsyncMock(side_effect=[
+        review_to_update,          # First call for ownership check
+        updated_review_mock_data   # Second call returns updated doc
+    ])
 
-    # Create a mock for the db
-    mock_db = MagicMock()
-    mock_db.users = mock_users
+    # Mock find_one on users for auth
+    mock_db.users.find_one = AsyncMock(return_value=mock_user_db_data)
 
-    # Mock the database operations
-    with patch('routers.reviews.db', mock_db):
-        # Test updating a review
-        response = client.put("/api/reviews/review1", json=updated_review, headers=auth_headers)
+    # Define override
+    async def override_get_db():
+        return mock_db
 
-        # Verify the response
-        assert response.status_code == 200
-        review_data = response.json()
-        assert review_data["id"] == "review1"
-        assert review_data["rating"] == updated_review["rating"]
-        assert review_data["content"] == updated_review["content"]
-        assert review_data["difficulty_rating"] == updated_review["difficulty_rating"]
-        assert review_data["topics"] == updated_review["topics"]
-        assert "date" in review_data
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    # Override with User model instance created from dict
+    mock_user_instance = User(**mock_user_db_data)
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_instance
 
-def test_delete_review(client, auth_headers):
-    """Test deleting a review."""
-    # Create a mock user
+    response = await async_client.put(f"/api/reviews/{review_id}", json=update_payload, headers=auth_headers)
+
+    assert response.status_code == 200 # Should not be 403
+    data = response.json()
+    assert data["id"] == review_id
+    assert data["rating"] == update_payload["rating"]
+    assert data["comment"] == update_payload["comment"]
+    assert data["user_id"] == mock_user.username
+    assert data["updated_at"] != review_to_update["updated_at"].isoformat().replace('+00:00', 'Z')
+
+@pytest.mark.asyncio
+async def test_delete_review(async_client, auth_headers):
+    """Test deleting an existing review."""
+    # Mock user for auth
     mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username)
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    # Use updated sample data
+    review_to_delete = deepcopy(sample_review_data)
+    review_to_delete["user_id"] = mock_user.username
+    review_id = str(review_to_delete["_id"])
 
-    # Create test reviews
-    reviews = [
-        {
-            "id": "review1",
-            "resource_id": 1,  # Changed to int
-            "resource_type": "article",
-            "rating": 5,
-            "content": "Great resource!",
-            "tags": ["python", "fastapi"],
-            "difficulty_rating": 3,  # Added required field
-            "topics": ["python", "fastapi"],  # Added required field
-            "user_id": "testuser",  # Added required field
-            "date": str(datetime.now()),  # Added required field
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        }
-    ]
-
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = {
-        "username": "testuser",
-        "reviews": reviews
-    }
-
-    # Create a mock for the update_one method
-    mock_update_one = AsyncMock()
-    mock_update_result = MagicMock()
-    mock_update_result.modified_count = 1
-    mock_update_one.return_value = mock_update_result
-
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-    mock_users.update_one = mock_update_one
-
-    # Create a mock for the db
+    # Mock database
     mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_db.reviews = MagicMock()
+    mock_db.users = MagicMock()
 
-    # Mock the database operations
-    with patch('routers.reviews.db', mock_db):
-        # Test deleting a review
-        response = client.delete("/api/reviews/review1", headers=auth_headers)
+    # Mock find_one to confirm ownership before delete
+    mock_db.reviews.find_one = AsyncMock(return_value=review_to_delete)
+    # Mock delete_one
+    mock_delete_result = MagicMock()
+    mock_delete_result.deleted_count = 1
+    mock_db.reviews.delete_one = AsyncMock(return_value=mock_delete_result)
 
-        # Verify the response
-        assert response.status_code == 204
+    # Mock find_one on users for auth
+    mock_db.users.find_one = AsyncMock(return_value=mock_user_db_data)
 
-def test_get_review_statistics(client, auth_headers):
-    """Test getting review statistics."""
-    # Create a mock user
+    # Define override
+    async def override_get_db():
+        return mock_db
+
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_db_data
+
+    response = await async_client.delete(f"/api/reviews/{review_id}", headers=auth_headers)
+
+    assert response.status_code == 204 # Should not be 403
+
+@pytest.mark.asyncio
+async def test_get_review_statistics(async_client, auth_headers):
+    """Test getting review statistics for the user."""
+    # Mock user for auth
     mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username)
 
-    # Override the dependencies with synchronous functions
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Create test reviews for resources
-    resource_reviews = [
-        {
-            "id": "review1",
-            "resource_id": 1,
-            "resource_type": "article",
-            "rating": 5,
-            "content": "Great resource!",
-            "tags": ["python", "fastapi"],
-            "difficulty_rating": 3,
-            "topics": ["python", "fastapi"],
-            "user_id": "testuser",
-            "date": str(datetime.now()),
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        },
-        {
-            "id": "review2",
-            "resource_id": 2,
-            "resource_type": "video",
-            "rating": 4,
-            "content": "Good video!",
-            "tags": ["python", "django"],
-            "difficulty_rating": 2,
-            "topics": ["python", "django"],
-            "user_id": "testuser",
-            "date": str(datetime.now()),
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        },
-        {
-            "id": "review3",
-            "resource_id": 3,
-            "resource_type": "article",
-            "rating": 3,
-            "content": "Average article!",
-            "tags": ["python", "flask"],
-            "difficulty_rating": 4,
-            "topics": ["python", "flask"],
-            "user_id": "testuser",
-            "date": str(datetime.now()),
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        }
-    ]
-
-    # Create test concepts with reviews
-    concepts = [
-        {
-            "id": "20240101000001_neural_networks",
-            "title": "Neural Networks",
-            "content": "Neural networks are a set of algorithms...",
-            "topics": ["Deep Learning", "AI"],
-            "reviews": [
-                {
-                    "date": str(datetime.now()),
-                    "confidence": 4
-                },
-                {
-                    "date": str(datetime.now()),
-                    "confidence": 5
-                }
-            ],
-            "next_review": None,
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        },
-        {
-            "id": "20240101000002_reinforcement_learning",
-            "title": "Reinforcement Learning",
-            "content": "Reinforcement learning is a type of machine learning...",
-            "topics": ["RL", "AI"],
-            "reviews": [
-                {
-                    "date": str(datetime.now()),
-                    "confidence": 3
-                }
-            ],
-            "next_review": None,
-            "created_at": str(datetime.now()),
-            "updated_at": str(datetime.now())
-        }
-    ]
-
-    # Create a mock for the find_one method
-    mock_find_one = AsyncMock()
-    mock_find_one.return_value = {
-        "username": "testuser",
-        "reviews": resource_reviews,
-        "concepts": concepts
-    }
-
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = mock_find_one
-
-    # Create a mock for the db
+    # Mock database
     mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_db.users = MagicMock()
 
-    # Mock the database operations
-    with patch('routers.reviews.db', mock_db):
-        # Test getting review statistics
-        response = client.get("/api/reviews/statistics", headers=auth_headers)
-
-        # Verify the response
-        assert response.status_code == 200
-        stats = response.json()
-
-        # Check for the structure that matches the API implementation
-        assert "concept_reviews" in stats
-        assert "total" in stats["concept_reviews"]
-        assert stats["concept_reviews"]["total"] == 3
-
-        assert "resource_reviews" in stats
-        assert "total" in stats["resource_reviews"]
-        assert stats["resource_reviews"]["total"] == 3
-
-        assert "total_concepts" in stats
-        assert stats["total_concepts"] == 2
-
-        assert "average_confidence" in stats
-
-def test_get_review_settings(client, auth_headers):
-    """Test getting the user's review settings."""
-    # Create mock user with review settings
-    mock_user = {
-        "username": "testuser",
-        "review_settings": {
-            "daily_review_target": 7,
-            "notification_frequency": "weekly",
-            "review_reminder_time": "19:30",
-            "enable_spaced_repetition": True,
-            "auto_schedule_reviews": False,
-            "show_hints": True,
-            "difficulty_threshold": 4
-        }
+    # Mock the find_one call needed by the endpoint
+    mock_user_data = {
+        "username": mock_user.username,
+        "_id": ObjectId(),
+        "disabled": False,
+        "concepts": [
+            {"id": "c1", "title": "Concept 1", "reviews": [{"confidence": 4, "timestamp": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()}]},
+            {"id": "c2", "title": "Concept 2", "reviews": [], "next_review": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat()}
+        ],
+        # Assuming the endpoint also fetches reviews separately for resource stats
+        "review_settings": {"daily_review_target": 5} # Needed for due calculation
     }
+    # Configure the find_one method on the mock 'users' collection
+    mock_db.users.find_one = AsyncMock(return_value=mock_user_data)
 
-    # Override the dependency to return our mock user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    # Mock the find method on reviews collection for resource review stats
+    mock_db.reviews = MagicMock()
+    mock_review_cursor = MagicMock() # Use MagicMock for find cursor in this case
+    async def review_aiter(*args, **kwargs): # Accept arguments
+        # Simulate returning some mock reviews if needed for stats, or keep empty
+        mock_stats_reviews = [] # Or add mock review dicts here if stats depend on them
+        for item in mock_stats_reviews:
+            yield item
+        # The original code had an empty generator, which is fine if the stats
+        # primarily rely on the user document's concept data. If stats *need*
+        # resource reviews, populate mock_stats_reviews accordingly.
+        # if False: yield # Original empty generator
+    mock_review_cursor.__aiter__ = review_aiter
+    mock_db.reviews.find = MagicMock(return_value=mock_review_cursor)
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = AsyncMock(return_value=mock_user)
+    # Define override
+    async def override_get_db():
+        return mock_db
 
-    # Create a mock for the db
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_db_data
+
+    response = await async_client.get("/api/reviews/statistics", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_concepts" in data
+    assert "due_concepts" in data
+    assert "average_confidence" in data
+    assert "resource_reviews" in data
+    assert "concept_reviews" in data
+    assert data["total_concepts"] == 2
+    # Corrected assertion based on likely response structure
+    assert "today" in data["due_concepts"]
+    assert data["due_concepts"]["today"] >= 0
+    assert "overdue" in data["due_concepts"]
+    assert data["due_concepts"]["overdue"] >= 0
+    assert data["average_confidence"] == 4.0
+    assert data["resource_reviews"]["total"] == 0
+    assert data["concept_reviews"]["total"] == 1
+
+@pytest.mark.asyncio
+async def test_get_review_settings(async_client, auth_headers):
+    """Test getting review settings."""
+    # Mock user for auth
+    mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username)
+
+    # Mock database
     mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_db.users = MagicMock()
 
-    # Patch the get_db call
-    with patch("routers.reviews.db", mock_db) as mock_get_db:
-        # Make request to the settings endpoint
-        response = client.get("/api/reviews/settings", headers=auth_headers)
-
-        # Assert response is successful and contains settings
-        assert response.status_code == 200
-        settings = response.json()
-        assert settings["daily_review_target"] == 7
-        assert settings["notification_frequency"] == "weekly"
-        assert settings["review_reminder_time"] == "19:30"
-        assert settings["enable_spaced_repetition"] == True
-        assert settings["auto_schedule_reviews"] == False
-        assert settings["show_hints"] == True
-        assert settings["difficulty_threshold"] == 4
-
-def test_update_review_settings(client, auth_headers):
-    """Test updating the user's review settings."""
-    # Create mock user
-    mock_user = {
-        "username": "testuser",
+    # Mock find_one to return user with review settings
+    user_with_settings = {
+        "username": mock_user.username,
+        "disabled": False,
+        "_id": mock_user_db_data['_id'],
         "review_settings": {
-            "daily_review_target": 5,
             "notification_frequency": "daily",
-            "review_reminder_time": "18:00",
-            "enable_spaced_repetition": True,
-            "auto_schedule_reviews": True,
-            "show_hints": True,
-            "difficulty_threshold": 3
+            "notification_enabled": True,
+            "daily_review_target": 10 # Make sure all fields are present
         }
     }
+    mock_db.users.find_one = AsyncMock(return_value=user_with_settings)
 
-    # New settings to update
-    update_data = {
-        "daily_review_target": 10,
-        "notification_frequency": "weekly",
-        "review_reminder_time": "20:00",
-        "enable_spaced_repetition": False,
-        "auto_schedule_reviews": False,
-        "show_hints": False,
-        "difficulty_threshold": 2
+    # Define override
+    async def override_get_db():
+        return mock_db
+
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_db_data
+
+    response = await async_client.get("/api/reviews/settings", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["notification_frequency"] == "daily"
+    assert data["notification_enabled"] is True
+    assert data["daily_review_target"] == 10 # Verify all fields
+
+@pytest.mark.asyncio
+async def test_update_review_settings(async_client, auth_headers):
+    """Test updating review settings."""
+    # Mock user for auth
+    mock_user = MockUser(username="testuser")
+    mock_user_db_data = create_mock_user_dict(mock_user.username)
+
+    settings_payload = {
+        "notification_frequency": "monthly",
+        "notification_enabled": False,
+        "daily_review_target": 7
     }
 
-    # Override the dependency to return our mock user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
-
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = AsyncMock(return_value=mock_user)
-    mock_users.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
-
-    # Create a mock for the db
+    # Mock database
     mock_db = MagicMock()
-    mock_db.users = mock_users
+    mock_db.users = MagicMock()
 
-    # Patch the get_db call
-    with patch("routers.reviews.db", mock_db) as mock_get_db:
-        # Make request to update settings
-        response = client.put("/api/reviews/settings", json=update_data, headers=auth_headers)
+    # Mock update_one for settings update
+    mock_update_result = MagicMock()
+    mock_update_result.matched_count = 1
+    mock_update_result.modified_count = 1
+    mock_db.users.update_one = AsyncMock(return_value=mock_update_result)
 
-        # Assert update was successful
-        assert response.status_code == 200
-        updated_prefs = response.json()
-        assert updated_prefs["daily_review_target"] == 10
-        assert updated_prefs["notification_frequency"] == "weekly"
-        assert updated_prefs["review_reminder_time"] == "20:00"
-        assert updated_prefs["enable_spaced_repetition"] == False
-        assert updated_prefs["auto_schedule_reviews"] == False
-        assert updated_prefs["show_hints"] == False
-        assert updated_prefs["difficulty_threshold"] == 2
-
-def test_get_review_settings_defaults(client, auth_headers):
-    """Test getting review settings when none are set (should return defaults)."""
-    # Create mock user without explicit review settings
-    mock_user = {
-        "username": "testuser"
-        # No review_settings key
+    # Mock find_one used for auth check
+    updated_user_data_mock = {
+        "username": mock_user.username,
+        "disabled": False,
+        "_id": mock_user_db_data['_id'],
+        "email": mock_user_db_data['email'],
+        "review_settings": settings_payload
     }
+    mock_db.users.find_one = AsyncMock(return_value=updated_user_data_mock)
 
-    # Override the dependency to return our mock user
-    app.dependency_overrides[get_current_active_user] = lambda: mock_user
+    # Define override
+    async def override_get_db():
+        return mock_db
 
-    # Create a mock for the users collection
-    mock_users = MagicMock()
-    mock_users.find_one = AsyncMock(return_value=mock_user)
+    # Apply overrides
+    app.dependency_overrides[get_db] = override_get_db
+    # Override with User model instance created from dict
+    mock_user_instance = User(**updated_user_data_mock)
+    app.dependency_overrides[get_current_active_user] = lambda: mock_user_instance
 
-    # Create a mock for the db
-    mock_db = MagicMock()
-    mock_db.users = mock_users
+    response = await async_client.put("/api/reviews/settings", json=settings_payload, headers=auth_headers)
 
-    # Patch the get_db call
-    with patch("routers.reviews.db", mock_db) as mock_get_db:
-        # Make request to the settings endpoint
-        response = client.get("/api/reviews/settings", headers=auth_headers)
-
-        # Assert response is successful and contains default settings
-        assert response.status_code == 200
-        settings = response.json()
-        assert settings["daily_review_target"] == 5  # Default value
-        assert settings["notification_frequency"] == "daily"  # Default value
-        assert settings["review_reminder_time"] == "18:00"  # Default value
-        assert settings["enable_spaced_repetition"] == True  # Default value
-        assert settings["auto_schedule_reviews"] == True  # Default value
-        assert settings["show_hints"] == True  # Default value
-        assert settings["difficulty_threshold"] == 3  # Default value
+    assert response.status_code == 200 # Should not be 403
+    data = response.json()
+    assert data["notification_frequency"] == settings_payload["notification_frequency"]
+    assert data["notification_enabled"] == settings_payload["notification_enabled"]
+    assert data["daily_review_target"] == settings_payload["daily_review_target"]

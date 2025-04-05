@@ -123,7 +123,7 @@ async def register(
             )
 
         # Create user in database
-        user = await create_user(register_data, request)
+        user = await create_user(register_data, request, db=db)
 
         # Generate tokens
         access_token = create_access_token(data={"sub": user.username})
@@ -155,7 +155,8 @@ async def login_for_access_token(
     response: Response,
     request: Request,
     login_data: LoginRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ):
     """
     Login endpoint accepting JSON credentials.
@@ -163,7 +164,7 @@ async def login_for_access_token(
     """
     try:
         # Authenticate using data from the JSON body model
-        user = await authenticate_user(login_data.username, login_data.password)
+        user = await authenticate_user(login_data.username, login_data.password, db=db)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -204,7 +205,8 @@ async def login_for_access_token(
 async def refresh_access_token(
     request: Request,
     response: Response,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ):
     """
     Refresh the access token using a valid refresh token from an HttpOnly cookie.

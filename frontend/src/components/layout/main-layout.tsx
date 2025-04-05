@@ -3,7 +3,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthContext } from '@/lib/store/contexts/auth-context';
-import useSessionKeepAlive from '@/lib/hooks/useSessionKeepAlive';
 import Navbar from './navbar';
 import Sidebar from './sidebar';
 import { tokenService } from '@/lib/services/token-service';
@@ -24,9 +23,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [authChecked, setAuthChecked] = useState(false);
-
-  // Keep session alive while authenticated
-  useSessionKeepAlive();
 
   useEffect(() => {
     const initAuth = async () => {

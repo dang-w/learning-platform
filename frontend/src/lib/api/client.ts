@@ -102,6 +102,16 @@ export function getStandardizedUrl(url: string): string {
   return `/api/${cleanUrl.replace(/^\//, '')}`;
 }
 
+// List of public paths that don't require authentication/token refresh
+// Defined here for access by both request and response interceptors
+const publicPaths = [
+  '/auth/login', '/api/auth/login',
+  '/auth/token', '/api/auth/token',
+  '/auth/register', '/api/auth/register',
+  '/auth/logout', '/api/auth/logout',
+  // Add other public paths if needed (e.g., '/password-reset')
+];
+
 // Request interceptor to standardize URLs, add retry count, AND add skip header
 apiClient.interceptors.request.use((config: RetryableRequest) => {
   if (config.url) {
@@ -139,14 +149,6 @@ apiClient.interceptors.request.use((config: RetryableRequest) => {
 apiClient.interceptors.request.use(
   async (config: RetryableRequest) => {
     const url = config.url || '';
-
-    // List of public paths that don't require authentication/token refresh
-    const publicPaths = [
-      '/auth/login',
-      '/auth/token',
-      '/auth/register',
-      // Add other public paths if needed (e.g., '/password-reset')
-    ];
 
     // Don't add auth headers or attempt refresh for the token refresh endpoint itself OR other public paths
     if (url.includes('token/refresh') || publicPaths.some(path => url.includes(path))) {
@@ -202,6 +204,13 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Also ignore public paths in the response interceptor
+    const url = originalRequest.url || '';
+    if (publicPaths.some((path: string) => url.includes(path))) {
+      console.log(`[apiClient Response Interceptor] Skipping refresh/retry logic for public path: ${url}`);
+      return Promise.reject(error);
+    }
+
     // Handle refresh token endpoint errors specially - this causes immediate logout
     if (originalRequest.url?.includes('token/refresh')) {
       console.error('Error during token refresh request itself. Clearing tokens and redirecting.');
@@ -235,22 +244,47 @@ apiClient.interceptors.response.use(
 
     // --- Start Refresh and Retry Logic ---
     isRefreshing = true;
+    let newAccessToken: string | null = null; // Variable to hold the new token
 
     try {
-      console.log('Attempting to retry original request after 401:', originalRequest.url);
-      // The request interceptor on this retry will call getValidAccessToken
+      console.log('Attempting token refresh after 401 on:', originalRequest.url);
+      // Step 1: Attempt to refresh the token
+      newAccessToken = await tokenService.startTokenRefresh();
+      if (!newAccessToken) {
+        throw new Error('Refresh succeeded but tokenService returned null/empty.');
+      }
+      console.log('Token refresh successful for:', originalRequest.url);
+
+      // Step 2: If refresh is successful, retry the original request
+      // The request interceptor (Interceptor 2) should ideally pick up the *new* token via getValidAccessToken
+      // or we could manually set it here.
+      // Let's rely on getValidAccessToken being called during the retry.
+      console.log('Attempting to retry original request with new token:', originalRequest.url);
       const retryResponse = await apiClient(originalRequest);
       console.log('Retry successful for:', originalRequest.url);
-      // If retry succeeds, process the queue with no error
+
+      // Step 3: If retry succeeds, process the queue and return the response
       processQueue();
-      return retryResponse; // Return the successful response from retry
-    } catch (retryError) {
-      console.error('Retry attempt failed for:', originalRequest.url, retryError);
-      // If the retry fails (potentially due to getValidAccessToken throwing), process queue with error
-      const errorToPropagate = retryError instanceof Error ? retryError : new Error('Retry failed after token refresh attempt');
+      return retryResponse;
+
+    } catch (refreshOrRetryError) {
+      console.error('Error during token refresh or retry attempt for:', originalRequest.url, refreshOrRetryError);
+
+      // Step 4: If refresh OR retry fails, process queue with the error and reject
+      const errorToPropagate = refreshOrRetryError instanceof Error
+          ? refreshOrRetryError
+          : new Error('Unknown error during token refresh or retry attempt');
+
+      // If the error came from startTokenRefresh, clear tokens (as per getValidAccessToken logic)
+      // Check if newAccessToken is null, meaning startTokenRefresh failed.
+      if (newAccessToken === null) {
+        console.log('Clearing tokens due to refresh failure during interceptor handling.');
+        tokenService.clearTokens();
+      }
+
       processQueue(errorToPropagate);
-      // Important: Reject with the error from the *retry* attempt, not the original 401 error
-      return Promise.reject(retryError);
+      return Promise.reject(errorToPropagate); // Reject with the specific error (refresh or retry error)
+
     } finally {
       isRefreshing = false; // Always reset refreshing status
     }

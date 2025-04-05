@@ -1,6 +1,9 @@
 export interface UserCredentials {
   username: string;
-  password: string;
+  password?: string; // Optional if only username is needed sometimes
+  email?: string; // Add optional email
+  firstName?: string; // Add optional firstName
+  lastName?: string; // Add optional lastName
 }
 
 export interface UserRegistrationData {
@@ -19,18 +22,21 @@ export interface UserProfileData {
     // Add other updatable profile fields
 }
 
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
+export type ResourceTypeString = 'article' | 'video' | 'course' | 'book' | 'documentation' | 'tool' | 'other';
+
 export interface Resource {
   id: string;
   title: string;
   url: string;
   description: string;
-  type: string; // e.g., 'articles', 'videos', 'courses'
+  type: ResourceTypeString; // e.g., 'articles', 'videos', 'courses'
   status: 'pending' | 'completed' | 'archived'; // Example statuses
   user_id: string;
   created_at: string; // ISO Date string
   updated_at: string; // ISO Date string
   topics?: string[];
-  difficulty?: 'beginner' | 'intermediate' | 'advanced'; // Example difficulties
+  difficulty?: DifficultyLevel; // Example difficulties
   estimated_time?: number; // In minutes
   // Add any other fields returned by your API
 }
@@ -39,10 +45,10 @@ export interface ResourceCreatePayload {
     title: string;
     url: string;
     description: string;
-    type: 'articles' | 'videos' | 'courses' | 'books'; // Use specific types if the API expects them
+    type: 'article' | 'video' | 'course' | 'book'; // Use specific types if the API expects them
     topics?: string[];
     difficulty?: 'beginner' | 'intermediate' | 'advanced'; // Use specific types matching Resource interface
-    estimatedTime?: number; // Matches task input structure
+    estimated_time?: number;
 }
 
 export interface Note {

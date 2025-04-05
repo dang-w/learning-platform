@@ -11,9 +11,10 @@ import { AnalyticsPage } from './AnalyticsPage';
 import { ProfilePage } from './ProfilePage';
 import { LearningPathPage } from './LearningPathPage';
 import { NotesPage } from './NotesPage';
+import { LibraryPage } from './LibraryPage';
 
 // Export all page object classes
-export { BasePage, AuthPage, DashboardPage, ResourcesPage, ConceptsPage, AnalyticsPage, ProfilePage, LearningPathPage, NotesPage };
+export { BasePage, AuthPage, DashboardPage, ResourcesPage, ConceptsPage, AnalyticsPage, ProfilePage, LearningPathPage, NotesPage, LibraryPage };
 
 // Singleton instances for convenience
 export const authPage = new AuthPage();
@@ -23,3 +24,5 @@ export const conceptsPage = new ConceptsPage();
 export const analyticsPage = new AnalyticsPage();
 export const profilePage = new ProfilePage();
 export const learningPathPage = new LearningPathPage();
+export const notesPage = new NotesPage();
+export const libraryPage = new LibraryPage();

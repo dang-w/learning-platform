@@ -1,172 +1,25 @@
 /// <reference types="cypress" />
 
 import '@testing-library/cypress/add-commands';
+// Revert to using the path alias, assuming tsconfig paths should handle this
+// Resource import is no longer needed here as ResourceCreateInput is imported inline
+// import { Resource } from '@/types/resource';
+// Import the libraryPage instance
+import { libraryPage } from './page-objects/LibraryPage';
 
 // Assuming NotesStateWithMessages is exported or reconstruct interface here
 // If not exported, define a minimal interface for the state needed
-interface TestNotesState {
-  successMessage: string | null;
-  errorMessage: string | null;
-  // Add other relevant state properties if needed for tests
-}
-
-/* eslint-disable @typescript-eslint/no-namespace */
-declare global {
-
-  namespace Cypress {
-    interface Chainable<Subject> {
-      /**
-       * Custom command to select DOM element by data-cy attribute.
-       * @example cy.dataCy('submit')
-       */
-      // dataCy(value: string): Chainable<JQuery<HTMLElement>>
-
-      /**
-       * Logs in a user via API request
-       * @example cy.login('testuser', 'password')
-       */
-      login(username: string, password: string): Chainable<void>;
-
-      /**
-       * Logs in a user via API request using default test credentials
-       * @example cy.loginAsTestUser()
-       */
-      loginAsTestUser(): Chainable<void>;
-
-      /**
-       * Bypass authentication by setting a token directly
-       * @example cy.useAuthBypass('testuser')
-       */
-      useAuthBypass(username?: string): Chainable<void>;
-
-      /**
-       * Visit a protected route, handling auth redirection
-       * @param path The path to visit
-       * @example cy.visitProtectedRoute('/dashboard')
-       */
-      visitProtectedRoute(path: string): Chainable<void>;
-
-      /**
-       * Register user via API call
-       * @param userData User details for registration
-       * @example cy.registerUserApi({ username, email, password, firstName, lastName })
-       */
-      registerUserApi(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<Cypress.Response<unknown>>;
-
-      /**
-       * Custom command to get the Zustand notes store state
-       * Assumes store is exposed on window.__NOTES_STORE__ for testing
-       * @example cy.getNotesStoreState()
-       */
-      getNotesStoreState(): Chainable<TestNotesState>; // Use the defined interface
-    }
-    interface AUTWindow {
-      // Add store to window type for testing access
-      __NOTES_STORE__?: {
-        getState: () => TestNotesState; // Use the defined interface
-      };
-    }
-  }
-}
+// interface TestNotesState {
+//   successMessage: string | null;
+//   errorMessage: string | null;
+//   // Add other relevant state properties if needed for tests
+// }
 
 // Prevent ESM module loading issues
 export {};
 
 // Add Testing Library commands
-import '@testing-library/cypress/add-commands';
-
-// Add TypeScript definitions for custom commands
-// This approach uses module augmentation instead of namespace
-declare global {
-
-  namespace Cypress {
-    interface Chainable {
-      /**
-       * Custom command to log in via UI or API
-       * @example cy.login('username', 'password')
-       */
-      login(username: string, password: string): Chainable<void>;
-
-      /**
-       * Custom command to create a test user
-       * @example cy.createTestUser({ username: 'test', email: 'test@example.com', password: 'password', firstName: 'Test', lastName: 'User' })
-       */
-      createTestUser(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<void>;
-
-      /**
-       * Custom command to create a test user with direct MongoDB fallback
-       * @example cy.createTestUserReliably({ username: 'test', email: 'test@example.com', password: 'password', firstName: 'Test', lastName: 'User' })
-       */
-      createTestUserReliably(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<void>;
-
-      /**
-       * Custom command to login with token generation
-       * @example cy.loginWithToken('username')
-       */
-      loginWithToken(username: string): Chainable<void>;
-
-      /**
-       * Custom command to check if user is logged in
-       * @example cy.isLoggedIn().then(isLoggedIn => { ... })
-       */
-      isLoggedIn(): Chainable<boolean>;
-
-      /**
-       * Custom command to log out
-       * @example cy.logout()
-       */
-      logout(): Chainable<void>;
-
-      /**
-       * Custom command to make API requests with error handling
-       * @example cy.safeRequest({ method: 'GET', url: '/api/user' })
-       */
-      safeRequest(options: Partial<Cypress.RequestOptions>): Chainable<Cypress.Response<unknown>>;
-
-      /**
-       * Custom command to check auth status and log debug info
-       * @example cy.debugAuthStatus()
-       */
-      debugAuthStatus(): Chainable<void>;
-
-      /**
-       * Custom command to bypass the main layout authentication checks
-       * @example cy.bypassMainLayoutAuth()
-       */
-      bypassMainLayoutAuth(username?: string): Chainable<void>;
-
-      /**
-       * Custom command to visit a test page
-       * @example cy.visitTestPage('dashboard')
-       */
-      visitTestPage(page: string): Chainable<void>;
-
-      /**
-       * Custom command to select DOM elements by data-testid attribute
-       * @example cy.getByTestId('user-menu')
-       */
-      getByTestId(selector: string): Chainable<JQuery<HTMLElement>>;
-
-      /**
-       * Custom command to create and authenticate a test user
-       * @example cy.createAndLoginUser('testuser', 'user')
-       */
-      createAndLoginUser(username?: string, email?: string, firstName?: string, lastName?: string): Chainable<void>;
-
-      /**
-       * Custom command to register a user via API call.
-       * @example cy.registerUserApi({ username: 'apiuser', email: 'api@test.com', password: 'password', firstName: 'API', lastName: 'User' })
-       */
-      registerUserApi(userData: { username: string; email: string; password: string; firstName: string; lastName: string }): Chainable<Cypress.Response<unknown>>;
-
-      /**
-       * Custom command to get the Zustand store state
-       * @example cy.getNotesStoreState()
-       */
-      getNotesStoreState(): Chainable<TestNotesState>;
-    }
-  }
-}
+// import '@testing-library/cypress/add-commands'; // Already imported above
 
 // Define the return type of createDirectTestUser task
 interface DirectUserCreationResult {
@@ -177,51 +30,46 @@ interface DirectUserCreationResult {
   error?: string;
 }
 
-// Updated loginWithToken using API interception for a stable logged-in state
-Cypress.Commands.add('loginWithToken', (username: string) => {
-  cy.log(`Setting up intercepted session for user: ${username}`);
+// ================================================
+// Implementations of custom commands below
+// ================================================
 
-  // 1. Set a non-HttpOnly dummy token cookie BEFORE visiting the page.
-  //    This tricks initializeFromStorage (which uses document.cookie) into proceeding.
-  cy.setCookie('token', `mock-valid-token-for-${username}`, {
-    // httpOnly: true, // REMOVED: Must be readable by document.cookie
-    secure: true,      // Keep other sensible defaults
-    sameSite: 'strict'
-  });
-  cy.log('Set dummy non-HttpOnly token cookie.');
+Cypress.Commands.add('loginWithToken', (username: string, password?: string) => {
+    cy.log(`Attempting API login for user: ${username}`);
 
-  // 2. Intercept the initial user fetch/auth check endpoint
-  cy.intercept('GET', '/api/users/me', {
-    statusCode: 200,
-    body: {
-      id: `test-user-id-${username}`, // Mock user ID
-      username: username,
-      email: `${username}@example.com`,
-      full_name: username.split(/[-_ ]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), // Generate a mock full name
-      // Add other necessary user fields based on the User model if needed
-      // e.g., roles: ['user'], created_at: new Date().toISOString()
-    },
-  }).as('mockUserMe');
+    const loginPayload = {
+        username: username,
+        // Use provided password or default
+        password: password || 'TestPassword123!',
+    };
 
-  // 3. Intercept token refresh endpoint to prevent potential calls during setup
-  cy.intercept('POST', '/api/auth/refresh', {
-    statusCode: 200,
-    body: {
-      access_token: `mock-access-token-${Date.now()}` // Provide a mock token
-    }
-  }).as('mockTokenRefresh');
+    // Perform the actual API login request to get a real token
+    cy.request({
+        method: 'POST',
+        // Assuming /api/auth/token is the primary login endpoint
+        url: '/api/auth/token',
+        body: loginPayload,
+        // Send as application/x-www-form-urlencoded as expected by FastAPI default OAuth2PasswordRequestForm
+        form: true,
+        // failOnStatusCode: false // Allow handling non-2xx responses if needed
+    }).then((response) => {
+        expect(response.status).to.eq(200);
+        expect(response.body).to.have.property('access_token');
+        cy.log('API login successful, received token.');
 
-  // 4. Visit a page that likely triggers the auth check
-  cy.visit('/');
-
-  // 5. Wait for the intercepted user fetch call to ensure state is set
-  //    We re-add the wait now that the call should actually happen.
-  cy.wait('@mockUserMe');
-
-  cy.log(`Intercepted session setup complete for ${username}`);
+        // Store the token in localStorage where the app expects it
+        // Use cy.window() to access localStorage safely
+        cy.window().then((win) => {
+            win.localStorage.setItem('token', response.body.access_token);
+            // Store refresh token if it exists
+            if (response.body.refresh_token) {
+                win.localStorage.setItem('refreshToken', response.body.refresh_token);
+            }
+            cy.log('Token stored in localStorage.');
+        });
+    });
 });
 
-// Enhanced test user creation with direct creation
 Cypress.Commands.add('createTestUserReliably', (userData: { username: string, email: string, password: string, firstName: string, lastName: string }) => {
   // First try the backend task for direct creation
   cy.task('createDirectTestUser', userData).then((result) => {
@@ -293,158 +141,41 @@ Cypress.Commands.add('createTestUserReliably', (userData: { username: string, em
   });
 });
 
-// Original createTestUser command implementation
-Cypress.Commands.add('createTestUser', (userData: { username: string, email: string, password: string, firstName: string, lastName: string }) => {
-  // Map firstName and lastName to first_name and last_name as expected by the backend API
-  const apiUserData = {
-    username: userData.username,
-    email: userData.email,
-    password: userData.password,
-    first_name: userData.firstName,
-    last_name: userData.lastName
-  };
+Cypress.Commands.add('login', (username, password) => {
+    const sessionId = `${username}-session`;
+    const userPassword = password || 'TestPassword123!'; // Ensure password is set
 
-  // Define the API endpoints with fallbacks
-  const userEndpoints = [
-    'http://localhost:8000/users/',
-    'http://localhost:8000/api/users/',
-    'http://localhost:8000/auth/register'
-  ];
+    cy.session(
+        sessionId,
+        () => {
+            cy.log(`Session setup for ${username}`);
+            // 1. Ensure user exists (consider making this more reliable if needed)
+            cy.createTestUserReliably({
+                username: username,
+                email: `${username}@example.com`,
+                password: userPassword,
+                firstName: 'Test', // Simplified names for reliability
+                lastName: 'User'
+            });
 
-  // Try each endpoint in sequence until one works
-  const tryCreateUser = (endpointIndex: number = 0) => {
-    if (endpointIndex >= userEndpoints.length) {
-      // All endpoints failed, log the issue but don't fail the test
-      cy.log(`All user creation endpoints failed. Assuming user ${userData.username} exists.`);
-      return;
-    }
+            // 2. Perform API login to get and store token
+            cy.loginWithToken(username, userPassword);
 
-    cy.request({
-      method: 'POST',
-      url: userEndpoints[endpointIndex],
-      body: apiUserData,
-      failOnStatusCode: false,
-      timeout: 10000 // Increase timeout to 10s
-    }).then((response) => {
-      const detailExists = response.body.detail && typeof response.body.detail === 'string';
-      const usernameExists = response.body.username && typeof response.body.username === 'string';
-      const emailExists = response.body.email && typeof response.body.email === 'string';
-
-      if (response.status === 201 || response.status === 200) {
-        cy.log(`User ${userData.username} created successfully`);
-      } else if (response.status === 400 && (
-        (detailExists && response.body.detail.indexOf('already exists') >= 0) ||
-        (usernameExists && response.body.username.indexOf('already exists') >= 0) ||
-        (emailExists && response.body.email.indexOf('already exists') >= 0)
-      )) {
-        cy.log(`User ${userData.username} already exists`);
-      } else if (response.status < 500) {
-        // 4xx errors suggest the endpoint exists but the request is invalid
-        cy.log(`Failed to create user ${userData.username}: ${JSON.stringify(response.body)}`);
-      } else {
-        // 5xx or network errors suggest the endpoint might not be available
-        cy.log(`Endpoint ${userEndpoints[endpointIndex]} failed, trying next endpoint`);
-        tryCreateUser(endpointIndex + 1);
-      }
-    });
-  };
-
-  // Start the user creation process with the first endpoint
-  tryCreateUser();
+            // 3. Verify token was stored (optional but good practice)
+            cy.window().its('localStorage.token').should('exist');
+        },
+        {
+            validate() {
+                // Validate by checking if the token exists in localStorage
+                cy.window().its('localStorage.token').should('exist');
+            },
+            cacheAcrossSpecs: true, // Keep caching enabled
+        }
+    );
+    // After cy.session, ensure we are ready for the test
+    cy.log(`Session restored/created for ${username}`);
 });
 
-// Custom login command with token generation fallback
-// Cypress.Commands.add('login', (username: string, password: string) => {
-//   // Check if we have a saved session - improves test speed
-//   const sessionId = `${username}-session`;
-//
-//   cy.session(
-//     sessionId,
-//     () => {
-//       // Try to create the test user first if it doesn't exist
-//       if (username === 'test-user-cypress' || username.startsWith('cypress-test')) {
-//         cy.createTestUserReliably({
-//           username: username,
-//           email: `${username}@example.com`,
-//           password: password || 'TestPassword123!',
-//           firstName: username.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-//           lastName: username.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-//         });
-//       }
-//
-//       // Set bypass for layout redirection
-//       cy.bypassMainLayoutAuth();
-//
-//       // Try various login endpoints
-//       const loginEndpoints = [
-//         '/api/token',
-//         '/api/auth/login',
-//         'http://localhost:8000/auth/token',
-//       ];
-//
-//       const tryLogin = (endpointIndex: number = 0) => {
-//         if (endpointIndex >= loginEndpoints.length) {
-//           cy.log('All login endpoints failed, trying token generation...');
-//           cy.loginWithToken(username);
-//           return;
-//         }
-//
-//         const formData = new FormData();
-//         formData.append('username', username);
-//         formData.append('password', password || 'TestPassword123!');
-//
-//         cy.request({
-//           method: 'POST',
-//           url: loginEndpoints[endpointIndex],
-//           body: formData,
-//           failOnStatusCode: false
-//         }).then((response) => {
-//           if (response.status === 200 || response.status === 201) {
-//             if (response.body && response.body.access_token) {
-//               // Store token in localStorage
-//               window.localStorage.setItem('token', response.body.access_token);
-//               window.localStorage.setItem('refreshToken', response.body.refresh_token || '');
-//               cy.log(`Login successful via ${loginEndpoints[endpointIndex]}`);
-//             } else {
-//               cy.log(`Login endpoint ${loginEndpoints[endpointIndex]} returned no token, trying next...`);
-//               tryLogin(endpointIndex + 1);
-//             }
-//           } else {
-//             cy.log(`Login failed for ${loginEndpoints[endpointIndex]} with status ${response.status}, trying next...`);
-//             tryLogin(endpointIndex + 1);
-//           }
-//         });
-//       };
-//
-//       // Start login process
-//       tryLogin();
-//     },
-//     {
-//       validate(): Promise<false | void> {
-//         const token = window.localStorage.getItem('token');
-//         return Promise.resolve(token ? undefined : false);
-//       },
-//       cacheAcrossSpecs: true,
-//     }
-//   );
-// });
-
-// Custom command to check if user is logged in
-Cypress.Commands.add('isLoggedIn', () => {
-  // Check for a UI element that reliably indicates a logged-in state.
-  // The user menu in the navbar is a good candidate.
-  cy.log('Checking login status by looking for user menu element');
-  // Use a longer timeout just in case the UI takes time to render
-  return cy.get('body', { timeout: 10000 }).then($body => {
-    const userMenuVisible = $body.find('[data-testid="user-menu"]').length > 0;
-    cy.log(`User menu found: ${userMenuVisible}`);
-    return userMenuVisible;
-  });
-  // OLD Implementation:
-  // return cy.window().its('localStorage').invoke('getItem', 'token').then(token => Boolean(token));
-});
-
-// Custom command to navigate to a protected route and verify access
 Cypress.Commands.add('visitProtectedRoute', (route: string) => {
   cy.visit(route, {
     failOnStatusCode: false,
@@ -456,7 +187,7 @@ Cypress.Commands.add('visitProtectedRoute', (route: string) => {
 
   // Handle possible redirects to login pages
   cy.url().then((currentUrl) => {
-    if (currentUrl.indexOf('/auth/') >= 0 || currentUrl.indexOf('/login') >= 0) {
+    if (currentUrl.includes('/auth/login') || currentUrl.includes('/login')) {
       cy.log('Redirected to authentication page, attempting login');
       // Attempt login if needed
       cy.login('test-user-cypress', 'TestPassword123!');
@@ -464,14 +195,11 @@ Cypress.Commands.add('visitProtectedRoute', (route: string) => {
       // After login, visit the originally requested URL
       cy.visit(route);
       cy.log(`Visited ${route} after login`);
-      // Optional: Add a wait or assertion here to ensure the page is fully loaded
-      // cy.wait(1000); // Example wait
       cy.url().should('include', route); // Basic check
     }
   });
 });
 
-// Custom command to logout
 Cypress.Commands.add('logout', () => {
   cy.log('Attempting to logout via UI');
   // Check if user menu elements exist before trying to interact
@@ -494,9 +222,6 @@ Cypress.Commands.add('logout', () => {
              cy.log('Clicked logout link (fallback selector)');
           } else {
              cy.log('Logout button/link not found in opened menu.');
-             // If the button isn't found, we can't proceed with UI logout.
-             // We won't clear tokens manually here, as the test should rely on UI interaction.
-             // The verification step below will likely fail, indicating an issue.
           }
         }
       });
@@ -508,20 +233,12 @@ Cypress.Commands.add('logout', () => {
 
   // Verification: Attempt to visit a protected route and expect redirection to login
   cy.log('Verifying logout by attempting to access protected route');
-  // Use visit with failOnStatusCode: false to handle potential redirects gracefully
   cy.visit('/dashboard', { failOnStatusCode: false });
-  // Wait briefly for potential redirection
-  cy.wait(500);
-  cy.url().should('include', '/auth/login');
+  cy.wait(500); // Wait briefly for potential redirection
+  cy.url().should('include', '/auth/login'); // Assumes login route contains /auth/login
   cy.log('Successfully redirected to login page after logout attempt');
-
-  // Optional: Clear any remaining session state if needed for subsequent tests,
-  // although typically beforeEach handles this.
-  // cy.clearCookies();
-  // cy.clearLocalStorage();
 });
 
-// Add a custom command to handle API errors and retry
 Cypress.Commands.add('safeRequest', (options) => {
   // Set defaults for the request
   const defaultOptions = {
@@ -541,7 +258,6 @@ Cypress.Commands.add('safeRequest', (options) => {
   });
 });
 
-// Add a custom command to check auth status and log debug info
 Cypress.Commands.add('debugAuthStatus', () => {
   cy.log('Checking authentication status...');
 
@@ -556,17 +272,6 @@ Cypress.Commands.add('debugAuthStatus', () => {
     cy.log(`UI Indicator - User menu visible: ${userMenuVisible}`);
   });
 
-  // OLD LocalStorage Checks (commented out as they are likely irrelevant now)
-  // cy.window().then(win => {
-  //   const token = win.localStorage.getItem('token');
-  //   const refreshToken = win.localStorage.getItem('refreshToken');
-  //   const sessionId = win.localStorage.getItem('sessionId');
-  //
-  //   cy.log(`LocalStorage 'token' exists: ${!!token}`);
-  //   cy.log(`LocalStorage 'refreshToken' exists: ${!!refreshToken}`);
-  //   cy.log(`LocalStorage 'sessionId' exists: ${!!sessionId}`);
-  // });
-
   // Test API connection
   cy.request({
     method: 'GET',
@@ -578,12 +283,10 @@ Cypress.Commands.add('debugAuthStatus', () => {
   });
 
   // Check if we can access a protected endpoint
-  // This implicitly checks if the current state (cookies, etc.) allows access
   cy.request({
     method: 'GET',
     url: '/api/users/me',
     failOnStatusCode: false,
-    // No explicit Authorization header needed if cookies handle auth
   }).then(response => {
     cy.log(`Protected User endpoint (/api/users/me) status: ${response.status}`);
     if (response.status === 200) {
@@ -594,7 +297,6 @@ Cypress.Commands.add('debugAuthStatus', () => {
   });
 });
 
-// Custom command to bypass the main layout authentication checks
 Cypress.Commands.add('bypassMainLayoutAuth', (username = 'bypassed-user') => {
   cy.log(`Bypassing auth checks by intercepting /api/users/me for user: ${username}`);
 
@@ -606,62 +308,38 @@ Cypress.Commands.add('bypassMainLayoutAuth', (username = 'bypassed-user') => {
       username: username,
       email: `${username}@example.com`,
       full_name: username.split(/[-_ ]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-      // Add other necessary user fields if needed
     },
-    // We only want this intercept to apply *once* during initial load/setup
-    // If the test needs to interact with the real endpoint later, it can.
-    // Alternatively, use cy.intercept(...).as('bypass') and cy.wait('@bypass')
-    // if the timing needs to be more precise.
     times: 1
   }).as('bypassUserMe');
 
-  // It might also be prudent to intercept the refresh endpoint to prevent
-  // unexpected attempts if the bypass is used near potential token expiry checks.
+  // It might also be prudent to intercept the refresh endpoint
   cy.intercept('POST', '/api/auth/refresh', {
       statusCode: 200,
       body: { access_token: `mock-bypass-token-${Date.now()}` },
       times: 1 // Only intercept once
   }).as('bypassRefresh');
-
-  // Old implementation (commented out):
-  // cy.window().then(win => {
-  //   win.localStorage.setItem('cypress_test_auth_bypass', 'true');
-  //   win.localStorage.setItem('token', 'cypress-test-token');
-  // });
-  // cy.setCookie('cypress_auth_bypass', 'true');
-  // cy.wait(100);
-  // cy.log('Authentication bypass flags set for test');
 });
 
-// Test page navigation commands
 Cypress.Commands.add('visitTestPage', (page: string) => {
-  // Use the API route to navigate to test pages
   cy.visit(`/api/e2e-test-page?page=${page}`);
 });
 
-// Custom command to select DOM elements by data-testid attribute
 Cypress.Commands.add('getByTestId', (selector: string) => {
   return cy.get(`[data-testid="${selector}"]`);
 });
 
-// Custom command to create and authenticate a test user
 Cypress.Commands.add('createAndLoginUser', (
   username: string = `test_${Date.now()}`,
   email: string = `test_${Date.now()}@example.com`,
   firstName: string = 'Test',
   lastName: string = 'User'
 ) => {
-  // Create a test user via a task (mocked)
   cy.task('createDirectTestUser', { username, email, firstName, lastName }).then((user) => {
-    // Log the created user info
     cy.log(`Created test user: ${(user as { username: string }).username}`);
-
-    // Login with the created user
     cy.loginWithToken(username);
   });
 });
 
-// Custom command to register a user via API
 Cypress.Commands.add('registerUserApi', (userData: { username: string, email: string, password: string, firstName: string, lastName: string }) => {
   const apiData = {
     username: userData.username,
@@ -672,12 +350,10 @@ Cypress.Commands.add('registerUserApi', (userData: { username: string, email: st
     last_name: userData.lastName,
   };
 
-  // Log before making the request
   cy.log(`Attempting to register user via API: ${userData.username}`);
 
   return cy.request({
     method: 'POST',
-    // Use the absolute URL as cy.request doesn't use the Next.js proxy
     url: 'http://localhost:8000/api/auth/register',
     body: apiData,
     headers: {
@@ -685,32 +361,134 @@ Cypress.Commands.add('registerUserApi', (userData: { username: string, email: st
     },
     failOnStatusCode: false, // Allow handling non-2xx responses
   }).then((response) => {
-    // Minimal processing inside .then()
     if (response.status === 200 || response.status === 201) {
-      // Optional: Log success outside the .then() if needed after this command finishes
+      // Optional: Log success
     } else if (response.status === 400 && response.body?.detail?.includes('already exists')) {
-      // Optional: Log existing user outside the .then()
+      // Optional: Log existing user
     } else if (response.status >= 500) {
-      // Optional: Log server error outside the .then()
       console.error(`API Registration failed with status ${response.status}`, response.body);
     } else {
-      // Optional: Log other errors outside the .then()
       console.warn(`API Registration responded with status ${response.status}`, response.body);
     }
-    // ONLY wrap and return the response
     return cy.wrap(response);
   });
 });
 
-// Add a command to get the Zustand store state
 Cypress.Commands.add('getNotesStoreState', () => {
   return cy.window().then((win) => {
-    // Access the store assuming it's exposed on the window object for testing
-    // Need to cast window to access the custom property
-    const store = (win as Cypress.AUTWindow).__NOTES_STORE__;
+    const autWindow = win as globalThis.Cypress.AUTWindow;
+    const store = autWindow.__NOTES_STORE__;
     if (store && typeof store.getState === 'function') {
       return store.getState();
     }
     throw new Error('Notes store (__NOTES_STORE__) not found on window object or doesn\'t have getState');
   });
+});
+
+Cypress.Commands.add('addResource', (resourceData: Partial<import('@/types/resource').ResourceCreateInput>) => {
+  cy.log(`Adding resource via UI: ${resourceData.title}`);
+
+  // Ensure we are on the library page and My Resources tab
+  libraryPage.visitLibrary();
+  libraryPage.switchToMyResources();
+  cy.get(libraryPage.selectors.loadingSkeleton, { timeout: 10000 }).should('not.exist');
+
+  // Open the Add Resource modal
+  libraryPage.clickAddResource();
+  libraryPage.isAddResourceModalVisible();
+
+  // Fill and submit the form
+  libraryPage.fillAddResourceForm(resourceData);
+  libraryPage.submitAddResourceForm();
+
+  // Verify modal closes
+  libraryPage.isAddResourceModalClosed();
+  cy.wait(500);
+  cy.log(`Resource '${resourceData.title}' added via UI flow.`);
+});
+
+Cypress.Commands.add('loginAsTestUser', () => {
+  // Retrieve default credentials from Cypress environment or use defaults
+  const username = Cypress.env('TEST_USERNAME') || 'test-user-cypress';
+  const password = Cypress.env('TEST_PASSWORD') || 'TestPassword123!';
+  cy.login(username, password);
+});
+
+Cypress.Commands.add('useAuthBypass', (username = 'testuser') => {
+  cy.setCookie('auth_bypass_token', `bypass-token-for-${username}`);
+});
+
+Cypress.Commands.add('createTestUser', (userData) => {
+  cy.createTestUserReliably(userData);
+});
+
+Cypress.Commands.add('logout', () => {
+  cy.clearCookies();
+  cy.clearLocalStorage();
+  cy.log('Logged out by clearing cookies and local storage.');
+});
+
+Cypress.Commands.add('safeRequest', (options) => {
+  return cy.request({ ...options, failOnStatusCode: false });
+});
+
+Cypress.Commands.add('debugAuthStatus', () => {
+  cy.getCookie('token').then((cookie) => {
+    cy.log('Token cookie:', cookie ? cookie.value : 'Not set');
+  });
+  cy.window().then((win) => {
+    cy.log('localStorage token:', win.localStorage.getItem('token') || 'Not set');
+  });
+});
+
+Cypress.Commands.add('bypassMainLayoutAuth', (username = 'testuser') => {
+  // Implementation might involve setting a specific cookie or localStorage item
+  // that the layout component checks to skip its own auth logic.
+  // Example: Set a bypass flag in localStorage
+  cy.window().then(win => {
+    win.localStorage.setItem('__CYPRESS_BYPASS_AUTH__', 'true');
+  });
+  cy.log(`Auth bypass enabled for ${username}`);
+});
+
+Cypress.Commands.add('visitTestPage', (page) => {
+  cy.visit(`/test/${page}`);
+});
+
+Cypress.Commands.add('getByTestId', (selector) => {
+  return cy.get(`[data-testid=${selector}]`);
+});
+
+Cypress.Commands.add('createAndLoginUser', (username = `test-${Date.now()}`, email = `${username}@example.com`, firstName = 'Test', lastName = 'User') => {
+  const password = 'TestPassword123!';
+  cy.createTestUserReliably({ username, email, password, firstName, lastName });
+  cy.login(username, password);
+});
+
+Cypress.Commands.add('addResource', (resourceData) => {
+  // 1. Navigate to library & switch to user resources tab
+  libraryPage.navigateToLibraryViaUI();
+  libraryPage.switchToMyResources();
+
+  // 2. Click Add Resource
+  libraryPage.clickAddResource();
+  libraryPage.isAddResourceModalVisible();
+
+  // 3. Fill form (using POM method)
+  libraryPage.fillAddResourceForm(resourceData);
+
+  // 4. Intercept API call
+  cy.intercept('POST', '/api/resources').as('createResourceApi');
+
+  // 5. Submit form
+  libraryPage.submitAddResourceForm();
+
+  // 6. Wait for API & verify
+  cy.wait('@createResourceApi').its('response.statusCode').should('match', /^20[01]$/);
+  libraryPage.isAddResourceModalClosed();
+
+  // 7. Verify resource exists in list (POM method)
+  if (resourceData.title) {
+    libraryPage.resourceExists(resourceData.title);
+  }
 });

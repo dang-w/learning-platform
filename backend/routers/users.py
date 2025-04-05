@@ -1,7 +1,7 @@
 """User management endpoints."""
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from pydantic import BaseModel, EmailStr, constr, Field, ConfigDict
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, Annotated
 import logging
 from datetime import datetime, timedelta, timezone
 import json
@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse, FileResponse
 import tempfile
 import os
 
-from database import db
+from database import get_db
 from auth import get_current_active_user, get_password_hash
 from utils.validators import validate_email, validate_password_strength
 from utils.rate_limiter import rate_limit_dependency_with_logging, create_user_rate_limit
@@ -182,7 +182,11 @@ def normalize_user_data(user_dict: dict) -> dict:
 
 @router.post("/", response_model=User, status_code=status.HTTP_201_CREATED,
             dependencies=[Depends(create_user_rate_limit)], response_model_by_alias=False)
-async def create_user(user: UserCreate, request: Request):
+async def create_user(
+    user: UserCreate,
+    request: Request,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)]
+):
     """Create a new user."""
     try:
         # Validate email format
@@ -266,7 +270,10 @@ async def create_user(user: UserCreate, request: Request):
         )
 
 @router.get("/me", response_model=User, response_model_by_alias=False)
-async def read_users_me(current_user: dict = Depends(get_current_active_user)):
+async def read_users_me(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: dict = Depends(get_current_active_user)
+):
     """Get current user profile."""
     # Check if current_user is already a User object or MockUser (for tests)
     if hasattr(current_user, 'model_dump') and callable(current_user.model_dump):
@@ -293,13 +300,19 @@ async def read_users_me(current_user: dict = Depends(get_current_active_user)):
         raise HTTPException(status_code=500, detail="Internal server error processing user data.")
 
 @router.get("/me/", response_model=User, response_model_by_alias=False)
-async def read_users_me_with_slash(current_user: dict = Depends(get_current_active_user)):
+async def read_users_me_with_slash(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: dict = Depends(get_current_active_user)
+):
     """Get current user profile (trailing slash)."""
     # Delegate to the non-slash version to avoid code duplication
-    return await read_users_me(current_user)
+    return await read_users_me(db=db, current_user=current_user)
 
 @router.get("/{username}", response_model=User)
-async def read_user(username: str):
+async def read_user(
+    username: str,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)]
+):
     """Get user profile by username."""
     user_dict = await db.users.find_one({"username": username})
     if user_dict:
@@ -308,7 +321,10 @@ async def read_user(username: str):
     raise HTTPException(status_code=404, detail="User not found")
 
 @router.get("/me/statistics", response_model=UserStatistics)
-async def get_user_statistics(current_user: dict = Depends(get_current_active_user)):
+async def get_user_statistics(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: dict = Depends(get_current_active_user)
+):
     """Get current user's statistics."""
     try:
         # Calculate statistics from user data
@@ -364,12 +380,17 @@ async def get_user_statistics(current_user: dict = Depends(get_current_active_us
         )
 
 @router.get("/me/notifications", response_model=NotificationPreferences)
-async def get_notification_preferences(current_user: dict = Depends(get_current_active_user)):
+async def get_notification_preferences(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: dict = Depends(get_current_active_user)
+):
     """Get current user's notification preferences."""
     try:
-        # Get notification preferences from user data or return defaults
-        preferences = current_user.get("notification_preferences", {})
-        return NotificationPreferences(**preferences)
+        # Fetch preferences from the user object, fall back to defaults
+        user_prefs = current_user.get("notification_preferences", {})
+        # Merge user prefs with defaults to ensure all fields are present
+        # Pydantic model instantiation handles default values automatically
+        return NotificationPreferences(**user_prefs)
     except Exception as e:
         logger.error(f"Error getting notification preferences: {str(e)}")
         raise HTTPException(
@@ -380,6 +401,7 @@ async def get_notification_preferences(current_user: dict = Depends(get_current_
 @router.put("/me/notifications", response_model=NotificationPreferences)
 async def update_notification_preferences(
     preferences: NotificationPreferences,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: dict = Depends(get_current_active_user)
 ):
     """Update current user's notification preferences."""
@@ -405,7 +427,10 @@ async def update_notification_preferences(
         )
 
 @router.post("/me/export", response_model=dict)
-async def export_user_data(current_user: dict = Depends(get_current_active_user)):
+async def export_user_data(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: dict = Depends(get_current_active_user)
+):
     """Export current user's data."""
     try:
         # Create a clean copy of user data for export
@@ -426,8 +451,8 @@ async def export_user_data(current_user: dict = Depends(get_current_active_user)
                 "goals": current_user.get("goals", []),
                 "milestones": current_user.get("milestones", [])
             },
-            "statistics": (await get_user_statistics(current_user)).model_dump(),
-            "preferences": (await get_notification_preferences(current_user)).model_dump(),
+            "statistics": (await get_user_statistics(db=db, current_user=current_user)).model_dump(),
+            "preferences": (await get_notification_preferences(db=db, current_user=current_user)).model_dump(),
             "export_date": datetime.now(timezone.utc)
         }
 
@@ -460,7 +485,10 @@ async def export_user_data(current_user: dict = Depends(get_current_active_user)
                 pass
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_account(current_user: dict = Depends(get_current_active_user)):
+async def delete_account(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: dict = Depends(get_current_active_user)
+):
     """Delete current user's account."""
     try:
         # Start a transaction for atomic operations
@@ -498,6 +526,7 @@ async def delete_account(current_user: dict = Depends(get_current_active_user)):
 @router.patch("/me", response_model=User)
 async def update_user_me(
     update_data: UserUpdate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: dict = Depends(get_current_active_user)
 ):
     """Update current user's profile (email, first_name, last_name)."""

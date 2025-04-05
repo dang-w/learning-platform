@@ -1,13 +1,14 @@
 """Reviews router."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from typing import List, Optional, Dict, Any, Annotated
+from datetime import datetime, timedelta, timezone
 import os
 import json
 from dotenv import load_dotenv
 from bson.objectid import ObjectId
 import logging
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Import database connection from shared module
-from database import db
+# Import database connection from shared module using dependency injection
+from database import get_db
 
 # Import utility functions
 from utils.db_utils import get_document_by_id, update_document, delete_document
@@ -70,6 +71,7 @@ class ResourceReviewBase(BaseModel):
     resource_type: str
     resource_id: int
     rating: int
+    comment: Optional[str] = None
     content: str
     difficulty_rating: int
     topics: List[str]
@@ -81,11 +83,13 @@ class ResourceReview(ResourceReviewBase):
     id: str
     user_id: str
     date: str
+    updated_at: Optional[datetime] = None
 
 class ReviewSettings(BaseModel):
     """Review settings model."""
     daily_review_target: int = 5
     notification_frequency: str = "daily"
+    notification_enabled: bool = True
     review_reminder_time: str = "18:00"
     enable_spaced_repetition: bool = True
     auto_schedule_reviews: bool = True
@@ -118,6 +122,7 @@ def calculate_next_review_date(review_count, confidence_level=3):
 @router.post("/concepts", response_model=Concept, status_code=status.HTTP_201_CREATED)
 async def create_concept(
     concept: ConceptCreate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new concept for review."""
@@ -160,6 +165,7 @@ async def create_concept(
 
 @router.get("/concepts", response_model=List[Concept])
 async def get_concepts(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     topic: Optional[str] = None,
     current_user: User = Depends(get_current_active_user)
 ):
@@ -194,6 +200,7 @@ async def get_concepts(
 @router.get("/concepts/{concept_id}", response_model=Concept)
 async def get_concept(
     concept_id: str,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Get a specific concept by ID."""
@@ -221,6 +228,7 @@ async def get_concept(
 async def update_concept(
     concept_id: str,
     concept_update: ConceptUpdate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a concept."""
@@ -270,6 +278,7 @@ async def update_concept(
 @router.delete("/concepts/{concept_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_concept(
     concept_id: str,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete a concept."""
@@ -291,6 +300,7 @@ async def delete_concept(
 async def mark_concept_reviewed(
     concept_id: str,
     review_data: ReviewCreate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Mark a concept as reviewed with a confidence level."""
@@ -358,6 +368,7 @@ async def mark_concept_reviewed(
 
 @router.get("/due", response_model=List[Concept])
 async def get_due_concepts(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Get concepts that are due for review."""
@@ -378,6 +389,7 @@ async def get_due_concepts(
 
 @router.get("/new", response_model=List[Concept])
 async def get_new_concepts(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     count: int = 3,
     current_user: User = Depends(get_current_active_user)
 ):
@@ -399,6 +411,7 @@ async def get_new_concepts(
 
 @router.get("/session", response_model=ReviewSession)
 async def generate_review_session(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     max_reviews: int = 5,
     current_user: User = Depends(get_current_active_user)
 ):
@@ -448,6 +461,7 @@ async def generate_review_session(
 
 @router.get("/statistics", response_model=Dict[str, Any])
 async def get_review_statistics(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Get statistics about user's review sessions."""
@@ -606,51 +620,60 @@ async def get_review_statistics(
         max_streak = max(max_streak, current_streak)
         stats["streak"]["longest"] = max_streak
 
+    # Use injected db for review statistics calculation if needed elsewhere
+    # Example: Calculate average rating from separate reviews collection
+    avg_rating = 0
+    total_reviews = 0
+    try:
+        reviews_cursor = db.reviews.find({"user_id": username})
+        async for review in reviews_cursor:
+            total_reviews += 1
+            avg_rating += review.get("rating", 0)
+        if total_reviews > 0:
+            avg_rating /= total_reviews
+    except Exception as e:
+        logger.error(f"Error fetching resource reviews for stats: {e}")
+
+    # Return calculated statistics
     return stats
 
 @router.get("/settings", response_model=ReviewSettings)
-async def get_review_settings(current_user: User = Depends(get_current_active_user)):
-    """
-    Get the user's review settings.
-    This endpoint returns configuration parameters for the review system.
-    """
-    try:
-        # Handle both cases where current_user is a User object or a dictionary
-        username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+async def get_review_settings(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get user's review settings, returning defaults if none are set."""
+    # Handle both cases where current_user is a User object or a dictionary
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-        # Get user from database
-        user = await db.users.find_one({"username": username})
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-
-        # Get review settings from user document, or use defaults
-        review_settings = user.get("review_settings", {})
-
-        # Create response with defaults for missing values
-        response = ReviewSettings(
-            daily_review_target=review_settings.get("daily_review_target", 5),
-            notification_frequency=review_settings.get("notification_frequency", "daily"),
-            review_reminder_time=review_settings.get("review_reminder_time", "18:00"),
-            enable_spaced_repetition=review_settings.get("enable_spaced_repetition", True),
-            auto_schedule_reviews=review_settings.get("auto_schedule_reviews", True),
-            show_hints=review_settings.get("show_hints", True),
-            difficulty_threshold=review_settings.get("difficulty_threshold", 3)
+    user = await db.users.find_one({"username": username})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
 
-        return response
-    except Exception as e:
-        logger.error(f"Error retrieving review settings: {str(e)}")
+    # Get existing settings or use defaults
+    user_settings_data = user.get("review_settings", {}) # Get the nested dict or empty dict
+
+    # Merge defaults with user settings to ensure all fields are present
+    default_settings = ReviewSettings().model_dump()
+    merged_settings = {**default_settings, **user_settings_data}
+
+    # Validate and return using the model
+    try:
+        return ReviewSettings(**merged_settings)
+    except Exception as e: # Catch potential validation errors if merging results in bad data
+        logger.error(f"Error constructing ReviewSettings: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error retrieving review settings"
+            detail="Error retrieving review settings."
         )
 
 @router.put("/settings", response_model=ReviewSettings)
 async def update_review_settings(
     settings: ReviewSettings,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -676,9 +699,16 @@ async def update_review_settings(
                     detail="User not found"
                 )
 
-        return settings
-    except HTTPException:
-        raise
+        # Fetch the updated user settings to return
+        updated_user = await db.users.find_one({"username": username})
+        if updated_user and "review_settings" in updated_user:
+            # Ensure all fields from the model are present, using defaults if missing
+            full_settings = {**ReviewSettings().model_dump(), **updated_user["review_settings"]}
+            return ReviewSettings(**full_settings)
+        else:
+            # Should not happen if update was successful, but return defaults as fallback
+            return ReviewSettings() # Return defaults
+
     except Exception as e:
         logger.error(f"Error updating review settings: {str(e)}")
         raise HTTPException(
@@ -690,6 +720,7 @@ async def update_review_settings(
 @router.post("/", response_model=ResourceReview, status_code=status.HTTP_201_CREATED)
 async def create_review(
     review: ResourceReviewCreate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new resource review."""
@@ -767,6 +798,7 @@ async def create_review(
 
 @router.get("/", response_model=List[ResourceReview])
 async def get_reviews(
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Get all reviews created by the user."""
@@ -781,11 +813,13 @@ async def get_reviews(
                 detail="User information is incomplete"
             )
 
-        user = await db.users.find_one({"username": username})
-        if not user or "reviews" not in user:
-            return []
-
-        return user["reviews"]
+        reviews_cursor = db.reviews.find({"user_id": username})
+        reviews = []
+        async for review in reviews_cursor:
+            review["id"] = str(review["_id"])
+            del review["_id"]
+            reviews.append(review)
+        return reviews
     except Exception as e:
         logger.error(f"Error in get_reviews: {str(e)}")
         raise HTTPException(
@@ -797,6 +831,7 @@ async def get_reviews(
 async def get_reviews_by_resource(
     resource_type: str,
     resource_id: int,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Get reviews for a specific resource."""
@@ -811,16 +846,19 @@ async def get_reviews_by_resource(
                 detail="User information is incomplete"
             )
 
-        user = await db.users.find_one({"username": username})
-        if not user or "reviews" not in user:
-            return []
+        # Validate resource type
+        validate_resource_type(resource_type)
 
-        # Filter reviews by resource type and ID
-        reviews = [
-            review for review in user["reviews"]
-            if review.get("resource_type") == resource_type and review.get("resource_id") == resource_id
-        ]
-
+        reviews_cursor = db.reviews.find({
+            "user_id": username,
+            "resource_type": resource_type,
+            "resource_id": resource_id
+        })
+        reviews = []
+        async for review in reviews_cursor:
+            review["id"] = str(review["_id"])
+            del review["_id"]
+            reviews.append(review)
         return reviews
     except Exception as e:
         logger.error(f"Error in get_reviews_by_resource: {str(e)}")
@@ -833,6 +871,7 @@ async def get_reviews_by_resource(
 async def update_review(
     review_id: str,
     review_update: ResourceReviewCreate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a review."""
@@ -861,51 +900,55 @@ async def update_review(
                 detail="Difficulty rating must be between 1 and 5"
             )
 
-        # Get user and find review
-        user = await db.users.find_one({"username": username})
-        if not user or "reviews" not in user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Reviews not found"
-            )
+        # Validate topics list is not empty
+        if not review_update.topics:
+            raise ValidationError("At least one topic must be provided")
 
-        reviews = user["reviews"]
-        review_index = None
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 
-        for i, review in enumerate(reviews):
-            if review.get("id") == review_id:
-                review_index = i
-                break
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
 
-        if review_index is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Review with ID {review_id} not found"
-            )
+    try:
+        review_oid = ObjectId(review_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid review ID format")
 
-        # Update review
-        update_data = review_update.model_dump()
-        for key, value in update_data.items():
-            reviews[review_index][key] = value
-
-        # Update date
-        reviews[review_index]["date"] = datetime.now().isoformat()
-
-        # Save updated reviews
-        result = await db.users.update_one(
-            {"username": username},
-            {"$set": {"reviews": reviews}}
+    # Check if the review exists and belongs to the current user
+    existing_review = await db.reviews.find_one({"_id": review_oid, "user_id": username})
+    if not existing_review:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Review not found or access denied"
         )
 
-        if result.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update review"
-            )
+    # Prepare update data
+    update_data = review_update.model_dump()
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        return reviews[review_index]
+    try:
+        result = await db.reviews.update_one(
+            {"_id": review_oid, "user_id": username},
+            {"$set": update_data}
+        )
+
+        if result.matched_count == 0:
+            # This check is redundant given the find_one above but good for safety
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found or access denied")
+
+        # Fetch the updated review to return
+        updated_review = await db.reviews.find_one({"_id": review_oid})
+        if not updated_review:
+            # Should not happen if update was successful
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated review")
+
+        updated_review["id"] = str(updated_review["_id"])
+        del updated_review["_id"]
+
+        return updated_review
+
     except Exception as e:
-        logger.error(f"Error in update_review: {str(e)}")
+        logger.error(f"Error updating review {review_id} for user {username}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update review: {str(e)}"
@@ -914,6 +957,7 @@ async def update_review(
 @router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_review(
     review_id: str,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Delete a review."""
@@ -928,18 +972,23 @@ async def delete_review(
                 detail="User information is incomplete"
             )
 
-        result = await db.users.update_one(
-            {"username": username},
-            {"$pull": {"reviews": {"id": review_id}}}
-        )
+        review_oid = ObjectId(review_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid review ID format")
 
-        if result.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Review with ID {review_id} not found"
-            )
+    username = current_user.username if hasattr(current_user, 'username') else current_user.get('username')
+
+    try:
+        result = await db.reviews.delete_one({"_id": review_oid, "user_id": username})
+
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found or access denied")
+
+        # No content to return, FastAPI handles the 204 status code
+        return
+
     except Exception as e:
-        logger.error(f"Error in delete_review: {str(e)}")
+        logger.error(f"Error deleting review {review_id} for user {username}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete review: {str(e)}"
@@ -948,6 +997,7 @@ async def delete_review(
 @router.post("/concepts/batch", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def create_concepts_batch(
     concepts_batch: ConceptBatchCreate,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: User = Depends(get_current_active_user)
 ):
     """Create multiple concepts in a batch."""

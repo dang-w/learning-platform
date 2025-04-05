@@ -43,8 +43,8 @@ export class NotesPage extends BasePage {
   /**
    * Navigate to notes page with resilient handling
    */
-  visitNotes(): Cypress.Chainable<void> {
-    return this.visitProtected('/notes');
+  visitNotes(): void {
+    this.visitProtected('/notes');
   }
 
   /**

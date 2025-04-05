@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from main import app
 from routers.auth import login_for_access_token
 from auth import get_current_user, get_current_active_user
+from database import get_db
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Import standardized utilities
 from utils.error_handlers import AuthenticationError
@@ -53,12 +55,13 @@ async def test_create_user(async_client: AsyncClient):
         "password": "Password123!"
     }
 
-    # Setup proper mocks for async methods
-    with patch('main.db') as mock_db, patch('routers.users.db') as mock_router_db:
-        # Mock find_one to handle multiple calls:
-        # 1. Check for existing username -> None
-        # 2. Check for existing email -> None
-        # 3. Fetch created user by ID -> Return the document
+    # Define override for DB
+    async def override_get_db() -> AsyncIOMotorDatabase:
+        # This mock will be used by the endpoint via Depends(get_db)
+        mock_db_for_endpoint = MagicMock()
+        mock_db_for_endpoint.users = MagicMock()
+
+        # Configure find_one for username/email checks and fetching created user
         created_user_doc_with_id = {
             "_id": ObjectId("507f1f77bcf86cd799439011"), # Ensure this matches inserted_id
             "username": new_user["username"],
@@ -81,32 +84,33 @@ async def test_create_user(async_client: AsyncClient):
             None,  # Second call (check email)
             created_user_doc_with_id  # Third call (fetch by ID after insert)
         ])
-
-        mock_db.users.find_one = find_one_side_effect
-        mock_router_db.users.find_one = find_one_side_effect
+        mock_db_for_endpoint.users.find_one = find_one_side_effect
 
         # Mock insert_one to succeed
         insert_result = MagicMock()
         insert_result.inserted_id = ObjectId("507f1f77bcf86cd799439011")
-        mock_db.users.insert_one = AsyncMock(return_value=insert_result)
-        mock_router_db.users.insert_one = AsyncMock(return_value=insert_result)
+        mock_db_for_endpoint.users.insert_one = AsyncMock(return_value=insert_result)
+        return mock_db_for_endpoint
 
-        # Override validate functions to return True
-        with patch('routers.users.validate_email', return_value=True), \
-             patch('routers.users.validate_password_strength', return_value=True), \
-             patch('main.validate_email', return_value=True), \
-             patch('main.validate_password_strength', return_value=True):
+    # Apply DB override
+    app.dependency_overrides[get_db] = override_get_db
 
+    # Override validate functions to return True
+    with patch('routers.users.validate_email', return_value=True), \
+         patch('routers.users.validate_password_strength', return_value=True):
             # Send the request using await and async_client
             response = await client.post("/api/users/", json=new_user)
 
-            # Verify response
-            assert response.status_code == 201
-            user_data = response.json()
-            assert user_data["username"] == new_user["username"]
-            assert user_data["email"] == new_user["email"]
-            assert "id" in user_data
-            assert "created_at" in user_data
+    # Clean up override
+    app.dependency_overrides.pop(get_db, None)
+
+    # Verify response
+    assert response.status_code == 201
+    user_data = response.json()
+    assert user_data["username"] == new_user["username"]
+    assert user_data["email"] == new_user["email"]
+    assert "id" in user_data
+    assert "created_at" in user_data
 
 @pytest.mark.asyncio
 async def test_create_user_duplicate_username(async_client: AsyncClient):
@@ -121,38 +125,40 @@ async def test_create_user_duplicate_username(async_client: AsyncClient):
         "password": "Password123!"
     }
 
-    # Setup proper mocks for async methods
-    with patch('main.db') as mock_db, patch('routers.users.db') as mock_router_db:
+    # Define override for DB
+    async def override_get_db() -> AsyncIOMotorDatabase:
         # Mock find_one to return an existing user with the same username
         existing_user = {
             "username": "testuser",
             "email": "test@example.com",
             "first_name": "Test",
-"last_name": "User",
+            "last_name": "User",
             "disabled": False
         }
-
-        # Use AsyncMock for find_one
+        mock_db_for_endpoint = MagicMock()
+        mock_db_for_endpoint.users = MagicMock()
         find_one_mock = AsyncMock()
         find_one_mock.return_value = existing_user
+        mock_db_for_endpoint.users.find_one = find_one_mock
+        return mock_db_for_endpoint
 
-        mock_db.users.find_one = find_one_mock
-        mock_router_db.users.find_one = find_one_mock
+    # Apply DB override
+    app.dependency_overrides[get_db] = override_get_db
 
-        # Override validate functions to return True
-        with patch('routers.users.validate_email', return_value=True), \
-             patch('routers.users.validate_password_strength', return_value=True), \
-             patch('main.validate_email', return_value=True), \
-             patch('main.validate_password_strength', return_value=True):
-
+    # Override validate functions to return True
+    with patch('routers.users.validate_email', return_value=True), \
+         patch('routers.users.validate_password_strength', return_value=True):
             # Send the request using await and async_client
             response = await client.post("/api/users/", json=duplicate_user)
 
-            # Verify response
-            assert response.status_code == 400
-            error_response = response.json()
-            assert "detail" in error_response
-            assert error_response["detail"] == "Username already registered"
+    # Clean up override
+    app.dependency_overrides.pop(get_db, None)
+
+    # Verify response
+    assert response.status_code == 400
+    error_response = response.json()
+    assert "detail" in error_response
+    assert error_response["detail"] == "Username already registered"
 
 @pytest.mark.asyncio
 async def test_get_current_user_with_valid_token(async_client: AsyncClient, setup_test_user):
@@ -269,7 +275,8 @@ async def test_login_with_invalid_username(mock_auth, async_client: AsyncClient)
     # Send the request using await and async_client
     response = await client.post(
         "/api/auth/token",
-        json={"username": "invaliduser", "password": "password123"}
+        json={"username": "invaliduser", "password": "password123"},
+        headers={"X-Skip-Rate-Limit": "true"}
     )
 
     # Verify response
@@ -289,7 +296,8 @@ async def test_login_with_invalid_password(mock_auth, async_client: AsyncClient)
     # Send the request using await and async_client
     response = await client.post(
         "/api/auth/token",
-        json={"username": "testuser", "password": "invalidpassword"}
+        json={"username": "testuser", "password": "invalidpassword"},
+        headers={"X-Skip-Rate-Limit": "true"}
     )
 
     # Verify response

@@ -8,7 +8,7 @@ into the database initialization script.
 
 from datetime import datetime
 
-# Removed generate_id function as static IDs are now used.
+# ADD ADDITIONAL LLM LEARNING RESOURCE
 
 # AI/ML courses
 COURSES = [
@@ -19,7 +19,8 @@ COURSES = [
         "topics": ["mathematics", "machine learning", "foundations"],
         "difficulty": "intermediate",
         "estimated_time": 120,
-        "notes": "Coursera course by Imperial College London"
+        "notes": "Coursera course by Imperial College London",
+        "type": "course"
     },
     {
         "id": "course-dl-spec",
@@ -28,7 +29,8 @@ COURSES = [
         "topics": ["deep learning", "neural networks", "ai"],
         "difficulty": "intermediate",
         "estimated_time": 180,
-        "notes": "Coursera specialization by Andrew Ng"
+        "notes": "Coursera specialization by Andrew Ng",
+        "type": "course"
     },
     {
         "id": "course-fastai-dl",
@@ -37,7 +39,8 @@ COURSES = [
         "topics": ["deep learning", "coding", "practical"],
         "difficulty": "intermediate",
         "estimated_time": 160,
-        "notes": "Fast.ai course by Jeremy Howard"
+        "notes": "Fast.ai course by Jeremy Howard",
+        "type": "course"
     },
     {
         "id": "course-ng-ml",
@@ -46,7 +49,8 @@ COURSES = [
         "topics": ["machine learning", "ai", "foundations"],
         "difficulty": "beginner",
         "estimated_time": 120,
-        "notes": "Classic Coursera course by Andrew Ng from Stanford"
+        "notes": "Classic Coursera course by Andrew Ng from Stanford",
+        "type": "course"
     },
     {
         "id": "course-mit-dl-intro",
@@ -55,7 +59,8 @@ COURSES = [
         "topics": ["deep learning", "introduction", "MIT", "course"], # Added topic
         "difficulty": "intermediate",
         "estimated_time": 100,
-        "notes": "Comprehensive deep learning course by MIT"
+        "notes": "Comprehensive deep learning course by MIT",
+        "type": "course"
     }
 ]
 
@@ -68,7 +73,8 @@ BOOKS = [
         "topics": ["deep learning", "theory", "foundations"],
         "difficulty": "advanced",
         "estimated_time": 600,
-        "notes": "By Ian Goodfellow, Yoshua Bengio, and Aaron Courville"
+        "notes": "By Ian Goodfellow, Yoshua Bengio, and Aaron Courville",
+        "type": "book"
     },
     {
         "id": "book-ml-yearning",
@@ -77,7 +83,8 @@ BOOKS = [
         "topics": ["machine learning", "best practices", "project management"],
         "difficulty": "intermediate",
         "estimated_time": 240,
-        "notes": "By Andrew Ng"
+        "notes": "By Andrew Ng",
+        "type": "book"
     },
     {
         "id": "book-nielsen-nn",
@@ -86,7 +93,8 @@ BOOKS = [
         "topics": ["neural networks", "deep learning", "foundations"],
         "difficulty": "intermediate",
         "estimated_time": 200,
-        "notes": "By Michael Nielsen"
+        "notes": "By Michael Nielsen",
+        "type": "book"
     },
     {
         "id": "book-d2l",
@@ -95,7 +103,8 @@ BOOKS = [
         "topics": ["deep learning", "pytorch", "tensorflow", "practical"],
         "difficulty": "intermediate",
         "estimated_time": 300,
-        "notes": "Interactive deep learning book with code examples"
+        "notes": "Interactive deep learning book with code examples",
+        "type": "book"
     }
 ]
 
@@ -108,7 +117,8 @@ ARTICLES = [
         "topics": ["machine learning", "software engineering", "guide"],
         "difficulty": "beginner",
         "estimated_time": 60,
-        "notes": "Comprehensive GitHub guide for software engineers transitioning to ML"
+        "notes": "Comprehensive GitHub guide for software engineers transitioning to ML",
+        "type": "article"
     },
     {
         "id": "article-se-ml-practices",
@@ -117,7 +127,8 @@ ARTICLES = [
         "topics": ["software engineering", "machine learning", "best practices"],
         "difficulty": "intermediate",
         "estimated_time": 45,
-        "notes": "Best practices guide for ML engineering"
+        "notes": "Best practices guide for ML engineering",
+        "type": "article"
     },
     {
         "id": "article-ml-from-scratch",
@@ -126,7 +137,8 @@ ARTICLES = [
         "topics": ["machine learning", "algorithms", "implementation"],
         "difficulty": "intermediate",
         "estimated_time": 90,
-        "notes": "Implementations of ML algorithms from scratch"
+        "notes": "Implementations of ML algorithms from scratch",
+        "type": "article"
     },
     {
         "id": "article-distill-momentum",
@@ -135,7 +147,8 @@ ARTICLES = [
         "topics": ["deep learning", "optimization", "visualization"],
         "difficulty": "intermediate",
         "estimated_time": 30,
-        "notes": "Beautiful visual explanation of momentum in optimization"
+        "notes": "Beautiful visual explanation of momentum in optimization",
+        "type": "article"
     }
 ]
 
@@ -148,7 +161,8 @@ VIDEOS = [
         "topics": ["deep learning", "introduction", "MIT", "video"], # Added topic
         "difficulty": "beginner",
         "estimated_time": 180,
-        "notes": "Video lectures from MIT's course on deep learning"
+        "notes": "Video lectures from MIT's course on deep learning",
+        "type": "video"
     },
     {
         "id": "video-silver-rl",
@@ -157,7 +171,8 @@ VIDEOS = [
         "topics": ["reinforcement learning", "DeepMind", "advanced"],
         "difficulty": "advanced",
         "estimated_time": 240,
-        "notes": "DeepMind's reinforcement learning course by David Silver"
+        "notes": "DeepMind's reinforcement learning course by David Silver",
+        "type": "video"
     },
     {
         "id": "video-stanford-cs231n",
@@ -166,7 +181,8 @@ VIDEOS = [
         "topics": ["computer vision", "CNN", "deep learning", "stanford", "course", "video"], # Added topic
         "difficulty": "advanced",
         "estimated_time": 200,
-        "notes": "Stanford's renowned computer vision course"
+        "notes": "Stanford's renowned computer vision course",
+        "type": "video"
     },
     {
         "id": "video-stanford-cs224n",
@@ -175,7 +191,8 @@ VIDEOS = [
         "topics": ["NLP", "deep learning", "transformers", "stanford", "course", "video"], # Added topic
         "difficulty": "advanced",
         "estimated_time": 220,
-        "notes": "Stanford's comprehensive NLP course"
+        "notes": "Stanford's comprehensive NLP course",
+        "type": "video"
     }
 ]
 
@@ -188,7 +205,8 @@ PLATFORMS_GUIDES = [
         "topics": ["python", "interactive", "tutorial", "beginner"],
         "difficulty": "beginner",
         "estimated_time": 40, # Estimated time for core concepts
-        "notes": "Free interactive Python tutorial covering basics to advanced."
+        "notes": "Free interactive Python tutorial covering basics to advanced.",
+        "type": "platform"
     },
     {
         "id": "pg-codecademy-py",
@@ -197,7 +215,8 @@ PLATFORMS_GUIDES = [
         "topics": ["python", "interactive", "courses", "data science", "OOP"],
         "difficulty": "beginner",
         "estimated_time": 100, # Estimated time for free introductory content
-        "notes": "Offers various free introductory Python modules and courses."
+        "notes": "Offers various free introductory Python modules and courses.",
+        "type": "platform"
     },
     {
         "id": "pg-futurecoder",
@@ -206,7 +225,8 @@ PLATFORMS_GUIDES = [
         "topics": ["python", "interactive", "tutorial", "beginner"],
         "difficulty": "beginner",
         "estimated_time": 30, # Estimated time for basics
-        "notes": "Free, open-source platform for learning Python from scratch."
+        "notes": "Free, open-source platform for learning Python from scratch.",
+        "type": "platform"
     },
     {
         "id": "pg-python-docs",
@@ -215,7 +235,8 @@ PLATFORMS_GUIDES = [
         "topics": ["python", "documentation", "reference"],
         "difficulty": "beginner",
         "estimated_time": 0, # Reference material
-        "notes": "The official Python documentation."
+        "notes": "The official Python documentation.",
+        "type": "platform"
     },
     {
         "id": "pg-python-tutorial",
@@ -224,7 +245,8 @@ PLATFORMS_GUIDES = [
         "topics": ["python", "tutorial", "beginner", "documentation"],
         "difficulty": "beginner",
         "estimated_time": 20,
-        "notes": "The official Python tutorial for beginners."
+        "notes": "The official Python tutorial for beginners.",
+        "type": "platform"
     },
     {
         "id": "pg-pandas-docs",
@@ -233,7 +255,8 @@ PLATFORMS_GUIDES = [
         "topics": ["pandas", "documentation", "data analysis", "python"],
         "difficulty": "intermediate",
         "estimated_time": 0, # Reference material
-        "notes": "Official Pandas user guide."
+        "notes": "Official Pandas user guide.",
+        "type": "platform"
     },
     {
         "id": "pg-pandas-cheatsheet",
@@ -242,7 +265,8 @@ PLATFORMS_GUIDES = [
         "topics": ["pandas", "cheat sheet", "data analysis", "python"],
         "difficulty": "intermediate",
         "estimated_time": 5, # Time to review/use as reference
-        "notes": "Detailed Jupyter Notebook covering common Pandas tasks."
+        "notes": "Detailed Jupyter Notebook covering common Pandas tasks.",
+        "type": "platform"
     },
     {
         "id": "pg-sklearn-docs",
@@ -251,7 +275,8 @@ PLATFORMS_GUIDES = [
         "topics": ["scikit-learn", "machine learning", "documentation", "python"],
         "difficulty": "intermediate",
         "estimated_time": 0, # Reference material
-        "notes": "Official Scikit-learn user guide."
+        "notes": "Official Scikit-learn user guide.",
+        "type": "platform"
     },
     {
         "id": "pg-tf-tutorials",
@@ -260,7 +285,8 @@ PLATFORMS_GUIDES = [
         "topics": ["tensorflow", "deep learning", "tutorial", "python"],
         "difficulty": "intermediate",
         "estimated_time": 50, # Estimate for core tutorials
-        "notes": "Official TensorFlow tutorials."
+        "notes": "Official TensorFlow tutorials.",
+        "type": "platform"
     },
     {
         "id": "pg-pytorch-tutorials",
@@ -269,7 +295,8 @@ PLATFORMS_GUIDES = [
         "topics": ["pytorch", "deep learning", "tutorial", "python"],
         "difficulty": "intermediate",
         "estimated_time": 50, # Estimate for core tutorials
-        "notes": "Official PyTorch tutorials."
+        "notes": "Official PyTorch tutorials.",
+        "type": "platform"
     },
     {
         "id": "pg-hackernoon-rl",
@@ -278,7 +305,8 @@ PLATFORMS_GUIDES = [
         "topics": ["reinforcement learning", "tutorial", "beginner", "python"],
         "difficulty": "beginner",
         "estimated_time": 2, # Estimated read/understand time
-        "notes": "Beginner-friendly introduction to RL concepts with Python examples."
+        "notes": "Beginner-friendly introduction to RL concepts with Python examples.",
+        "type": "platform"
     },
     {
         "id": "pg-dlaip-nlp-guide",
@@ -287,7 +315,8 @@ PLATFORMS_GUIDES = [
         "topics": ["NLP", "guide", "introduction", "deep learning"],
         "difficulty": "intermediate",
         "estimated_time": 3, # Estimated read/understand time
-        "notes": "Comprehensive guide covering NLP concepts, techniques, and tools."
+        "notes": "Comprehensive guide covering NLP concepts, techniques, and tools.",
+        "type": "platform"
     },
     {
         "id": "pg-khan-lin-alg",
@@ -296,7 +325,8 @@ PLATFORMS_GUIDES = [
         "topics": ["mathematics", "linear algebra", "foundations"],
         "difficulty": "beginner",
         "estimated_time": 60, # Estimated time for core ML-relevant concepts
-        "notes": "Covers vectors, matrices, transformations relevant to ML."
+        "notes": "Covers vectors, matrices, transformations relevant to ML.",
+        "type": "platform"
     },
     {
         "id": "pg-khan-multi-calc",
@@ -305,7 +335,8 @@ PLATFORMS_GUIDES = [
         "topics": ["mathematics", "calculus", "foundations", "optimization"],
         "difficulty": "intermediate",
         "estimated_time": 80, # Estimated time for core ML-relevant concepts
-        "notes": "Covers derivatives, gradients needed for optimization."
+        "notes": "Covers derivatives, gradients needed for optimization.",
+        "type": "platform"
     },
     {
         "id": "pg-khan-stats-prob",
@@ -314,7 +345,8 @@ PLATFORMS_GUIDES = [
         "topics": ["mathematics", "statistics", "probability", "foundations"],
         "difficulty": "beginner",
         "estimated_time": 70, # Estimated time for core ML-relevant concepts
-        "notes": "Covers probability, distributions, regression basics for ML."
+        "notes": "Covers probability, distributions, regression basics for ML.",
+        "type": "platform"
     },
     {
         "id": "pg-mlops-guide",
@@ -323,7 +355,8 @@ PLATFORMS_GUIDES = [
         "topics": ["mlops", "guide", "principles", "architecture"],
         "difficulty": "intermediate",
         "estimated_time": 10, # Estimated read/understand time
-        "notes": "Community-driven guide covering MLOps principles and practices."
+        "notes": "Community-driven guide covering MLOps principles and practices.",
+        "type": "platform"
     },
     {
         "id": "pg-awesome-mlops",
@@ -332,7 +365,8 @@ PLATFORMS_GUIDES = [
         "topics": ["mlops", "resources", "tools", "community"],
         "difficulty": "intermediate",
         "estimated_time": 2, # Time to browse
-        "notes": "Curated list of MLOps resources, tools, articles, etc."
+        "notes": "Curated list of MLOps resources, tools, articles, etc.",
+        "type": "platform"
     },
     {
         "id": "pg-gcp-mlops-guide", # Added this resource
@@ -341,7 +375,8 @@ PLATFORMS_GUIDES = [
         "topics": ["mlops", "gcp", "ci/cd", "deployment", "guide"],
         "difficulty": "intermediate",
         "estimated_time": 5, # Estimated read time
-        "notes": "Detailed guide on MLOps pipelines on Google Cloud."
+        "notes": "Detailed guide on MLOps pipelines on Google Cloud.",
+        "type": "platform"
     },
     {
         "id": "pg-opencv-tutorials",
@@ -350,7 +385,8 @@ PLATFORMS_GUIDES = [
         "topics": ["computer vision", "opencv", "tutorial", "image processing"],
         "difficulty": "intermediate",
         "estimated_time": 100, # Estimated time for core tutorials
-        "notes": "Official tutorials for the fundamental CV library, OpenCV."
+        "notes": "Official tutorials for the fundamental CV library, OpenCV.",
+        "type": "platform"
     },
     {
         "id": "pg-pyimagesearch",
@@ -359,7 +395,8 @@ PLATFORMS_GUIDES = [
         "topics": ["computer vision", "python", "opencv", "deep learning", "projects"],
         "difficulty": "intermediate",
         "estimated_time": 150, # Estimated time for several introductory tutorials
-        "notes": "Large collection of free, practical CV tutorials and projects."
+        "notes": "Large collection of free, practical CV tutorials and projects.",
+        "type": "platform"
     },
     {
         "id": "pg-github-ml-topics",
@@ -368,7 +405,8 @@ PLATFORMS_GUIDES = [
         "topics": ["github", "machine learning", "projects", "community"],
         "difficulty": "intermediate",
         "estimated_time": 0, # Exploration
-        "notes": "Explore open-source ML projects on GitHub."
+        "notes": "Explore open-source ML projects on GitHub.",
+        "type": "platform"
     },
     {
         "id": "pg-kaggle-competitions",
@@ -377,7 +415,8 @@ PLATFORMS_GUIDES = [
         "topics": ["kaggle", "competitions", "machine learning", "practice"],
         "difficulty": "intermediate",
         "estimated_time": 0, # Variable
-        "notes": "Platform for data science competitions."
+        "notes": "Platform for data science competitions.",
+        "type": "platform"
     }
 ]
 

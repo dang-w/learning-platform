@@ -23,20 +23,25 @@ def clear_dependency_overrides():
 @pytest.mark.asyncio
 async def test_login_success(async_client):
     """Test successful login."""
-    # Mock the database
-    mock_db = MagicMock()
-    mock_db.users = MagicMock()
-    mock_db.users.find_one = AsyncMock(return_value={
+    # Configure mock_db
+    mock_db_instance = MagicMock()
+    mock_db_instance.users = MagicMock()
+    mock_db_instance.users.find_one = AsyncMock(return_value={
         "username": "testuser",
         "email": "testuser@example.com",
         "first_name": "Test",
-"last_name": "User",
+        "last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password123
         "disabled": False
     })
 
-    with patch("auth._db", mock_db), \
-         patch("auth.verify_password", return_value=True):  # Also mock verify_password to return True
+    # Patch get_db to return our mock instance
+    async def override_get_db():
+        return mock_db_instance
+
+    # Remove patch("auth._db") and patch database.get_db
+    with patch("auth.verify_password", return_value=True), \
+         patch("database.get_db", override_get_db):
         login_data = {
             "username": "testuser",
             "password": "password123"

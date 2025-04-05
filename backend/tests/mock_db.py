@@ -46,22 +46,38 @@ class MockCollection:
         self._event_loop = self._get_event_loop()
         logger.info(f"Finding one in {self.name} with query: {query}")
 
-        # Convert ObjectId to string for comparison
+        # Don't modify the input query directly, handle _id comparison specially
+        query_id_str = None
         if "_id" in query and isinstance(query["_id"], ObjectId):
-            query["_id"] = str(query["_id"])
+            query_id_str = str(query["_id"])
 
         for doc in self.data:
             matches = True
             for key, value in query.items():
-                if isinstance(value, ObjectId):
-                    if str(value) != str(doc.get(key)):
+                doc_value = doc.get(key)
+
+                # Special handling for _id comparison
+                if key == "_id":
+                    doc_id_str = str(doc_value) if doc_value is not None else None
+                    # Use the pre-converted string from query if available, else compare original value
+                    query_value_str = query_id_str if query_id_str is not None else str(value)
+                    if doc_id_str != query_value_str:
                         matches = False
                         break
-                elif doc.get(key) != value:
+                # Handle potential ObjectId values in other fields (compare as strings)
+                elif isinstance(value, ObjectId):
+                    if str(doc_value) != str(value):
+                        matches = False
+                        break
+                # Default comparison
+                elif doc_value != value:
                     matches = False
                     break
             if matches:
-                return doc
+                logger.debug(f"Found matching document in {self.name}: {doc}")
+                # Return a copy to prevent modification of the stored data
+                return doc.copy()
+        logger.debug(f"No matching document found in {self.name} for query: {query}")
         return None
 
     def find(self, query: Dict[str, Any] = None) -> "MockCursor":

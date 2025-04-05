@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock, AsyncMock, ANY
 from fastapi import HTTPException, status
 import jwt
 from jwt.exceptions import PyJWTError
@@ -95,7 +95,8 @@ def mock_database():
     database.db = original_db
     database.get_database = original_get_database
 
-def test_get_current_user_with_valid_token(client, auth_headers):
+@pytest.mark.asyncio
+async def test_get_current_user_with_valid_token(async_client, auth_headers):
     """Test getting the current user with a valid token."""
     # Create a mock user
     mock_user = MockUser(username="testuser")
@@ -104,7 +105,7 @@ def test_get_current_user_with_valid_token(client, auth_headers):
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    response = client.get("/api/users/me/", headers=auth_headers)
+    response = await async_client.get("/api/users/me/", headers=auth_headers)
 
     assert response.status_code == 200
     user_data = response.json()
@@ -113,7 +114,8 @@ def test_get_current_user_with_valid_token(client, auth_headers):
     assert "first_name" in user_data
     assert "last_name" in user_data
 
-def test_get_current_user_without_token(client):
+@pytest.mark.asyncio
+async def test_get_current_user_without_token(async_client):
     """Test getting the current user without a token."""
     # Override the dependencies with a synchronous function that raises an exception
     def override_get_current_user():
@@ -126,14 +128,15 @@ def test_get_current_user_without_token(client):
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_current_active_user] = override_get_current_user
 
-    response = client.get("/api/users/me/")
+    response = await async_client.get("/api/users/me/")
 
     assert response.status_code == 401
     error_response = response.json()
     assert "detail" in error_response
     assert error_response["detail"] == "Not authenticated"
 
-def test_get_current_user_with_invalid_token(client):
+@pytest.mark.asyncio
+async def test_get_current_user_with_invalid_token(async_client):
     """Test getting the current user with an invalid token."""
     # Create an invalid token
     invalid_token = "invalid_token"
@@ -150,7 +153,7 @@ def test_get_current_user_with_invalid_token(client):
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_current_active_user] = override_get_current_user
 
-    response = client.get("/api/users/me/", headers=headers)
+    response = await async_client.get("/api/users/me/", headers=headers)
 
     assert response.status_code == 401
     error_response = response.json()
@@ -239,7 +242,7 @@ async def test_token_success(mock_set_cookie, mock_create_refresh, mock_create_a
     response_data = response.json()
     assert response_data["access_token"] == "fake_access_token"
     assert response_data["token_type"] == "bearer"
-    mock_auth_user.assert_awaited_once_with("testuser", "password123")
+    mock_auth_user.assert_awaited_once_with("testuser", "password123", db=ANY)
     mock_create_access.assert_called_once()
     args, kwargs = mock_create_access.call_args
     assert kwargs['data']['sub'] == "testuser"
@@ -258,7 +261,7 @@ async def test_login_with_invalid_username(mock_auth_async, async_client: AsyncC
     login_data = {"username": "wronguser", "password": "testpassword"}
     response = await async_client.post("/api/auth/token", json=login_data)
     assert response.status_code == 401
-    mock_auth_async.assert_awaited_once_with("wronguser", "testpassword")
+    mock_auth_async.assert_awaited_once_with("wronguser", "testpassword", db=ANY)
 
 @pytest.mark.asyncio
 @patch("routers.auth.authenticate_user", new_callable=AsyncMock)
@@ -269,11 +272,33 @@ async def test_login_with_invalid_password(mock_auth_async, async_client: AsyncC
     login_data = {"username": test_user["username"], "password": "wrongpassword"}
     response = await async_client.post("/api/auth/token", json=login_data)
     assert response.status_code == 401
-    mock_auth_async.assert_awaited_once_with(test_user["username"], "wrongpassword")
+    mock_auth_async.assert_awaited_once_with(test_user["username"], "wrongpassword", db=ANY)
 
-def test_login_incorrect_credentials(client):
-    # ... existing code ...
-    pass
+@pytest.mark.asyncio
+async def test_login_incorrect_credentials(async_client: AsyncClient):
+    # Create mock for authenticate_user
+    mock_auth = AsyncMock(return_value=None) # Simulate auth failure
+
+    # Patch the authenticate_user function
+    with patch('routers.auth.authenticate_user', mock_auth):
+        # Send incorrect login data
+        response = await async_client.post( # Use await and async_client
+            "/api/auth/token",
+            json={ # Ensure sending JSON
+                "username": "nonexistent_user",
+                "password": "wrongpassword"
+            },
+            headers={"X-Skip-Rate-Limit": "true"} # Skip rate limit for test
+        )
+
+        # Verify the response is unauthorized
+        assert response.status_code == 401
+        response_json = response.json()
+        assert "detail" in response_json
+        assert response_json["detail"] == "Incorrect username or password"
+
+    # Verify authenticate_user was called
+    mock_auth.assert_called_once_with("nonexistent_user", "wrongpassword", db=ANY)
 
 @pytest.mark.asyncio
 async def test_token_refresh(async_client: AsyncClient, setup_test_user):
