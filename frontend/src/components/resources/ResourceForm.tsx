@@ -1,49 +1,24 @@
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Button } from '../ui/buttons'
-import { Input, FormGroup, Label, FormError } from '../ui/forms'
-import { Alert } from '../ui/feedback'
-import { Resource, ResourceType } from '@/types/resources'
-import { useUrlMetadata } from '@/lib/hooks/useUrlMetadata'
-
-const resourceSchema = z.object({
-  url: z.string().url('Please enter a valid URL'),
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  resourceType: z.enum(['articles', 'videos', 'courses', 'books'] as const),
-  estimated_time: z.number().min(1, 'Estimated time is required'),
-  difficulty: z.enum(['beginner', 'intermediate', 'advanced'] as const),
-  topics: z.array(z.string()).min(1, 'At least one topic is required'),
-})
-
-type ResourceFormData = z.infer<typeof resourceSchema>
-
-// Define the structure provided by the ResourceForm (based on its Zod schema)
-// This should match the Zod schema definition within ResourceForm.tsx
-interface ResourceFormDataFromForm {
-  url: string;
-  title: string;
-  description?: string; // Form has description
-  resourceType: ResourceType; // Form has resourceType
-  estimated_time: number;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  topics: string[];
-}
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '../ui/buttons';
+import { Input, FormGroup, Label, FormError } from '../ui/forms';
+import { Alert } from '../ui/feedback';
+import { Resource } from '@/types/resource';
+import { useUrlMetadata } from '@/lib/hooks/useUrlMetadata';
+import { resourceSchema, ResourceFormData } from '@/lib/validators/resource';
 
 interface ResourceFormProps {
-  resource?: Resource
-  // Update onSubmit to accept the form's data structure
-  onSubmit: (data: ResourceFormDataFromForm) => Promise<void> | void; // Allow sync or async
+  resource?: Resource;
+  onSubmit: (data: ResourceFormData) => Promise<void> | void;
   onCancel: () => void;
-  isSubmitting?: boolean; // Add isSubmitting prop
+  isSubmitting?: boolean;
 }
 
 export const ResourceForm = ({
   resource,
   onSubmit: submitHandler,
   onCancel,
-  isSubmitting, // Use the isSubmitting prop from parent
+  isSubmitting,
 }: ResourceFormProps) => {
   const { isExtracting, error: extractionError, extractMetadata } = useUrlMetadata()
 
@@ -58,12 +33,21 @@ export const ResourceForm = ({
     defaultValues: resource ? {
       url: resource.url,
       title: resource.title,
-      description: resource.notes || '',
-      resourceType: 'articles',
-      estimated_time: resource.estimated_time,
-      difficulty: resource.difficulty,
-      topics: resource.topics,
-    } : undefined
+      description: resource.description || resource.notes || '', // Use description or notes
+      type: resource.type, // Use singular 'type' from Resource
+      estimated_time: resource.estimated_time || 0, // Provide default for number
+      difficulty: resource.difficulty || undefined, // Use undefined if not set
+      topics: resource.topics || [], // Ensure topics is an array
+    } : {
+      // Provide default values for a new form
+      url: '',
+      title: '',
+      description: '',
+      type: undefined, // Default type (or set a specific default like 'other')
+      estimated_time: 0,
+      difficulty: undefined, // Default difficulty
+      topics: [],
+    }
   })
 
   const handleExtractMetadata = async () => {
@@ -77,9 +61,7 @@ export const ResourceForm = ({
       // Auto-fill form fields with extracted metadata
       if (metadata.title) setValue('title', metadata.title)
       if (metadata.description) setValue('description', metadata.description)
-      if (metadata.resource_type) setValue('resourceType', metadata.resource_type)
       if (metadata.estimated_time) setValue('estimated_time', metadata.estimated_time)
-      if (metadata.difficulty) setValue('difficulty', metadata.difficulty)
       if (metadata.topics && metadata.topics.length > 0) setValue('topics', metadata.topics)
     } catch (err) {
       console.error('Metadata extraction error:', err)
@@ -87,15 +69,11 @@ export const ResourceForm = ({
   }
 
   const onSubmitForm = async (data: ResourceFormData) => {
-    // The parent component (NewResourcePage or ResourcesPage) handles the API call.
-    // This internal handler just needs to pass the validated form data up.
-    // We pass the full 'data' which matches the ResourceFormDataFromForm type.
     await submitHandler(data);
-    // onCancel(); // Let the parent decide if closing the form is needed on submit
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-6" data-testid="resource-form">
       <FormGroup>
         <Label htmlFor="url">URL</Label>
         <div className="flex gap-2">
@@ -150,18 +128,22 @@ export const ResourceForm = ({
       <FormGroup>
         <Label htmlFor="resourceType">Resource Type</Label>
         <select
-          id="resourceType"
-          {...register('resourceType')}
+          id="type"
+          {...register('type')}
           className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           data-testid="resource-type"
         >
           <option value="">Select Resource Type</option>
-          <option value="articles" data-testid="resource-type-articles">Article</option>
-          <option value="videos" data-testid="resource-type-videos">Video</option>
-          <option value="courses" data-testid="resource-type-courses">Course</option>
-          <option value="books" data-testid="resource-type-books">Book</option>
+          {/* Use ResourceTypeString values */}
+          <option value="article" data-testid="resource-type-article">Article</option>
+          <option value="video" data-testid="resource-type-video">Video</option>
+          <option value="course" data-testid="resource-type-course">Course</option>
+          <option value="book" data-testid="resource-type-book">Book</option>
+          <option value="documentation" data-testid="resource-type-documentation">Documentation</option>
+          <option value="tool" data-testid="resource-type-tool">Tool</option>
+          <option value="other" data-testid="resource-type-other">Other</option>
         </select>
-        {errors.resourceType && <FormError>{errors.resourceType.message}</FormError>}
+        {errors.type && <FormError>{errors.type.message}</FormError>}
       </FormGroup>
 
       <FormGroup>
@@ -185,9 +167,11 @@ export const ResourceForm = ({
           data-testid="resource-difficulty"
         >
           <option value="">Select Difficulty</option>
+          {/* Use DifficultyLevel values */}
           <option value="beginner" data-testid="resource-difficulty-beginner">Beginner</option>
           <option value="intermediate" data-testid="resource-difficulty-intermediate">Intermediate</option>
           <option value="advanced" data-testid="resource-difficulty-advanced">Advanced</option>
+          <option value="expert" data-testid="resource-difficulty-expert">Expert</option>
         </select>
         {errors.difficulty && <FormError>{errors.difficulty.message}</FormError>}
       </FormGroup>

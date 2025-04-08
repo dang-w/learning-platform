@@ -1,13 +1,14 @@
 from fastapi import HTTPException, Request, status
-import redis
+import redis.asyncio as redis
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Annotated, AsyncIterator
 import time
 from functools import wraps
 from fastapi import Depends
+import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -47,13 +48,94 @@ RATE_LIMIT_SETTINGS = {
     }
 }
 
-try:
-    redis_client = redis.Redis.from_url(REDIS_URL, db=REDIS_DB, decode_responses=True)
-    redis_client.ping()  # Test connection
-    logger.info("Successfully connected to Redis")
-except redis.ConnectionError as e:
-    logger.error(f"Failed to connect to Redis: {str(e)}")
+# Remove global variable
+# _redis_client_instance = None
+
+# Refactor get_redis_client to use yield
+# async def get_redis_client() -> redis.Redis:
+#     """FastAPI dependency to get a Redis client instance."""
+#     global _redis_client_instance
+#     if _redis_client_instance is None:
+#         try:
+#             logger.info(f"Initializing Redis client connection to {REDIS_URL}")
+#             # Create the client instance
+#             _redis_client_instance = redis.Redis.from_url(
+#                 REDIS_URL, db=REDIS_DB, decode_responses=True
+#             )
+#             # Perform a quick check
+#             await _redis_client_instance.ping()
+#             logger.info("Successfully connected to Redis and pinged.")
+#         except redis.ConnectionError as e:
+#             logger.error(f"Failed to connect to Redis during initialization: {str(e)}")
+#             _redis_client_instance = None # Ensure it stays None if connection fails
+#             # Raise HTTPException to prevent app startup or requests if Redis is crucial
+#             raise HTTPException(
+#                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+#                 detail="Could not connect to Redis service."
+#             )
+#         except Exception as e:
+#              logger.error(f"An unexpected error occurred during Redis initialization: {str(e)}")
+#              _redis_client_instance = None
+#              raise HTTPException(
+#                  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#                  detail="Error initializing Redis service."
+#              )
+#
+#     if _redis_client_instance is None:
+#          # This case handles if initialization failed but wasn't caught by startup checks
+#          raise HTTPException(
+#              status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+#              detail="Redis service is unavailable."
+#          )
+#     return _redis_client_instance
+
+async def get_redis_client() -> AsyncIterator[redis.Redis]:
+    """Dependency that provides an Redis client connection."""
     redis_client = None
+    try:
+        # Establish connection
+        redis_client = await redis.Redis.from_url(
+            REDIS_URL, db=REDIS_DB, decode_responses=True, socket_timeout=5
+        )
+        await redis_client.ping()  # Verify connection
+        logger.info("Redis client connected successfully.")
+        # Yield the client *after* successful connection attempt
+        yield redis_client
+    except redis.ConnectionError as e:
+        logger.error(f"Redis connection error: {e}")
+        raise HTTPException(
+            status_code=503, detail="Could not connect to Redis."
+        ) from e
+    except Exception as e:
+        # Catch other potential errors during initial connection/ping
+        logger.error(f"Unexpected error during Redis client setup: {e}")
+        # If an HTTPException was the cause, re-raise it
+        if isinstance(e, HTTPException):
+             raise e
+        # Otherwise, raise a generic 500
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error during Redis setup: {e}"
+        ) from e
+    finally:
+        # Ensure the client is closed if it was successfully created
+        if redis_client:
+            try:
+                # Check for the modern async close method first
+                if hasattr(redis_client, 'aclose') and callable(redis_client.aclose):
+                    await redis_client.aclose()
+                    logger.info("Redis client closed successfully using aclose() after request.")
+                # Fallback to the older async close method
+                elif hasattr(redis_client, 'close') and callable(redis_client.close):
+                     # Ensure close is actually awaitable (it should be for redis.asyncio)
+                     if asyncio.iscoroutinefunction(redis_client.close):
+                         await redis_client.close()
+                         logger.info("Redis client closed successfully using close() after request.")
+                     else:
+                          logger.warning("Redis client 'close' method is not awaitable.")
+                else:
+                    logger.warning("Redis client object has no recognized close method ('aclose' or 'close').")
+            except Exception as e:
+                logger.error(f"Error closing Redis client: {e}")
 
 class RateLimitExceeded(HTTPException):
     def __init__(self, retry_after: int, limit: int, remaining: int, reset_time: int):
@@ -81,7 +163,8 @@ def get_client_identifier(request: Request) -> str:
     user_agent = request.headers.get("User-Agent", "")
     return f"{client_ip}:{user_agent}"
 
-def check_rate_limit(
+async def check_rate_limit(
+    redis_client: redis.Redis, # Accept client as argument
     identifier: str,
     limit: int,
     window: int,
@@ -91,6 +174,7 @@ def check_rate_limit(
     Check if the rate limit has been exceeded.
 
     Args:
+        redis_client: The active Redis client connection.
         identifier: Unique identifier for the client
         limit: Maximum number of requests allowed in the window
         window: Time window in seconds
@@ -99,10 +183,6 @@ def check_rate_limit(
     Returns:
         Tuple of (is_allowed, retry_after, remaining, reset_time)
     """
-    if not redis_client:
-        logger.warning("Redis not available - rate limiting disabled")
-        return True, 0, limit, int(time.time() + window)
-
     current_time = int(time.time())
 
     # Build the key using prefix if provided
@@ -113,16 +193,17 @@ def check_rate_limit(
 
     try:
         # Use pipeline for atomic operations
-        pipe = redis_client.pipeline()
-
-        # Get current count and timestamp
-        pipe.get(key)
-        pipe.ttl(key)
-        count_str, ttl = pipe.execute()
+        async with redis_client.pipeline() as pipe:
+            # Get current count and timestamp
+            pipe.get(key)
+            pipe.ttl(key)
+            # Await pipeline execution
+            count_str, ttl = await pipe.execute()
 
         if count_str is None:
             # First request
-            redis_client.setex(key, window, 1)
+            # Await setex
+            await redis_client.setex(key, window, 1)
             return True, limit - 1, 0, current_time + window
 
         count = int(count_str)
@@ -131,7 +212,8 @@ def check_rate_limit(
             return False, 0, ttl, current_time + ttl
 
         # Increment counter
-        redis_client.incr(key)
+        # Await incr
+        await redis_client.incr(key)
         return True, limit - count - 1, 0, current_time + ttl
 
     except redis.RedisError as e:
@@ -139,24 +221,30 @@ def check_rate_limit(
         # Fail open if Redis is unavailable
         return True, limit, 0, current_time + window
 
-def reset_rate_limit(identifier: str, key_prefix: Optional[str] = None):
+async def reset_rate_limit(
+    redis_client: redis.Redis, # Accept client as argument
+    identifier: str,
+    key_prefix: Optional[str] = None
+):
     """Reset the rate limit counter for a given identifier and key prefix.
-    This should only be used in development and testing environments.
+    Requires an active Redis client connection.
 
     Args:
+        redis_client: The active Redis client connection.
         identifier: The client identifier (IP, user ID, etc.)
         key_prefix: Optional prefix for the rate limit key
     """
-    if not redis_client:
-        logger.warning("Redis is not available, can't reset rate limit")
-        return False
-
     if key_prefix:
         key = f"rate_limit:{key_prefix}:{identifier}"
     else:
         key = f"rate_limit:default:{identifier}"
 
-    result = redis_client.delete(key)
+    if not redis_client:
+        logger.error(f"Cannot reset rate limit for {key}: Redis client is None.")
+        return False
+
+    # Await delete
+    result = await redis_client.delete(key)
     logger.info(f"Rate limit reset for {key}: {result == 1}")
     return result == 1
 
@@ -167,7 +255,7 @@ def rate_limit_dependency_with_logging(
 ):
     """Create a FastAPI dependency for rate limiting with logging."""
 
-    async def dependency(request: Request):
+    async def dependency(request: Request, redis_client: Annotated[redis.Redis, Depends(get_redis_client)]):
         # --- Start Debug Logging for Bypass ---
         skip_header = request.headers.get("X-Skip-Rate-Limit")
         client_id = get_client_identifier(request) # Get client_id early for logging
@@ -176,10 +264,19 @@ def rate_limit_dependency_with_logging(
         logger.info(f"[Rate Limiter Log] IS_DEVELOPMENT flag: {IS_DEVELOPMENT}")
         logger.info(f"[Rate Limiter Log] IS_TEST_ENVIRONMENT flag: {IS_TEST_ENVIRONMENT}") # Log test env flag
 
+        # Initialize headers state
+        request.state.rate_limit_headers = {}
+
         # Skip rate limiting in development OR test environment when explicitly requested via header
         if (IS_DEVELOPMENT or IS_TEST_ENVIRONMENT) and request.headers.get("X-Skip-Rate-Limit") == "true":
             logger.info("[Rate Limiter Log] Bypass Active: Skipping rate limit check (DEVELOPMENT/TEST and Header is 'true').")
-            return # Skip rate limiting
+            # Set bypass indicator headers
+            request.state.rate_limit_headers = {
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": "-1", # Indicate bypass
+                "X-RateLimit-Reset": "-1"      # Indicate bypass
+            }
+            return # Skip rate limiting check
 
         # Log reason if bypass didn't happen
         if (IS_DEVELOPMENT or IS_TEST_ENVIRONMENT) and request.headers.get("X-Skip-Rate-Limit") != "true":
@@ -191,24 +288,27 @@ def rate_limit_dependency_with_logging(
         # Get client identifier (IP address by default)
         identifier = get_client_identifier(request) # Already got this above
 
-        # If Redis is not available, skip rate limiting
-        if not redis_client:
-            logger.warning("Redis is not available, skipping rate limiting")
-            return
-
         # Check if rate limit is exceeded
-        is_allowed, remaining, retry_after, reset_time = check_rate_limit(
+        is_allowed, remaining, retry_after, reset_time = await check_rate_limit(
+            redis_client,
             identifier,
             limit=limit,
             window=window,
             key_prefix=key_prefix
         )
 
-        if not is_allowed:
+        # Set headers if the request is allowed
+        if is_allowed:
+            request.state.rate_limit_headers = {
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": str(remaining),
+                "X-RateLimit-Reset": str(reset_time) # reset_time from check_rate_limit
+            }
+            logger.info(f"[Rate Limiter Log] Rate limit check passed for key prefix '{key_prefix}' for client {identifier}. Remaining: {remaining}")
+        else:
+            # Exception will be raised, headers added by exception handler
             logger.warning(f"[Rate Limiter Log] Rate limit exceeded for key prefix '{key_prefix}' for client {identifier}. Limit: {limit}/{window}s.")
             raise RateLimitExceeded(retry_after=retry_after, limit=limit, remaining=remaining, reset_time=reset_time)
-        else:
-            logger.info(f"[Rate Limiter Log] Rate limit check passed for key prefix '{key_prefix}' for client {identifier}. Remaining: {remaining}")
 
     # Return the dependency function itself for FastAPI's Depends()
     return dependency

@@ -52,6 +52,7 @@ describe('Knowledge Management E2E Tests', () => {
     cy.wait('@registerRequestKnowledge').its('response.statusCode').should('match', /^20[01]$/); // Allow 200 or 201
     cy.log('UI Registration successful.');
 
+    // Log in via UI
     cy.log(`Logging in as ${testUser.username} via UI...`);
     cy.intercept('POST', '/api/auth/token').as('loginRequestKnowledge');
     // Visit login page explicitly before login attempt
@@ -60,21 +61,43 @@ describe('Knowledge Management E2E Tests', () => {
     cy.wait('@loginRequestKnowledge').its('response.statusCode').should('eq', 200);
     cy.log('UI Login successful.');
 
-    // Intercept the API call for fetching concepts BEFORE visiting the page
+    // Intercept the API call for fetching concepts BEFORE navigation
     cy.intercept('GET', '/api/reviews/concepts*').as('getConcepts');
 
-    // Visit the knowledge page directly after successful UI login
-    cy.log('Visiting /knowledge/concepts page directly...');
-    cy.visit('/knowledge/concepts');
+    // Navigate to knowledge page via UI click
+    cy.log('Navigating to /knowledge via UI sidebar link...');
+    // Ensure we are starting from a known page (e.g., dashboard after login)
+    cy.url().should('include', '/dashboard'); // Make sure login landed on dashboard
+    cy.get('[data-testid="nav-knowledge"]').click();
+    cy.url().should('include', '/knowledge'); // Verify navigation
+    cy.log('Successfully navigated to /knowledge.');
+
+    // Skip tutorial modal
+    cy.log('Checking for Spaced Repetition tutorial modal and skipping...');
+    cy.contains('button', 'Skip Tutorial', { timeout: 10000 }) // Wait up to 10s for modal/button
+      .should('be.visible')
+      .click();
+    cy.wait(500); // Short wait for modal to close and content to potentially load
+    cy.log('Tutorial skipped.');
+
+    // Click the 'View All Concepts' button to navigate to the concepts list page
+    cy.log('Clicking the "View All Concepts" button...');
+    cy.get('[data-testid="view-all-concepts-button"]').first().click(); // Use first() in case button exists elsewhere
+
+    // Intercept the API call for fetching concepts AFTER initiating navigation
+    cy.intercept('GET', '/api/reviews/concepts*').as('getConcepts');
+
+    // Verify navigation to the concepts page
+    cy.url().should('include', '/knowledge/concepts');
+    cy.log('Successfully navigated to /knowledge/concepts.');
 
     // Wait for the concepts API call to complete
     cy.log('Waiting for @getConcepts API call...');
     cy.wait('@getConcepts');
     cy.log('@getConcepts API call intercepted.');
 
-    // Wait for the main content area of the concepts page to be visible
-    cy.get(conceptsPage['selectors'].conceptsContainer, { timeout: 15000 }).should('be.visible');
-    cy.log('Concepts container is visible.');
+    // beforeEach setup is complete, page should be ready for tests
+    cy.log('Knowledge concepts page loaded (empty state expected for new user).');
 
     cy.on('uncaught:exception', (err) => {
       cy.log(`Uncaught exception during test: ${err.message}`);

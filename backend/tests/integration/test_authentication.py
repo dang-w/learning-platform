@@ -1,14 +1,26 @@
 import pytest
 import asyncio
-from httpx import AsyncClient
-from datetime import datetime, timedelta
+from httpx import AsyncClient, Headers, ASGITransport
+from datetime import datetime, timedelta, timezone
 import jwt
 from main import app
 from database import db, init_db
-from auth import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from auth import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, authenticate_user, create_access_token, get_current_user, get_current_active_user, UserInDB
 import logging
 from unittest.mock import patch, AsyncMock, MagicMock, ANY
 from motor.motor_asyncio import AsyncIOMotorClient
+from jose import jwt as jose_jwt, JWTError
+import auth # Keep this for accessing auth.SECRET_KEY, auth.ALGORITHM
+from routers.auth import REFRESH_TOKEN_COOKIE_NAME # CORRECT: From routers/auth.py
+from fastapi import HTTPException
+import sys
+import os
+
+# Add the parent directory to the path so we can import main
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+# Import the app and utility functions
+from tests.conftest import setup_test_user, auth_headers # Import fixtures
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,219 +35,190 @@ TEST_USER = {
     "last_name": "Test User"
 }
 
-@pytest.fixture(autouse=True)
-async def setup_test_user():
-    """Setup test user before each test."""
-    try:
-        # Instead of initializing the real database, use mocks
-        with patch('database.verify_db_connection', new_callable=AsyncMock) as mock_verify, \
-             patch('database.db.users.delete_many', new_callable=AsyncMock) as mock_delete, \
-             patch('database.db.users.find_one', new_callable=AsyncMock) as mock_find, \
-             patch('database.db.users.insert_one', new_callable=AsyncMock) as mock_insert:
-
-            # Make the mock return True
-            mock_verify.return_value = True
-
-            # Setup return values
-            mock_delete.return_value = MagicMock()
-            mock_find.return_value = None  # No user exists initially
-
-            # Setup insert to return an id
-            insert_result = MagicMock()
-            insert_result.inserted_id = "123456789"
-            mock_insert.return_value = insert_result
-
-            # Create test user by mocking the request/response
-            with patch('httpx.AsyncClient.post', new_callable=AsyncMock) as mock_post:
-                mock_response = MagicMock()
-                mock_response.status_code = 201
-                mock_response.json.return_value = {
-                    "access_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7VEVTVF9VU0VSWyd1c2VybmFtZSddfSIsImV4cCI6MjUxNjIzOTAyMn0.signature",
-                    "refresh_token": f"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ7VEVTVF9VU0VSWyd1c2VybmFtZSddfSIsImV4cCI6MjUxNjIzOTAyMn0.signature",
-                    "token_type": "bearer"
-                }
-                mock_post.return_value = mock_response
-
-                yield
-    except Exception as e:
-        logger.error(f"Error in test setup: {str(e)}")
-        raise
+# REMOVED local autouse setup_test_user fixture as it conflicts with the global one from conftest
+# and the database mocking is handled by the global patch_database fixture.
 
 @pytest.mark.asyncio
-async def test_successful_login():
+async def test_successful_login(async_client: AsyncClient):
     """Test that a user can successfully log in."""
-    # Mock authentication and token creation
-    with patch('auth.authenticate_user', new_callable=AsyncMock) as mock_auth, \
-         patch('auth.create_access_token') as mock_create_access, \
-         patch('auth.create_refresh_token') as mock_create_refresh:
+    # Use the standard async_client fixture
+    client = async_client
 
-        # Setup mocks to return appropriate values
-        mock_auth.return_value = {
-            "username": TEST_USER["username"],
-            "email": TEST_USER["email"]
-        }
+    # Mock token creation and authentication functions directly where they are used
+    with patch('routers.auth.authenticate_user', new_callable=AsyncMock) as mock_auth, \
+         patch('routers.auth.create_access_token') as mock_create_access, \
+         patch('routers.auth.create_refresh_token') as mock_create_refresh:
+
+        # Configure mock for authenticate_user
+        async def side_effect_auth(username, password, db=None):
+            if username == TEST_USER["username"] and password == TEST_USER["password"]:
+                # Return the structure expected by the route (dict, not UserInDB model potentially)
+                return {
+                    "username": TEST_USER["username"],
+                    # "email": TEST_USER["email"],
+                    # Add other fields if the route uses them from the return value
+                }
+            return None
+        mock_auth.side_effect = side_effect_auth
+
+        # Setup mocks for token creation
         mock_create_access.return_value = "mock_access_token"
         mock_create_refresh.return_value = "mock_refresh_token"
 
-        # Create a test client
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            # Create test data
-            login_data = {
-                "username": TEST_USER["username"],
-                "password": TEST_USER["password"]
-            }
+        # Create test data
+        login_data = {
+            "username": TEST_USER["username"],
+            "password": TEST_USER["password"]
+        }
 
-            # Test login endpoint
-            response = await client.post(
-                "/api/auth/token",
-                data=login_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
+        # Test login endpoint using the fixture
+        # Add header to bypass rate limiter
+        headers = {"X-Skip-Rate-Limit": "true"}
+        response = await client.post(
+            "/api/auth/token",
+            json=login_data,  # Ensure sending JSON
+            headers=headers
+        )
 
-            # Verify response
-            assert response.status_code == 201
-            token_data = response.json()
-            assert "access_token" in token_data
-            assert "refresh_token" in token_data
-            assert token_data["token_type"] == "bearer"
+        # Verify response
+        assert response.status_code == 200, f"Expected 200 OK, got {response.status_code}. Response: {response.text}"
+        token_data = response.json()
+        assert "access_token" in token_data
+        assert token_data["token_type"] == "bearer"
+        assert REFRESH_TOKEN_COOKIE_NAME in response.cookies
+        assert response.cookies[REFRESH_TOKEN_COOKIE_NAME] == "mock_refresh_token"
 
-            # Skip the token verification since we're using mock tokens
-            # Uncomment if you set up complete token mocking
-            # # Verify token works by accessing a protected endpoint
-            # user_response = await client.get(
-            #     "/api/users/me/",
-            #     headers={"Authorization": f"Bearer {token_data['access_token']}"}
-            # )
-            # assert user_response.status_code == 200
-            # user_data = user_response.json()
-            # assert user_data["username"] == TEST_USER["username"]
+        # Verify mocks were called correctly
+        mock_auth.assert_called_once_with(TEST_USER["username"], TEST_USER["password"], db=ANY)
+
+        # Ensure the subject used for token creation matches the username from the dict
+        expected_subject = TEST_USER["username"]
+        mock_create_access.assert_called_once_with(data={'sub': expected_subject}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        mock_create_refresh.assert_called_once_with(data={'sub': expected_subject})
 
 @pytest.mark.asyncio
-async def test_failed_login_attempts():
+async def test_failed_login_attempts(async_client: AsyncClient):
     """Test failed login attempts."""
-    # Mock the client API for invalid credentials
-    with patch('httpx.AsyncClient.post', new_callable=AsyncMock) as mock_post:
-        mock_response = MagicMock()
-        mock_response.status_code = 401
-        mock_response.json.return_value = {"detail": "Incorrect username or password"}
-        mock_post.return_value = mock_response
+    # Use the standard async_client fixture
+    client = async_client
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            # Test with wrong password
-            response = await client.post(
-                "/api/auth/token",
-                data={
-                    "username": TEST_USER["username"],
-                    "password": "wrongpassword"
-                },
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
-            assert response.status_code == 401
+    # Mock the authenticate_user function to simulate failure
+    with patch('routers.auth.authenticate_user', new_callable=AsyncMock) as mock_auth:
+        mock_auth.return_value = None # Simulate authentication failure
 
-            # Test with non-existent user
-            response = await client.post(
-                "/api/auth/token",
-                data={
-                    "username": "nonexistentuser",
-                    "password": TEST_USER["password"]
-                },
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
-            assert response.status_code == 401
+        # Add header to bypass rate limiter
+        headers = {"X-Skip-Rate-Limit": "true"}
+
+        # Test with wrong password
+        response = await client.post(
+            "/api/auth/token",
+            json={
+                "username": TEST_USER["username"],
+                "password": "wrongpassword"
+            },
+            headers=headers
+        )
+        assert response.status_code == 401
+        assert "Incorrect username or password" in response.text
+
+        # Test with non-existent user
+        response = await client.post(
+            "/api/auth/token",
+            json={
+                "username": "nonexistentuser",
+                "password": "password123"
+            },
+            headers=headers
+        )
+        assert response.status_code == 401
+        assert "Incorrect username or password" in response.text
+
+        # Verify mock was called for both attempts
+        assert mock_auth.call_count == 2
+        # Verify calls included the db argument
+        mock_auth.assert_any_call(TEST_USER["username"], "wrongpassword", db=ANY)
+        mock_auth.assert_any_call("nonexistentuser", "password123", db=ANY)
 
 @pytest.mark.asyncio
-async def test_token_refresh():
+async def test_token_refresh(async_client: AsyncClient, setup_test_user):
     """Test token refresh functionality."""
-    # Create mock responses for token and refresh endpoints
-    with patch('httpx.AsyncClient.post', new_callable=AsyncMock) as mock_post:
-        # Create initial tokens
-        initial_access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
-            SECRET_KEY,
-            algorithm=ALGORITHM
-        )
-        initial_refresh_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(days=7), "type": "refresh"},
-            SECRET_KEY,
-            algorithm=ALGORITHM
-        )
+    # Case 1: Valid refresh token, expect new tokens
+    @patch('routers.auth.create_access_token', return_value="new_access_token_1")
+    @patch('routers.auth.create_refresh_token', return_value="new_refresh_token_1")
+    @patch('routers.auth.verify_refresh_token')
+    async def test_refresh_valid(async_client: AsyncClient, mock_verify_refresh, mock_create_refresh, mock_create_access):
+        # Set the refresh token cookie on the client
+        REFRESH_TOKEN = "valid_refresh_token_for_test"
+        async_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, REFRESH_TOKEN)
 
-        # Create new tokens for the refresh response
-        new_access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
-            SECRET_KEY,
-            algorithm=ALGORITHM
-        )
-        new_refresh_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(days=7), "type": "refresh"},
-            SECRET_KEY,
-            algorithm=ALGORITHM
-        )
-
-        # Configure the first call to return the initial tokens
-        first_response = MagicMock()
-        first_response.status_code = 200
-        first_response.json.return_value = {
-            "access_token": initial_access_token,
-            "refresh_token": initial_refresh_token,
-            "token_type": "bearer"
+        # Configure mock for verify_refresh_token (controlled by mock_verify_refresh)
+        mock_verify_refresh.return_value = {
+            "sub": TEST_USER["username"],
+            "exp": datetime.now(timezone.utc) + timedelta(days=7),  # Valid expiration
+            "type": "refresh"
         }
+        headers = {"X-Skip-Rate-Limit": "true"} # Remove Authorization header
+        # Make the request *without* setting the cookie in headers
+        response = await async_client.post("/api/auth/token/refresh", headers=headers)
 
-        # Configure the second call to return the new tokens
-        second_response = MagicMock()
-        second_response.status_code = 200
-        second_response.json.return_value = {
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
-            "token_type": "bearer"
-        }
+        assert response.status_code == 200
+        data = response.json()
+        assert data["access_token"] == "new_access_token_1"
+        assert data["refresh_token"] == "new_refresh_token_1"
+        # Assert mocks were called correctly
+        mock_verify_refresh.assert_called_once_with(REFRESH_TOKEN)
+        mock_create_access.assert_called_once()
+        mock_create_refresh.assert_called_once()
 
-        # Set up the mock to return different responses for each call
-        mock_post.side_effect = [first_response, second_response]
+        # Clear the cookie for subsequent tests if needed
+        async_client.cookies.clear()
 
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            # First get tokens
-            response = await client.post(
-                "/api/auth/token",
-                data={
-                    "username": TEST_USER["username"],
-                    "password": TEST_USER["password"]
-                },
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
+    # Case 2: Expired refresh token
+    @patch('routers.auth.verify_refresh_token')
+    async def test_refresh_expired(async_client: AsyncClient, mock_verify_refresh):
+        EXPIRED_TOKEN = "expired_token_for_test"
+        async_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, EXPIRED_TOKEN)
+        mock_verify_refresh.side_effect = HTTPException(status_code=401, detail="Refresh token has expired")
+        headers = {"X-Skip-Rate-Limit": "true"}
+        response = await async_client.post("/api/auth/token/refresh", headers=headers)
+        assert response.status_code == 401
+        assert "Refresh token has expired" in response.json()["detail"]
+        mock_verify_refresh.assert_called_once_with(EXPIRED_TOKEN)
+        async_client.cookies.clear()
 
-            refresh_token = response.json()["refresh_token"]
+    # Case 3: Invalid refresh token
+    @patch('routers.auth.verify_refresh_token')
+    async def test_refresh_invalid(async_client: AsyncClient, mock_verify_refresh):
+        INVALID_TOKEN = "invalid_token_for_test"
+        async_client.cookies.set(REFRESH_TOKEN_COOKIE_NAME, INVALID_TOKEN)
+        mock_verify_refresh.side_effect = HTTPException(status_code=401, detail="Invalid refresh token")
+        headers = {"X-Skip-Rate-Limit": "true"}
+        response = await async_client.post("/api/auth/token/refresh", headers=headers)
+        assert response.status_code == 401
+        assert "Invalid refresh token" in response.json()["detail"]
+        mock_verify_refresh.assert_called_once_with(INVALID_TOKEN)
+        async_client.cookies.clear()
 
-            # Try to refresh the token
-            response = await client.post(
-                "/api/auth/token/refresh",
-                json={"refresh_token": refresh_token}
-            )
+    # Case 4: Missing refresh token
+    async def test_refresh_missing(async_client: AsyncClient):
+        async_client.cookies.clear() # Ensure no cookie is set
+        headers = {"X-Skip-Rate-Limit": "true"} # No Authorization header
+        response = await async_client.post("/api/auth/token/refresh", headers=headers)
+        assert response.status_code == 401 # Or 403 depending on implementation
+        assert "Refresh token cookie not found" in response.json()["detail"] # Check specific message
 
-            assert response.status_code == 200
-            data = response.json()
-            assert "access_token" in data
-            assert "refresh_token" in data
-            assert data["token_type"] == "bearer"
-
-            # Verify new tokens are valid
-            new_access_token = data["access_token"]
-            new_refresh_token = data["refresh_token"]
-
-            access_payload = jwt.decode(new_access_token, SECRET_KEY, algorithms=[ALGORITHM])
-            assert access_payload["sub"] == TEST_USER["username"]
-            assert access_payload["type"] == "access"
-
-            refresh_payload = jwt.decode(new_refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-            assert refresh_payload["sub"] == TEST_USER["username"]
-            assert refresh_payload["type"] == "refresh"
+    # --- Run the sub-tests --- #
+    await test_refresh_valid(async_client)
+    await test_refresh_expired(async_client)
+    await test_refresh_invalid(async_client)
+    await test_refresh_missing(async_client)
 
 @pytest.mark.asyncio
 async def test_token_expiration():
     """Test token expiration handling."""
     with patch('httpx.AsyncClient.post', new_callable=AsyncMock) as mock_post:
         # Create an expired refresh token
-        expire = datetime.utcnow() - timedelta(minutes=1)
+        expire = datetime.now(timezone.utc) - timedelta(minutes=1)
         expired_token = jwt.encode(
             {"sub": TEST_USER["username"], "exp": expire, "type": "refresh"},
             SECRET_KEY,
@@ -272,7 +255,7 @@ async def test_protected_endpoint_access():
 
         # Create a token
         access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(minutes=30), "type": "access"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
@@ -351,12 +334,12 @@ async def test_concurrent_token_refresh():
     with patch('httpx.AsyncClient.post', new_callable=AsyncMock) as mock_post:
         # Create initial tokens
         access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(minutes=30), "type": "access"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
         refresh_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(days=7), "type": "refresh"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(days=7), "type": "refresh"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
@@ -426,24 +409,24 @@ async def test_token_reuse():
     with patch('httpx.AsyncClient.post', new_callable=AsyncMock) as mock_post:
         # Create tokens
         access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(minutes=30), "type": "access"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
         refresh_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(days=7), "type": "refresh"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(days=7), "type": "refresh"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
 
         # New tokens for second response
         new_access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(minutes=30), "type": "access"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
         new_refresh_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(days=7), "type": "refresh"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(days=7), "type": "refresh"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
@@ -514,7 +497,7 @@ async def test_token_verification():
 
         # Create token
         access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(minutes=30), "type": "access"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
@@ -571,7 +554,7 @@ async def test_password_update():
 
         # Create token for authentication
         access_token = jwt.encode(
-            {"sub": TEST_USER["username"], "exp": datetime.utcnow() + timedelta(minutes=30), "type": "access"},
+            {"sub": TEST_USER["username"], "exp": datetime.now(timezone.utc) + timedelta(minutes=30), "type": "access"},
             SECRET_KEY,
             algorithm=ALGORITHM
         )
@@ -777,3 +760,21 @@ async def test_password_reset():
 
             assert response.status_code == 400
             assert "invalid or expired" in response.json()["detail"].lower()
+
+# Test for /api/auth/me endpoint
+@pytest.mark.asyncio
+async def test_get_me(async_client: AsyncClient, auth_headers):
+    """Test getting the current authenticated user's information."""
+    response = await async_client.get("/api/auth/me", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "username" in data
+    assert "email" in data
+    # Add more assertions based on expected user fields
+
+# Test for /api/auth/me endpoint failure (unauthorized)
+@pytest.mark.asyncio
+async def test_get_me_unauthorized(async_client: AsyncClient):
+    """Test accessing /api/auth/me without a valid token."""
+    response = await async_client.get("/api/auth/me")
+    assert response.status_code == 401 # Expect Unauthorized

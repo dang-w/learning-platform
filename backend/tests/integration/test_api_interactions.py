@@ -46,7 +46,7 @@ def mock_user():
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_goal_creation_and_retrieval(async_client, mock_db, mock_user, auth_headers):
-    """Test creating and retrieving a goal."""
+    """Test creating and retrieving a learning goal."""
     # Setup mock user
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
@@ -358,12 +358,6 @@ async def test_weekly_report_generation(async_client, mock_db, mock_user, auth_h
     assert "week_end" in report_response
 
 @pytest.mark.integration
-async def test_cleanup():
-    """Clean up after tests."""
-    # Clear any remaining dependency overrides
-    app.dependency_overrides.clear()
-
-@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_user_profile_endpoint(async_client, mock_user, auth_headers):
     """Test user profile endpoint."""
@@ -376,3 +370,8 @@ async def test_user_profile_endpoint(async_client, mock_user, auth_headers):
     user_data = response.json()
     assert user_data["username"] == mock_user.username
     assert user_data["email"] == mock_user.email
+
+@pytest.mark.asyncio
+async def test_cleanup(async_client: AsyncClient):
+    """Clean up created test data after integration tests."""
+    # Placeholder for cleanup logic

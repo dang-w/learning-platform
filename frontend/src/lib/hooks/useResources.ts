@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import { useResourceStore } from '@/lib/store/resource-store'
-import { ResourceType, ResourceCreateInput, ResourceUpdateInput } from '@/types/resources'
+import { ResourceTypeString as ResourceType, ResourceCreateInput, ResourceUpdateInput } from '@/types/resource'
 
 export const useResources = (type?: ResourceType) => {
   const {

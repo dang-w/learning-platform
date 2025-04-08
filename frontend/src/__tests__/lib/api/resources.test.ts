@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
-import resourcesApi, { ResourceStatistics } from '@/lib/api/resources';
-import { Resource } from '@/types/resources';
+import resourcesApi from '@/lib/api/resources';
+import { Resource, ResourceTypeString, ResourceStats } from '@/types/resource';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 // Don't mock the module, but spy on each method
@@ -22,6 +22,7 @@ describe('Resources API', () => {
           id: '1',
           title: 'Test Resource',
           url: 'https://example.com',
+          type: 'article',
           topics: ['test', 'example'],
           difficulty: 'beginner',
           estimated_time: 30,
@@ -49,60 +50,26 @@ describe('Resources API', () => {
   describe('getStatistics', () => {
     it('should call the resource statistics endpoint', async () => {
       // Setup mock response
-      const mockStatistics: ResourceStatistics = {
-        total: 10,
-        completed: 5,
+      const mockStatistics: ResourceStats = {
+        total_resources: 10,
+        total_completed: 5,
         completion_percentage: 50,
-        by_type: {
-          articles: {
-            total: 5,
-            completed: 3,
-            completion_percentage: 60
-          },
-          videos: {
-            total: 3,
-            completed: 1,
-            completion_percentage: 33
-          },
-          courses: {
-            total: 1,
-            completed: 1,
-            completion_percentage: 100
-          },
-          books: {
-            total: 1,
-            completed: 0,
-            completion_percentage: 0
-          }
-        },
+        articles: { total: 5, completed: 3, completion_percentage: 60 },
+        videos: { total: 3, completed: 1, completion_percentage: 33 },
+        courses: { total: 1, completed: 1, completion_percentage: 100 },
+        books: { total: 1, completed: 0, completion_percentage: 0 },
+        documentation: { total: 0, completed: 0 },
+        tool: { total: 0, completed: 0 },
+        other: { total: 0, completed: 0 },
         by_difficulty: {
-          beginner: {
-            total: 5,
-            completed: 3,
-            completion_percentage: 60
-          },
-          intermediate: {
-            total: 3,
-            completed: 2,
-            completion_percentage: 66
-          },
-          advanced: {
-            total: 2,
-            completed: 0,
-            completion_percentage: 0
-          }
+          beginner: { total: 5, completed: 3 },
+          intermediate: { total: 3, completed: 2 },
+          advanced: { total: 2, completed: 0 },
+          expert: { total: 0, completed: 0 }
         },
         by_topic: {
-          'javascript': {
-            total: 5,
-            completed: 3,
-            completion_percentage: 60
-          },
-          'python': {
-            total: 3,
-            completed: 2,
-            completion_percentage: 66
-          }
+          'javascript': { total: 5, completed: 3 },
+          'python': { total: 3, completed: 2 }
         },
         recent_completions: []
       };
@@ -129,6 +96,7 @@ describe('Resources API', () => {
           id: '1',
           title: 'Test Article',
           url: 'https://example.com/article',
+          type: 'article',
           topics: ['test', 'javascript'],
           difficulty: 'beginner',
           estimated_time: 15,
@@ -143,10 +111,10 @@ describe('Resources API', () => {
       getResourcesByTypeSpy.mockResolvedValue(mockResources);
 
       // Call the getResourcesByType function
-      const result = await resourcesApi.getResourcesByType('articles');
+      const result = await resourcesApi.getResourcesByType('article');
 
       // Check if the API was called with the correct type
-      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith('articles');
+      expect(resourcesApi.getResourcesByType).toHaveBeenCalledWith('article');
 
       // Check if the result matches the mock data
       expect(result).toEqual(mockResources);

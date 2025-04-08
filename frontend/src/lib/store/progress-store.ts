@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ResourceType } from '@/types/resources'
+import { ResourceTypeString as ResourceType } from '@/types/resource'
 
 interface ProgressStats {
   totalResources: number
@@ -30,10 +30,13 @@ interface ProgressState {
 }
 
 const initialProgressByType: ProgressByType = {
-  articles: { total: 0, completed: 0, percentage: 0 },
-  videos: { total: 0, completed: 0, percentage: 0 },
-  courses: { total: 0, completed: 0, percentage: 0 },
-  books: { total: 0, completed: 0, percentage: 0 },
+  article: { total: 0, completed: 0, percentage: 0 },
+  video: { total: 0, completed: 0, percentage: 0 },
+  course: { total: 0, completed: 0, percentage: 0 },
+  book: { total: 0, completed: 0, percentage: 0 },
+  documentation: { total: 0, completed: 0, percentage: 0 },
+  tool: { total: 0, completed: 0, percentage: 0 },
+  other: { total: 0, completed: 0, percentage: 0 },
 }
 
 const calculateStats = (progressByType: ProgressByType): ProgressStats => {

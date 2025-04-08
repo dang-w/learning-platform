@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useProgressStore } from '@/lib/store/progress-store';
-import { ResourceType } from '@/types/resources';
+import { ResourceTypeString } from '@/types/resource';
 
 describe('useProgressStore', () => {
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('useProgressStore', () => {
       });
 
       // Check initial progress by type
-      const resourceTypes: ResourceType[] = ['articles', 'videos', 'courses', 'books'];
+      const resourceTypes: ResourceTypeString[] = ['article', 'video', 'course', 'book', 'documentation', 'tool', 'other'];
       resourceTypes.forEach(type => {
         expect(result.current.progressByType[type]).toEqual({
           total: 0,
@@ -48,24 +48,24 @@ describe('useProgressStore', () => {
       // Setup initial state with some resources
       act(() => {
         // Manually set some initial values for testing
-        result.current.progressByType.articles.total = 5;
-        result.current.progressByType.articles.completed = 2;
+        result.current.progressByType.article.total = 5;
+        result.current.progressByType.article.completed = 2;
 
         // Recalculate percentages
-        result.current.progressByType.articles.percentage =
-          (result.current.progressByType.articles.completed / result.current.progressByType.articles.total) * 100;
+        result.current.progressByType.article.percentage =
+          (result.current.progressByType.article.completed / result.current.progressByType.article.total) * 100;
       });
 
       // Mark a resource as completed
       act(() => {
-        result.current.updateProgress('articles', true);
+        result.current.updateProgress('article', true);
       });
 
       // Check that completed count increased
-      expect(result.current.progressByType.articles.completed).toBe(3);
+      expect(result.current.progressByType.article.completed).toBe(3);
 
       // Check that percentage was updated
-      expect(result.current.progressByType.articles.percentage).toBe(60); // 3/5 * 100
+      expect(result.current.progressByType.article.percentage).toBe(60); // 3/5 * 100
 
       // Check that overall stats were updated
       expect(result.current.stats.completedResources).toBe(3);
@@ -85,8 +85,8 @@ describe('useProgressStore', () => {
         result.current.resetProgress();
 
         // Manually set some initial values for testing
-        result.current.progressByType.videos.total = 10;
-        result.current.progressByType.videos.completed = 7;
+        result.current.progressByType.video.total = 10;
+        result.current.progressByType.video.completed = 7;
 
         // Set overall stats directly to match the expected values
         result.current.stats = {
@@ -99,20 +99,20 @@ describe('useProgressStore', () => {
         };
 
         // Recalculate percentages
-        result.current.progressByType.videos.percentage =
-          (result.current.progressByType.videos.completed / result.current.progressByType.videos.total) * 100;
+        result.current.progressByType.video.percentage =
+          (result.current.progressByType.video.completed / result.current.progressByType.video.total) * 100;
       });
 
       // Mark a resource as not completed
       act(() => {
-        result.current.updateProgress('videos', false);
+        result.current.updateProgress('video', false);
       });
 
       // Check that completed count decreased
-      expect(result.current.progressByType.videos.completed).toBe(6);
+      expect(result.current.progressByType.video.completed).toBe(6);
 
       // Check that percentage was updated
-      expect(result.current.progressByType.videos.percentage).toBe(60);
+      expect(result.current.progressByType.video.percentage).toBe(60);
 
       // Get the actual values from the store
       const { completedResources, totalResources, completionPercentage } = result.current.stats;
@@ -129,24 +129,24 @@ describe('useProgressStore', () => {
       // Setup initial state with resources of different types
       act(() => {
         // Articles: 5 total, 2 completed
-        result.current.progressByType.articles.total = 5;
-        result.current.progressByType.articles.completed = 2;
+        result.current.progressByType.article.total = 5;
+        result.current.progressByType.article.completed = 2;
 
         // Videos: 10 total, 5 completed
-        result.current.progressByType.videos.total = 10;
-        result.current.progressByType.videos.completed = 5;
+        result.current.progressByType.video.total = 10;
+        result.current.progressByType.video.completed = 5;
 
         // Courses: 2 total, 1 completed
-        result.current.progressByType.courses.total = 2;
-        result.current.progressByType.courses.completed = 1;
+        result.current.progressByType.course.total = 2;
+        result.current.progressByType.course.completed = 1;
 
         // Books: 3 total, 0 completed
-        result.current.progressByType.books.total = 3;
-        result.current.progressByType.books.completed = 0;
+        result.current.progressByType.book.total = 3;
+        result.current.progressByType.book.completed = 0;
 
         // Recalculate all percentages
         Object.keys(result.current.progressByType).forEach(key => {
-          const typeKey = key as ResourceType;
+          const typeKey = key as ResourceTypeString;
           const progress = result.current.progressByType[typeKey];
           progress.percentage = progress.total > 0
             ? (progress.completed / progress.total) * 100
@@ -156,14 +156,14 @@ describe('useProgressStore', () => {
 
       // Mark a video as completed
       act(() => {
-        result.current.updateProgress('videos', true);
+        result.current.updateProgress('video', true);
       });
 
       // Check that percentages were updated for all types
-      expect(result.current.progressByType.articles.percentage).toBe(40); // 2/5 * 100
-      expect(result.current.progressByType.videos.percentage).toBe(60); // 6/10 * 100
-      expect(result.current.progressByType.courses.percentage).toBe(50); // 1/2 * 100
-      expect(result.current.progressByType.books.percentage).toBe(0); // 0/3 * 100
+      expect(result.current.progressByType.article.percentage).toBe(40); // 2/5 * 100
+      expect(result.current.progressByType.video.percentage).toBe(60); // 6/10 * 100
+      expect(result.current.progressByType.course.percentage).toBe(50); // 1/2 * 100
+      expect(result.current.progressByType.book.percentage).toBe(0); // 0/3 * 100
 
       // Check that overall stats were updated correctly
       expect(result.current.stats.totalResources).toBe(20); // 5 + 10 + 2 + 3
@@ -210,10 +210,10 @@ describe('useProgressStore', () => {
         result.current.resetProgress();
 
         // Set some values
-        result.current.progressByType.articles.total = 5;
-        result.current.progressByType.articles.completed = 3;
-        result.current.progressByType.videos.total = 10;
-        result.current.progressByType.videos.completed = 7;
+        result.current.progressByType.article.total = 5;
+        result.current.progressByType.article.completed = 3;
+        result.current.progressByType.video.total = 10;
+        result.current.progressByType.video.completed = 7;
 
         // Update overall stats
         result.current.stats.totalResources = 15;
@@ -248,7 +248,7 @@ describe('useProgressStore', () => {
 
       // Check that progressByType was reset to initial values
       // Just check one property to use the progressByType variable
-      expect(progressByType.articles.completed).toBe(3); // Updated to match actual implementation behavior
+      expect(progressByType.article.completed).toBe(3); // Updated to match actual implementation behavior
 
       // Check that error was cleared
       expect(error).toBeNull();
@@ -262,25 +262,25 @@ describe('useProgressStore', () => {
       // Setup progress data for different resource types
       act(() => {
         // Articles: 5 total, 3 completed
-        result.current.progressByType.articles.total = 5;
-        result.current.progressByType.articles.completed = 3;
+        result.current.progressByType.article.total = 5;
+        result.current.progressByType.article.completed = 3;
 
         // Videos: 10 total, 5 completed
-        result.current.progressByType.videos.total = 10;
-        result.current.progressByType.videos.completed = 5;
+        result.current.progressByType.video.total = 10;
+        result.current.progressByType.video.completed = 5;
 
         // Courses: 2 total, 1 completed
-        result.current.progressByType.courses.total = 2;
-        result.current.progressByType.courses.completed = 1;
+        result.current.progressByType.course.total = 2;
+        result.current.progressByType.course.completed = 1;
 
         // Books: 3 total, 0 completed
-        result.current.progressByType.books.total = 3;
-        result.current.progressByType.books.completed = 0;
+        result.current.progressByType.book.total = 3;
+        result.current.progressByType.book.completed = 0;
       });
 
       // Trigger a recalculation by updating progress
       act(() => {
-        result.current.updateProgress('articles', false);
+        result.current.updateProgress('article', false);
       });
 
       // Check that overall stats were calculated correctly
@@ -295,7 +295,7 @@ describe('useProgressStore', () => {
       // Reset all totals to 0
       act(() => {
         Object.keys(result.current.progressByType).forEach(key => {
-          const typeKey = key as ResourceType;
+          const typeKey = key as ResourceTypeString;
           result.current.progressByType[typeKey].total = 0;
           result.current.progressByType[typeKey].completed = 0;
         });
@@ -303,7 +303,7 @@ describe('useProgressStore', () => {
 
       // Trigger a recalculation
       act(() => {
-        result.current.updateProgress('articles', true);
+        result.current.updateProgress('article', true);
       });
 
       // Check that percentage is 0 when total is 0

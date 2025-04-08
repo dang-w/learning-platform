@@ -28,7 +28,8 @@ client = motor.motor_asyncio.AsyncIOMotorClient(
     serverSelectionTimeoutMS=5000,  # 5 second timeout
     connectTimeoutMS=10000,         # 10 second timeout
     retryWrites=True,
-    maxPoolSize=50                  # Increase connection pool size
+    maxPoolSize=50,                 # Increase connection pool size
+    uuidRepresentation='standard'   # Added standard UUID representation
 )
 
 db = client[DB_NAME]
@@ -46,7 +47,8 @@ async def get_database():
         MONGODB_URL,
         serverSelectionTimeoutMS=5000,
         connectTimeoutMS=10000,
-        retryWrites=True
+        retryWrites=True,
+        uuidRepresentation='standard'  # Added standard UUID representation
     )
     new_db = new_client[DB_NAME]
     return {

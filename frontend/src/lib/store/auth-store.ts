@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import authApi, { User, UserStatistics, NotificationPreferences } from '../api/auth';
 import { tokenService as defaultTokenService } from '../services/token-service';
 import type { AuthState } from './types';
+import { AxiosError } from 'axios';
 
 // --- Test-only Dependency Injection ---
 let activeTokenService = defaultTokenService;
@@ -23,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      isDashboardReady: false,
       error: null,
       statistics: null,
       notificationPreferences: null,
@@ -60,6 +62,7 @@ export const useAuthStore = create<AuthState>()(
               user: null,
               isAuthenticated: false,
               isLoading: false,
+              isDashboardReady: false,
               error: null,
               statistics: null,
               notificationPreferences: null,
@@ -83,24 +86,43 @@ export const useAuthStore = create<AuthState>()(
             Promise.all([
               get().fetchStatistics(),
               get().getNotificationPreferences()
-            ]).catch(error => {
+            ]).then(() => {
+              console.log('[AuthStore] Associated data fetched successfully after init.');
+              set({ isDashboardReady: true });
+            }).catch(error => {
               console.error('[AuthStore] Error initializing associated user data:', error);
-              // Decide if this error should affect auth state - probably not
+              set({ isDashboardReady: false });
             });
 
           } catch (error: unknown) {
-            // This catch block handles errors from getCurrentUser,
-            // including potential ERR_AUTH_REFRESH_FAILED from the interceptor
-            console.error('[AuthStore ERROR] Failed to fetch user during initialization (in getCurrentUser try-catch): Clearing tokens and setting unauthenticated state.', error);
-            activeTokenService.clearTokens(); // Critical: Clear tokens on auth failure
-            set({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
-              error: error instanceof Error ? error.message : 'Authentication failed during initialization',
-              statistics: null,
-              notificationPreferences: null,
-            });
+            // Check if the error indicates a final refresh failure
+            const isFinalAuthError = error instanceof AxiosError && error.code === 'ERR_AUTH_REFRESH_FAILED';
+            const errorMessage = error instanceof Error ? error.message : 'Authentication failed during initialization';
+
+            console.error(`[AuthStore ERROR] Failed to fetch user during initialization (in getCurrentUser try-catch): ${errorMessage}`, error);
+
+            if (isFinalAuthError) {
+              console.log('[AuthStore] Final auth error detected in initializeFromStorage. Clearing tokens.');
+              activeTokenService.clearTokens(); // Clear tokens only on final failure
+              set({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isDashboardReady: false,
+                error: errorMessage,
+                statistics: null,
+                notificationPreferences: null,
+              });
+            } else {
+              // For other errors (e.g., temporary network issue, non-auth related), just set the error message
+              // Don't clear tokens or set isAuthenticated to false yet, as apiClient might retry
+              console.log('[AuthStore] Non-final error during initialization, setting error message only.');
+              set({
+                isLoading: false, // Still finish loading
+                error: errorMessage,
+                // isDashboardReady: false, // Keep existing value? Or set to false?
+              });
+            }
           }
         } catch (error) {
           // Catch unexpected errors during the init process itself
@@ -110,6 +132,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            isDashboardReady: false,
             error: error instanceof Error ? error.message : 'Failed to initialize auth state',
             statistics: null,
             notificationPreferences: null,
@@ -150,6 +173,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             error: error instanceof Error ? error.message : 'Login failed',
             isLoading: false,
+            isDashboardReady: false,
             statistics: null,
             notificationPreferences: null
           });
@@ -173,6 +197,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            isDashboardReady: false,
             error: null,
             statistics: null,
             notificationPreferences: null
@@ -202,22 +227,43 @@ export const useAuthStore = create<AuthState>()(
           Promise.all([
             get().fetchStatistics(),
             get().getNotificationPreferences()
-          ]).catch(error => {
+          ]).then(() => {
+              console.log('[AuthStore] Associated data fetched successfully after fetchUser.');
+              set({ isDashboardReady: true });
+            }).catch(error => {
             console.error('[AuthStore] Error fetching associated user data after fetchUser:', error);
+            set({ isDashboardReady: false });
           });
 
         } catch (error: unknown) {
-          console.error('[AuthStore] Failed to fetch user data:', error);
-          // Clear tokens and reset auth state if fetching user fails
-          activeTokenService.clearTokens();
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false, // Set loading false here
-            error: error instanceof Error ? error.message : 'Failed to fetch user data',
-            statistics: null,
-            notificationPreferences: null
-          });
+          // Check if the error indicates a final refresh failure
+          const isFinalAuthError = error instanceof AxiosError && error.code === 'ERR_AUTH_REFRESH_FAILED';
+          const errorMessage = error instanceof Error ? error.message : 'Failed to fetch user data';
+
+          console.error(`[AuthStore ERROR] Failed to fetch user data: ${errorMessage}`, error);
+
+          if (isFinalAuthError) {
+            console.log('[AuthStore] Final auth error detected in fetchUser. Clearing tokens.');
+            activeTokenService.clearTokens(); // Clear tokens only on final failure
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false, // Set loading false here
+              isDashboardReady: false,
+              error: errorMessage,
+              statistics: null,
+              notificationPreferences: null
+            });
+          } else {
+            // For other errors, just set the error message
+            // Don't clear tokens or set isAuthenticated to false
+            console.log('[AuthStore] Non-final error during fetchUser, setting error message only.');
+            set({
+              isLoading: false, // Set loading false here
+              error: errorMessage,
+              // isDashboardReady: false, // Keep existing value?
+            });
+          }
         }
       },
 
@@ -314,6 +360,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           isAuthenticated: false,
           isLoading: false,
+          isDashboardReady: false,
           error: null,
           statistics: null,
           notificationPreferences: null,
@@ -385,6 +432,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            isDashboardReady: false,
             statistics: null,
             notificationPreferences: null,
           });

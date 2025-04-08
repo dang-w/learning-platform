@@ -16,10 +16,6 @@ from tests.conftest import MockUser
 
 # Test a complete user workflow: register, login, create resources, track progress, create concepts, and review
 
-@pytest.fixture(scope="session")
-def test_client(client):
-    return client
-
 @pytest_asyncio.fixture(scope="session")
 async def setup_workflow_user():
     """Create a test user directly in the database."""
@@ -140,17 +136,22 @@ async def test_user_profile(async_client, auth_headers):
     app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
     # Mock the database
-    mock_db = MagicMock()
-    mock_db.users = MagicMock()
-    mock_db.users.find_one = AsyncMock(return_value={
+    mock_db_instance = MagicMock()
+    mock_db_instance.users = MagicMock()
+    mock_db_instance.users.find_one = AsyncMock(return_value={
         "username": "testuser",
         "email": "testuser@example.com",
         "first_name": "Test",
-"last_name": "User",
+        "last_name": "User",
         "disabled": False
     })
 
-    with patch("main.db", mock_db), patch("auth._db", mock_db):
+    # Patch get_db to return our mock instance
+    async def override_get_db():
+        return mock_db_instance
+
+    # Remove patch("auth._db", ...) and patch database.get_db instead
+    with patch("main.db", mock_db_instance), patch("database.get_db", override_get_db):
         # Get user profile
         response = await async_client.get("/api/users/me/", headers=auth_headers)
         assert response.status_code == 200

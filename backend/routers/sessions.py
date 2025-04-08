@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from pydantic import BaseModel, Field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from typing import Any, Dict, List, Optional
 import logging
+from bson import ObjectId
 
 from auth import get_current_active_user  # Corrected import path
 from database import db  # Corrected import path
@@ -44,7 +45,7 @@ async def create_session(
 ) -> Any:
     """Create a new session for the current user."""
     try:
-        expires_at = datetime.utcnow() + timedelta(minutes=SESSION_EXPIRY_MINUTES)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=SESSION_EXPIRY_MINUTES)
         session = Session(
             user_id=str(current_user["_id"]),
             expires_at=expires_at,
@@ -87,9 +88,10 @@ async def get_my_session(session_id: str, current_user: dict = Depends(get_curre
 @router.get("/active", response_model=SessionList)
 async def get_active_sessions(current_user: dict = Depends(get_current_active_user)) -> Any:
     """Get all active sessions for the current user."""
-    now = datetime.utcnow()
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
     sessions = await db.sessions.find({
-        "user_id": str(current_user["_id"]),
+        "user_id": user_id,
         "expires_at": {"$gt": now}
     }).to_list(None)
 
@@ -98,11 +100,12 @@ async def get_active_sessions(current_user: dict = Depends(get_current_active_us
 @router.put("/{session_id}/activity")
 async def update_session_activity(session_id: str, current_user: dict = Depends(get_current_active_user)) -> Any:
     """Update the last_active timestamp of a session."""
-    now = datetime.utcnow()
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=SESSION_EXPIRY_MINUTES)
 
     result = await db.sessions.update_one(
-        {"session_id": session_id, "user_id": str(current_user["_id"])},
+        {"session_id": session_id, "user_id": user_id},
         {"$set": {"last_active": now, "expires_at": expires_at}}
     )
 
@@ -137,7 +140,7 @@ async def delete_all_sessions(current_user: dict = Depends(get_current_active_us
 async def cleanup_expired_sessions() -> int:
     """Delete all sessions that have expired."""
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         result = await db.sessions.delete_many({"expires_at": {"$lt": now}})
         if result.deleted_count > 0:
             logger.info(f"Cleaned up {result.deleted_count} expired sessions")
@@ -175,7 +178,7 @@ async def get_user_sessions(username: str) -> List[Dict[str, Any]]:
         # Find all active sessions for this user
         cursor = db.sessions.find({
             "user_id": user_id,
-            "expires_at": {"$gt": datetime.utcnow()}
+            "expires_at": {"$gt": datetime.now(timezone.utc)}
         })
 
         sessions = []
@@ -197,7 +200,7 @@ async def create_login_session(
 ) -> str:
     """Create a session when a user logs in. Returns the session ID."""
     try:
-        expires_at = datetime.utcnow() + timedelta(minutes=SESSION_EXPIRY_MINUTES)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=SESSION_EXPIRY_MINUTES)
         session = Session(
             user_id=user_id,
             expires_at=expires_at,
@@ -216,3 +219,123 @@ async def create_login_session(
     except Exception as e:
         logger.error(f"Error creating login session: {str(e)}")
         return None
+
+@router.post("/start-study-session", status_code=status.HTTP_200_OK)
+async def start_study_session(current_user: dict = Depends(get_current_active_user)) -> Any:
+    """Start a new study session."""
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=SESSION_EXPIRY_MINUTES)
+
+    session_data = {
+        "user_id": user_id,
+        "is_active": True,
+        "expires_at": expires_at
+    }
+
+    result = await db.sessions.insert_one(session_data)
+    if not result.inserted_id:
+        raise HTTPException(status_code=500, detail="Could not start study session")
+
+    return {"session_id": result.inserted_id}
+
+@router.post("/log-activity", status_code=status.HTTP_200_OK)
+async def log_activity(current_user: dict = Depends(get_current_active_user)) -> Any:
+    """Log activity for an ongoing study session."""
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
+
+    # Check if session exists and belongs to the user
+    session = await db.sessions.find_one({"user_id": user_id, "is_active": True})
+    if not session:
+        raise HTTPException(status_code=404, detail="No active study session found")
+
+    # Update last_active time
+    await update_session_activity(session["session_id"])
+
+    return {"message": "Activity logged successfully"}
+
+@router.post("/end-study-session", status_code=status.HTTP_200_OK)
+async def end_study_session(current_user: dict = Depends(get_current_active_user)) -> Any:
+    """End an ongoing study session."""
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
+
+    # Find the active session
+    session = await db.sessions.find_one({"user_id": user_id, "is_active": True})
+    if not session:
+        raise HTTPException(status_code=404, detail="No active study session found")
+
+    # Update session to inactive
+    result = await db.sessions.update_one(
+        {"session_id": session["session_id"]},
+        {"$set": {"is_active": False}}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=500, detail="Could not end study session")
+
+    return {"message": "Study session ended successfully"}
+
+@router.post("/start-review-session", status_code=status.HTTP_200_OK)
+async def start_review_session(current_user: dict = Depends(get_current_active_user)) -> Any:
+    """Start a new review session."""
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=SESSION_EXPIRY_MINUTES)
+
+    session_data = {
+        "user_id": user_id,
+        "is_active": True,
+        "expires_at": expires_at
+    }
+
+    result = await db.sessions.insert_one(session_data)
+    if not result.inserted_id:
+        raise HTTPException(status_code=500, detail="Could not start review session")
+
+    return {"session_id": result.inserted_id}
+
+@router.get("/all-sessions", response_model=SessionList)
+async def get_all_sessions(current_user: dict = Depends(get_current_active_user)) -> Any:
+    """Get all active sessions (both study and review) for the current user."""
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
+    active_sessions = []
+
+    # Find all active study sessions
+    study_sessions = await db.sessions.find({
+        "user_id": user_id,
+        "is_active": True,
+        "expires_at": {"$gt": now}
+    }).to_list(length=None)
+    active_sessions.extend(study_sessions)
+
+    # Find all active review sessions
+    review_sessions = await db.sessions.find({
+        "user_id": user_id,
+        "is_active": True,
+        "expires_at": {"$gt": now}
+    }).to_list(length=None)
+    active_sessions.extend(review_sessions)
+
+    return SessionList(sessions=active_sessions)
+
+@router.post("/renew-session", status_code=status.HTTP_200_OK)
+async def renew_session(session_id: str, current_user: dict = Depends(get_current_active_user)) -> Any:
+    """Renew an existing session's expiry time."""
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=SESSION_EXPIRY_MINUTES)
+
+    session_oid = ObjectId(session_id)
+
+    result = await db.sessions.update_one(
+        {"session_id": session_id, "user_id": user_id},
+        {"$set": {"expires_at": expires_at}}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {"message": "Session expiry time renewed"}

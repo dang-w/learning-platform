@@ -3,6 +3,13 @@
  * Using resilient testing patterns for better test stability
  */
 import { dashboardPage, authPage } from '../support/page-objects';
+import { subDays } from 'date-fns';
+
+// Define a type for the register API response based on usage
+interface RegisterApiResponse {
+  detail?: string;
+  // Add other expected properties if known
+}
 
 describe('Dashboard', () => {
   const username = 'test-user-cypress';
@@ -28,7 +35,7 @@ describe('Dashboard', () => {
         password: password,
         firstName: 'Test',
         lastName: 'User Cypress'
-    }).then((response) => {
+    }).then((response: Cypress.Response<RegisterApiResponse>) => {
         // Log whether user was created or already existed
         if (response.status === 200 || response.status === 201) {
             cy.log(`User ${username} created or endpoint confirmed existence.`);
@@ -45,23 +52,109 @@ describe('Dashboard', () => {
     cy.log(`Logging in as ${username} via UI...`);
     authPage.visitLogin();
     cy.intercept('POST', '/api/auth/token').as('loginRequestDashboard');
+    // Intercept the user data fetch that happens after login
+    cy.intercept('GET', '/api/auth/me').as('getUserDashboard');
+    // Perform login action
     authPage.login(username, password);
+    // Wait for login API call
     cy.wait('@loginRequestDashboard').its('response.statusCode').should('eq', 200);
-    cy.log('UI Login successful.');
-
-    // Now navigate to the dashboard *after* successful login
-    dashboardPage.visitDashboard();
-
-    // Check that the dashboard basic elements load after login
-    dashboardPage.isDashboardLoaded();
-    cy.log('Dashboard loaded successfully after UI login.');
+    // Wait for user data fetch API call
+    cy.wait('@getUserDashboard').its('response.statusCode').should('eq', 200);
+    // Verify login success by checking for a dashboard element
+    cy.get('[data-testid="user-greeting"]', { timeout: 15000 }).should('be.visible'); // Increased timeout
+    cy.log('UI Login and user fetch successful. Dashboard should be loaded.');
 
     // Intercept and silence uncaught exceptions from the app
     cy.on('uncaught:exception', (err) => {
-      cy.log(`Uncaught exception: ${err.message}`);
+      console.error('App uncaught exception:', err.message);
       // Return false to prevent the error from failing the test
       return false;
     });
+
+    // --- ADD INTERCEPTS FOR DASHBOARD DATA ---
+    cy.log('Intercepting dashboard data endpoints...');
+
+    // ADD Intercept for Recent Metrics (based on observed XHR)
+    cy.intercept('GET', '/api/progress/metrics/recent*', {
+        statusCode: 200,
+        body: {
+            // Provide mock data relevant to what this endpoint might return
+            // Often used for quick stats like streak, avg focus over the period
+            total_hours: 1.0, // Example
+            average_focus: 7.5, // Example
+            streak_days: 1, // Example
+            // Add other fields based on actual API response if known
+        }
+    }).as('getRecentMetrics');
+
+    // Intercept for Detailed Metrics (for charts) - ADJUSTED PATTERN
+    cy.intercept('GET', '/api/progress/metrics?start_date=*', { // More specific pattern
+        statusCode: 200,
+        // Return ONLY the array of detailed metric objects
+        body: [
+            { date: subDays(new Date(), 2).toISOString(), study_hours: 1.5, focus_score: 8, topics: 'Topic A, Topic B' },
+            { date: subDays(new Date(), 1).toISOString(), study_hours: 2.0, focus_score: 7, topics: 'Topic C' },
+            { date: new Date().toISOString(), study_hours: 0.5, focus_score: 9, topics: 'Topic A' }
+        ]
+    }).as('getDetailedMetrics');
+
+    cy.intercept('GET', '/api/resources/statistics', {
+        statusCode: 200,
+        body: {
+            // Required top-level stats
+            total_resources: 10,
+            total_completed: 5,
+            total_in_progress: 5, // Optional but good to include if available/calculable
+
+            // Required per-type stats (keys match 'resourceStatKeys' in component)
+            articles: { total: 4, completed: 2, in_progress: 2 },
+            videos: { total: 3, completed: 1, in_progress: 2 },
+            courses: { total: 1, completed: 1, in_progress: 0 },
+            books: { total: 1, completed: 1, in_progress: 0 },
+            documentation: { total: 1, completed: 0, in_progress: 1 },
+            tool: { total: 0, completed: 0, in_progress: 0 },
+            other: { total: 0, completed: 0, in_progress: 0 },
+
+            // Optional fields (can keep if used elsewhere, but not needed by ResourceStats)
+            completion_rate: 50.0, // Calculated in component if needed
+            // 'by_type' and 'by_difficulty' are not directly used by ResourceStats for chart/totals
+            // by_type: { article: 4, video: 3, courses: 1, books: 1, documentation: 1, tool: 0, other: 0 },
+            // by_difficulty: { beginner: 6, intermediate: 3, advanced: 1 }
+        }
+    }).as('getResourceStats');
+    cy.intercept('GET', '/api/reviews/statistics', {
+        statusCode: 200,
+        body: {
+            total_reviews: 10, // Non-zero
+            due_today: 1, // Non-zero
+            upcoming_count: 3, // Non-zero
+            due_soon: [{ concept_id: '1', title: 'Test Concept', next_review_due: new Date().toISOString() }], // Non-empty array
+        }
+    }).as('getReviewStats');
+    cy.intercept('GET', '/api/learning-path/progress', {
+        statusCode: 200,
+        body: {
+            current_goal_id: 'goal-1', // Non-null
+            current_goal_title: 'Learn Cypress', // Non-null
+            overall_progress_percentage: 25.5,
+            completed_milestones: 1, // Non-zero
+            total_milestones: 4 // Non-zero
+        }
+    }).as('getLearningPathProgress');
+    // --- END INTERCEPTS ---
+
+    // Visit dashboard *after* setting up intercepts
+    dashboardPage.visitDashboard();
+    cy.log('Visited dashboard page.');
+
+    // Wait for all essential dashboard data intercepts - UPDATED WAIT
+    cy.log('Waiting for dashboard data API calls...');
+    cy.wait(['@getRecentMetrics', '@getDetailedMetrics', '@getResourceStats', '@getReviewStats', '@getLearningPathProgress'], { timeout: 20000 });
+    cy.log('Dashboard data API calls completed.');
+
+    // Ensure dashboard main container is loaded before proceeding
+    cy.get('[data-testid="dashboard-container"]', { timeout: 15000 }).should('be.visible');
+    cy.log('Dashboard container is visible.');
   });
 
   it('should display dashboard overview with all sections', () => {

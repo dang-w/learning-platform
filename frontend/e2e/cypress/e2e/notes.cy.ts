@@ -38,10 +38,10 @@ describe('Notes Management E2E Tests', () => {
         password: password,
         firstName: 'Test',
         lastName: 'User Cypress'
-    }).then((response) => {
+    }).then((response: Cypress.Response<{ detail?: string }>) => {
         if (response.status === 200 || response.status === 201) {
             cy.log(`User ${username} created or endpoint confirmed existence.`);
-        } else if (response.status === 400 && response.body && typeof response.body === 'object' && 'detail' in response.body && typeof response.body.detail === 'string' && response.body.detail.includes('already exists')) {
+        } else if (response.status === 400 && response.body && response.body.detail?.includes('already exists')) {
             cy.log(`User ${username} already existed.`);
         } else {
             cy.log(`Warning: registerUserApi responded with ${response.status}. Proceeding login attempt.`);
@@ -56,19 +56,40 @@ describe('Notes Management E2E Tests', () => {
     cy.wait('@loginRequestNotes').its('response.statusCode').should('eq', 200);
     cy.log('UI Login successful.');
 
-    notesPage.visitNotes();
+    // Remove wait for dashboard element - rely on page-specific waits later
+    // cy.get('[data-testid="nav-dashboard"]', { timeout: 10000 }).should('be.visible');
+    // cy.log('Post-login UI element visible.');
 
-    // Intercept API calls for notes with correct prefix
+    // Intercept potential background auth check *before* navigating
+    cy.intercept('GET', '/api/auth/me', (req) => {
+      req.reply({
+        statusCode: 200,
+        body: { // Provide minimal expected user data
+          id: 'test-user-id',
+          username: username,
+          email: `${username}@example.com`,
+          firstName: 'Test',
+          lastName: 'User Cypress',
+          role: 'user',
+          isActive: true
+        }
+      });
+    }).as('getAuthMe');
+
+    // Intercept API calls for notes *before* visiting the page
     cy.intercept('POST', '/api/notes').as('createNote');
-    cy.intercept('GET', '/api/notes*').as('getNotes'); // Use wildcard for potential query params
+    cy.intercept('GET', '/api/notes/?*').as('getNotes'); // Made pattern more specific
     cy.intercept('PUT', '/api/notes/*').as('updateNote'); // Add intercept for PUT if needed
     cy.intercept('DELETE', '/api/notes/*').as('deleteNote');
 
-    // Wait for the initial fetch to complete *before* checking if page loaded
-    cy.wait('@getNotes');
+    // Visit the notes page *after* intercepts are set
+    notesPage.visitNotes();
+
+    // Wait for the initial fetch to complete
+    cy.wait('@getNotes').its('response.statusCode').should('eq', 200);
 
     // Call page object methods to ensure elements are visible
-    notesPage.isNotesPageLoaded();
+    notesPage.isNotesPageLoaded(); // RESTORED this check
     cy.log('Notes page loaded successfully after UI login.');
 
     cy.on('uncaught:exception', () => {
@@ -78,7 +99,6 @@ describe('Notes Management E2E Tests', () => {
 
   it('should support complete notes workflow', () => {
     // Verify page loaded and add button exists first
-    notesPage.isNotesPageLoaded();
     notesPage.isAddNoteButtonAvailable();
 
     // Create a new note
@@ -96,7 +116,7 @@ describe('Notes Management E2E Tests', () => {
     notesPage.noteExists(noteTitle).should('exist');
 
     // Filter by tag - Re-intercept before clicking
-    cy.intercept('GET', '/api/notes*').as('getNotes');
+    cy.intercept('GET', '/api/notes/?*').as('getNotes');
     notesPage.filterByTag('test');
     cy.wait('@getNotes'); // Wait specifically for the filter request
     cy.wait(200); // Add short wait for UI to settle

@@ -739,18 +739,24 @@ async def get_progress_summary(
 
     # Initialize summary
     summary = {
-        "total_study_time": 0,
+        "total_hours": 0,
         "study_time": {
             "total_hours": 0,
             "last_7_days": 0,
-            "last_30_days": 0
+            "last_30_days": 0,
+            "total_study_time_past_week": 0
         },
         "consistency": {
             "streak": 0,
-            "days_studied_last_30": 0
+            "days_studied_last_7": 0,
+            "days_studied_last_30": 0,
+            "percentage_last_7": 0,
+            "percentage_last_30": 0
         },
         "topics": [],
-        "average_confidence": 0
+        "resources_completed": 0,
+        "average_confidence": 0,
+        "concepts_reviewed": 0  # Initialize concepts_reviewed
     }
 
     # Calculate study time
@@ -759,7 +765,7 @@ async def get_progress_summary(
 
     for session in study_sessions:
         duration = session.get("duration", 0)
-        summary["total_study_time"] += duration
+        summary["total_hours"] += duration
 
         # Convert to hours for the summary
         hours = duration / 60
@@ -772,7 +778,6 @@ async def get_progress_summary(
 
             if days_ago <= 7:
                 summary["study_time"]["last_7_days"] += hours
-
             if days_ago <= 30:
                 summary["study_time"]["last_30_days"] += hours
         except (ValueError, TypeError):
@@ -829,6 +834,77 @@ async def get_progress_summary(
             break
 
     summary["consistency"]["streak"] = streak
+
+    # Calculate total hours for the past week
+    seven_days_ago = now - timedelta(days=7)
+    thirty_days_ago = now - timedelta(days=30)
+    total_hours_last_7_days = sum(
+        s.get("duration", 0) / 60
+        for s in study_sessions if s.get("date") and datetime.fromisoformat(s["date"]).strftime("%Y-%m-%d") >= seven_days_ago.strftime("%Y-%m-%d")
+    )
+    total_hours_last_30_days = sum(
+        s.get("duration", 0) / 60
+        for s in study_sessions if s.get("date") and datetime.fromisoformat(s["date"]).strftime("%Y-%m-%d") >= thirty_days_ago.strftime("%Y-%m-%d")
+    )
+
+    # Calculate consistency (days studied / total days in period)
+    days_studied_last_7 = len(set(
+        datetime.fromisoformat(s["date"]).strftime("%Y-%m-%d")
+        for s in study_sessions if s.get("date") and datetime.fromisoformat(s["date"]).strftime("%Y-%m-%d") >= seven_days_ago.strftime("%Y-%m-%d")
+    ))
+    days_studied_last_30 = len(set(
+        datetime.fromisoformat(s["date"]).strftime("%Y-%m-%d")
+        for s in study_sessions if s.get("date") and datetime.fromisoformat(s["date"]).strftime("%Y-%m-%d") >= thirty_days_ago.strftime("%Y-%m-%d")
+    ))
+    consistency_last_7 = (days_studied_last_7 / 7) * 100 if days_studied_last_7 > 0 else 0
+    consistency_last_30 = (days_studied_last_30 / 30) * 100 if days_studied_last_30 > 0 else 0
+
+    # Completed resources count
+    completed_count = sum(
+        1 for resource_list in user.get("resources", {}).values() for res in resource_list if isinstance(res, dict) and res.get("completed")
+    )
+
+    # Average confidence from reviews
+    all_confidences = [
+        review["confidence"]
+        for concept in user.get("concepts", [])
+        for review in concept.get("reviews", [])
+    ]
+    avg_confidence = sum(all_confidences) / len(all_confidences) if all_confidences else 0
+
+    # Top topics from study sessions
+    topic_counts = {}
+    for s in study_sessions:
+        for topic in s.get("topics", []):
+            topic_counts[topic] = topic_counts.get(topic, 0) + 1
+    top_topics = sorted(topic_counts.items(), key=lambda item: item[1], reverse=True)[:5]
+
+    # Calculate total concepts reviewed
+    total_concepts_reviewed = sum(
+        len(concept.get("reviews", []))
+        for concept in user.get("concepts", [])
+    )
+
+    summary = {
+        "total_hours": summary["total_hours"],
+        "study_time": {
+            "total_hours": summary["study_time"]["total_hours"],
+            "last_7_days": summary["study_time"]["last_7_days"],
+            "last_30_days": summary["study_time"]["last_30_days"],
+            "total_study_time_past_week": total_hours_last_7_days
+        },
+        "consistency": {
+            "streak": summary["consistency"]["streak"],
+            "days_studied_last_7": days_studied_last_7,
+            "days_studied_last_30": days_studied_last_30,
+            "percentage_last_7": consistency_last_7,
+            "percentage_last_30": consistency_last_30
+        },
+        "resources_completed": completed_count,
+        "average_confidence": avg_confidence,
+        "topics": [{"name": t[0], "count": t[1]} for t in top_topics],
+        "concepts_reviewed": total_concepts_reviewed  # Add calculated value
+    }
 
     return summary
 
@@ -887,7 +963,7 @@ async def get_study_sessions(
     end_date: Optional[str] = None,
     current_user: dict = Depends(get_current_active_user)
 ):
-    """Get study sessions with optional date filtering."""
+    """Get study sessions for the current user, with optional date filtering."""
     username = get_username(current_user)
 
     user = await db.users.find_one({"username": username})
@@ -899,14 +975,40 @@ async def get_study_sessions(
     # Filter by date range if specified
     if start_date or end_date:
         filtered_sessions = []
+        # Parse end_date once and adjust it to include the whole day
+        end_date_obj = None
+        if end_date:
+            try:
+                # Add one day to make the range inclusive of the end date
+                end_date_obj = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD.")
+
         for session in sessions:
-            session_date = session.get("date", "")
+            session_date_str = session.get("date")
+            if not session_date_str:
+                continue # Skip sessions without a date
+            try:
+                # Attempt to parse the date, handling potential ISO format
+                if 'T' in session_date_str:
+                    session_date = datetime.fromisoformat(session_date_str.split('T')[0])
+                else:
+                    session_date = datetime.strptime(session_date_str, "%Y-%m-%d")
+            except ValueError:
+                continue # Skip sessions with invalid date format
 
-            if start_date and session_date < start_date:
-                continue
+            # Apply start date filter
+            if start_date:
+                 try:
+                    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+                    if session_date < start_date_obj:
+                        continue
+                 except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD.")
 
-            if end_date and session_date > end_date:
-                continue
+            # Apply end date filter (check against the adjusted end_date_obj)
+            if end_date_obj and session_date >= end_date_obj:
+                 continue
 
             filtered_sessions.append(session)
 

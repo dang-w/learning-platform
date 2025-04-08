@@ -1,27 +1,5 @@
 import apiClient from './client'
-import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resources'
-
-export interface ResourceStatistics {
-  total: number
-  completed: number
-  completion_percentage: number
-  by_type: Record<ResourceType, {
-    total: number
-    completed: number
-    completion_percentage: number
-  }>
-  by_difficulty: Record<'beginner' | 'intermediate' | 'advanced', {
-    total: number
-    completed: number
-    completion_percentage: number
-  }>
-  by_topic: Record<string, {
-    total: number
-    completed: number
-    completion_percentage: number
-  }>
-  recent_completions: (Resource & { resource_type: string })[]
-}
+import { Resource, ResourceTypeString as ResourceType, ResourceCreateInput, ResourceUpdateInput, ResourceStats } from '@/types/resource'
 
 const resourcesApi = {
   // Get all resources
@@ -41,9 +19,9 @@ const resourcesApi = {
   },
 
   // Get resources statistics
-  getStatistics: async (): Promise<ResourceStatistics> => {
+  getStatistics: async (): Promise<ResourceStats> => {
     try {
-      const response = await apiClient.get<ResourceStatistics>('/resources/statistics');
+      const response = await apiClient.get<ResourceStats>('/api/resources/statistics');
       return response.data;
     } catch (error) {
       console.error('Error fetching resource statistics:', error);
@@ -52,7 +30,7 @@ const resourcesApi = {
   },
 
   // Add alias for getStatistics for backward compatibility
-  getResourceStatistics: async (): Promise<ResourceStatistics> => {
+  getResourceStatistics: async (): Promise<ResourceStats> => {
     return resourcesApi.getStatistics()
   },
 

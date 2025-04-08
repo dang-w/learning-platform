@@ -1,5 +1,5 @@
-import resourcesApi, { ResourceStatistics } from '@/lib/api/resources';
-import { Resource, ResourceType, ResourceCreateInput, ResourceUpdateInput, DifficultyLevel } from '@/types/resources';
+import resourcesApi from '@/lib/api/resources';
+import { Resource, ResourceTypeString, ResourceCreateInput, ResourceUpdateInput, DifficultyLevel, ResourceStats } from '@/types/resource';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 // Create spies for resourcesApi methods
@@ -20,6 +20,7 @@ describe('resourcesApi', () => {
     id: '123',
     title: 'Test Resource',
     url: 'https://example.com',
+    type: 'article',
     topics: ['javascript', 'react'],
     difficulty: 'intermediate' as DifficultyLevel,
     estimated_time: 60,
@@ -32,6 +33,7 @@ describe('resourcesApi', () => {
   const mockResourceInput: ResourceCreateInput = {
     title: 'Test Resource',
     url: 'https://example.com',
+    type: 'article',
     topics: ['javascript', 'react'],
     difficulty: 'intermediate' as DifficultyLevel,
     estimated_time: 60,
@@ -42,28 +44,30 @@ describe('resourcesApi', () => {
     topics: ['javascript', 'react', 'typescript'],
   };
 
-  const mockStatistics: ResourceStatistics = {
-    total: 10,
-    completed: 5,
+  const mockStatistics: ResourceStats = {
+    total_resources: 10,
+    total_completed: 5,
     completion_percentage: 50,
-    by_type: {
-      articles: { total: 4, completed: 2, completion_percentage: 50 },
-      videos: { total: 3, completed: 1, completion_percentage: 33 },
-      courses: { total: 2, completed: 1, completion_percentage: 50 },
-      books: { total: 1, completed: 1, completion_percentage: 100 },
-    },
+    articles: { total: 4, completed: 2, completion_percentage: 50 },
+    videos: { total: 3, completed: 1, completion_percentage: 33 },
+    courses: { total: 2, completed: 1, completion_percentage: 50 },
+    books: { total: 1, completed: 1, completion_percentage: 100 },
+    documentation: { total: 0, completed: 0, completion_percentage: 0 },
+    tool: { total: 0, completed: 0, completion_percentage: 0 },
+    other: { total: 0, completed: 0, completion_percentage: 0 },
     by_difficulty: {
-      beginner: { total: 4, completed: 3, completion_percentage: 75 },
-      intermediate: { total: 4, completed: 2, completion_percentage: 50 },
-      advanced: { total: 2, completed: 0, completion_percentage: 0 },
+      beginner: { total: 4, completed: 3 },
+      intermediate: { total: 4, completed: 2 },
+      advanced: { total: 2, completed: 0 },
+      expert: { total: 0, completed: 0 },
     },
     by_topic: {
-      javascript: { total: 5, completed: 3, completion_percentage: 60 },
-      react: { total: 3, completed: 1, completion_percentage: 33 },
-      typescript: { total: 2, completed: 1, completion_percentage: 50 },
+      javascript: { total: 5, completed: 3 },
+      react: { total: 3, completed: 1 },
+      typescript: { total: 2, completed: 1 },
     },
     recent_completions: [
-      { ...mockResource, completed: true, completion_date: '2023-01-15', resource_type: 'articles' },
+      { ...mockResource, type: 'article', completed: true, completion_date: '2023-01-15' },
     ],
   };
 
@@ -75,6 +79,7 @@ describe('resourcesApi', () => {
           id: '1',
           title: 'React Hooks',
           url: 'https://reactjs.org/docs/hooks-intro.html',
+          type: 'article',
           topics: ['react', 'frontend'],
           difficulty: 'beginner' as DifficultyLevel,
           estimated_time: 30,
@@ -112,6 +117,7 @@ describe('resourcesApi', () => {
           id: '1',
           title: 'Test Resource',
           url: 'https://example.com',
+          type: 'article',
           topics: ['javascript'],
           difficulty: 'intermediate' as DifficultyLevel,
           completed: false,
@@ -125,7 +131,7 @@ describe('resourcesApi', () => {
       // Setup mock
       getResourcesByTypeSpy.mockResolvedValue(mockResources);
 
-      const type = 'articles' as ResourceType;
+      const type = 'article' as ResourceTypeString;
 
       const result = await resourcesApi.getResourcesByType(type);
 
@@ -136,7 +142,7 @@ describe('resourcesApi', () => {
     it('should handle errors', async () => {
       getResourcesByTypeSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.getResourcesByType('articles')).rejects.toThrow('Network error');
+      await expect(resourcesApi.getResourcesByType('article')).rejects.toThrow('Network error');
     });
   });
 
@@ -145,7 +151,7 @@ describe('resourcesApi', () => {
       // Setup mock
       createResourceSpy.mockResolvedValue(mockResource);
 
-      const type = 'articles' as ResourceType;
+      const type = 'article' as ResourceTypeString;
 
       const result = await resourcesApi.createResource(type, mockResourceInput);
 
@@ -156,16 +162,17 @@ describe('resourcesApi', () => {
     it('should handle errors', async () => {
       createResourceSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.createResource('articles', mockResourceInput)).rejects.toThrow('Network error');
+      await expect(resourcesApi.createResource('article', mockResourceInput)).rejects.toThrow('Network error');
     });
   });
 
   describe('updateResource', () => {
     it('should update a resource', async () => {
-      const updatedResource = {
+      const updatedResource: Resource = {
         id: '123',
         title: 'Updated Resource',
         url: 'https://example.com',
+        type: 'article',
         topics: ['javascript', 'react', 'typescript'],
         difficulty: 'intermediate' as DifficultyLevel,
         completed: false,
@@ -178,7 +185,7 @@ describe('resourcesApi', () => {
       // Setup mock
       updateResourceSpy.mockResolvedValue(updatedResource);
 
-      const type = 'articles' as ResourceType;
+      const type = 'article' as ResourceTypeString;
       const id = '123';
 
       const result = await resourcesApi.updateResource(type, id, mockResourceUpdate);
@@ -190,7 +197,7 @@ describe('resourcesApi', () => {
     it('should handle errors', async () => {
       updateResourceSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.updateResource('articles', '123', mockResourceUpdate)).rejects.toThrow('Network error');
+      await expect(resourcesApi.updateResource('article', '123', mockResourceUpdate)).rejects.toThrow('Network error');
     });
   });
 
@@ -199,7 +206,7 @@ describe('resourcesApi', () => {
       // Setup mock
       deleteResourceSpy.mockResolvedValue(undefined);
 
-      const type = 'articles' as ResourceType;
+      const type = 'article' as ResourceTypeString;
       const id = '123';
 
       await resourcesApi.deleteResource(type, id);
@@ -210,13 +217,13 @@ describe('resourcesApi', () => {
     it('should handle errors', async () => {
       deleteResourceSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.deleteResource('articles', '123')).rejects.toThrow('Network error');
+      await expect(resourcesApi.deleteResource('article', '123')).rejects.toThrow('Network error');
     });
   });
 
   describe('toggleResourceCompletion', () => {
     it('should toggle resource completion status', async () => {
-      const completedResource = {
+      const completedResource: Resource = {
         ...mockResource,
         completed: true,
         completion_date: '2023-01-15',
@@ -225,7 +232,7 @@ describe('resourcesApi', () => {
       // Setup mock
       toggleResourceCompletionSpy.mockResolvedValue(completedResource);
 
-      const type = 'articles' as ResourceType;
+      const type = 'article' as ResourceTypeString;
       const id = '123';
 
       const result = await resourcesApi.toggleResourceCompletion(type, id);
@@ -237,7 +244,7 @@ describe('resourcesApi', () => {
     it('should handle errors', async () => {
       toggleResourceCompletionSpy.mockRejectedValue(new Error('Network error'));
 
-      await expect(resourcesApi.toggleResourceCompletion('articles', '123')).rejects.toThrow('Network error');
+      await expect(resourcesApi.toggleResourceCompletion('article', '123')).rejects.toThrow('Network error');
     });
   });
 

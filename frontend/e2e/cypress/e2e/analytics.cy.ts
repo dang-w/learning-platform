@@ -40,9 +40,11 @@ describe('Progress Analytics', () => {
     cy.log(`Logging in as ${username} via UI...`);
     authPage.visitLogin();
     cy.intercept('POST', '/api/auth/token').as('loginRequestAnalytics');
+    cy.intercept('GET', '/api/users/me').as('getUser');
     authPage.login(username, password);
     cy.wait('@loginRequestAnalytics').its('response.statusCode').should('eq', 200);
-    cy.log('UI Login successful.');
+    cy.get('[data-testid="user-greeting"]', { timeout: 10000 }).should('be.visible');
+    cy.log('UI Login and user greeting visibility successful.');
 
     analyticsPage.visitAnalytics();
     analyticsPage.waitForAnalyticsToLoad();
@@ -168,7 +170,40 @@ describe('Progress Analytics', () => {
 
       analyticsPage.captureAllCharts();
 
+      // Add intercept for dashboard stats BEFORE visiting
+      cy.intercept('GET', '/api/resources/statistics', {
+        statusCode: 200,
+        body: {
+          total_resources: 10, // Provide a valid number
+          total_completed: 5,  // Provide a valid number
+          total_in_progress: 5, // Provide a valid number
+          // Add other fields the component might expect, even if empty/zero, to be safe
+          articles: { total: 2, completed: 1 },
+          videos: { total: 3, completed: 1 },
+          courses: { total: 1, completed: 1 },
+          books: { total: 2, completed: 1 },
+          documentation: { total: 1, completed: 1 },
+          tool: { total: 0, completed: 0 },
+          other: { total: 1, completed: 0 },
+          by_topic: {},
+          by_difficulty: {},
+          recent_completions: [],
+          completion_percentage: 50
+        }
+      }).as('getDashboardResourceStats');
+
+      // Add intercept for dashboard progress metrics BEFORE visiting
+      cy.intercept('GET', '/api/progress/metrics*', {
+        statusCode: 200,
+        body: [] // Return an empty array of Metric objects
+      }).as('getDashboardProgressMetrics');
+
       dashboardPage.visitDashboard();
+
+      // Wait for the intercepts after navigation
+      cy.wait('@getDashboardResourceStats');
+      cy.wait('@getDashboardProgressMetrics');
+
       dashboardPage.isDashboardLoaded().then(isDashboardLoaded => {
         expect(isDashboardLoaded).to.be.true;
         dashboardPage.takeScreenshot('return-to-dashboard');

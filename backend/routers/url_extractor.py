@@ -71,13 +71,14 @@ async def extract_metadata(
             )
 
         # Extract metadata from the URL
-        metadata = await extract_metadata_from_url(request.url)
+        metadata = await extract_metadata_from_url(url_str)
 
         # Detect resource type
-        resource_type = await detect_resource_type(request.url)
+        resource_type = await detect_resource_type(url_str)
 
-        # Add resource type to metadata
+        # Add resource type and original URL to metadata
         metadata["resource_type"] = resource_type
+        metadata["url"] = url_str
 
         return metadata
     except Exception as e:

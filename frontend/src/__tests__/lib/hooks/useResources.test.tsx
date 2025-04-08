@@ -1,12 +1,12 @@
 import { renderHook, act } from '@testing-library/react';
 import { useResources } from '@/lib/hooks/useResources';
 import { useResourceStore } from '@/lib/store/resource-store';
-import { ResourceType, DifficultyLevel, Resource } from '@/types/resources';
+import { ResourceTypeString, DifficultyLevel, Resource, ResourceCreateInput, ResourceUpdateInput } from '@/types/resource';
 
 // Define a type for the resource store return value
 interface MockResourceStore {
   resources: Resource[];
-  statistics: { total: number; completed: number };
+  statistics: { total_resources: number; total_completed: number };
   isLoading: boolean;
   error: string | null;
   selectedResource: Resource | null;
@@ -37,11 +37,11 @@ describe('useResources Hook', () => {
   const setSelectedResource = jest.fn();
 
   // Mock store state
-  const mockResources = [
-    { id: '1', title: 'Resource 1' },
-    { id: '2', title: 'Resource 2' },
+  const mockResources: Partial<Resource>[] = [
+    { id: '1', title: 'Resource 1', type: 'article' },
+    { id: '2', title: 'Resource 2', type: 'video' },
   ];
-  const mockStatistics = { total: 2, completed: 1 };
+  const mockStatistics = { total_resources: 2, total_completed: 1 };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -73,7 +73,7 @@ describe('useResources Hook', () => {
   });
 
   it('should fetch resources by type when type is provided', () => {
-    const type = 'articles' as ResourceType;
+    const type = 'article' as ResourceTypeString;
     renderHook(() => useResources(type));
 
     expect(fetchResourcesByType).toHaveBeenCalledWith(type);
@@ -82,10 +82,11 @@ describe('useResources Hook', () => {
   });
 
   it('should add a resource and refresh statistics', async () => {
-    const type = 'articles' as ResourceType;
-    const newResource = {
+    const type = 'article' as ResourceTypeString;
+    const newResource: ResourceCreateInput = {
       title: 'New Resource',
       url: 'https://example.com',
+      type: 'article',
       topics: [],
       difficulty: 'beginner' as DifficultyLevel,
       estimated_time: 30
@@ -102,9 +103,9 @@ describe('useResources Hook', () => {
   });
 
   it('should update a resource and refresh statistics', async () => {
-    const type = 'articles' as ResourceType;
+    const type = 'article' as ResourceTypeString;
     const id = '1';
-    const updatedResource = { title: 'Updated Resource' };
+    const updatedResource: ResourceUpdateInput = { title: 'Updated Resource' };
 
     const { result } = renderHook(() => useResources(type));
 
@@ -117,7 +118,7 @@ describe('useResources Hook', () => {
   });
 
   it('should delete a resource and refresh statistics', async () => {
-    const type = 'articles' as ResourceType;
+    const type = 'article' as ResourceTypeString;
     const id = '1';
 
     const { result } = renderHook(() => useResources(type));
@@ -131,7 +132,7 @@ describe('useResources Hook', () => {
   });
 
   it('should complete a resource and refresh statistics', async () => {
-    const type = 'articles' as ResourceType;
+    const type = 'article' as ResourceTypeString;
     const id = '1';
     const notes = 'Completed resource notes';
 
@@ -146,9 +147,10 @@ describe('useResources Hook', () => {
   });
 
   it('should throw an error when trying to add a resource without a type', async () => {
-    const newResource = {
+    const newResource: ResourceCreateInput = {
       title: 'New Resource',
       url: 'https://example.com',
+      type: 'article',
       topics: [],
       difficulty: 'beginner' as DifficultyLevel,
       estimated_time: 30

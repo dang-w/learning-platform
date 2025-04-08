@@ -24,6 +24,11 @@ from tests.conftest import MockUser
 
 logger = logging.getLogger(__name__)
 
+# Provide a mock database instance for direct calls
+@pytest.fixture(scope="function")
+def mock_db():
+    return MagicMock()
+
 @pytest.fixture(scope="function", autouse=True)
 def clear_dependency_overrides():
     """Clear dependency overrides before and after each test."""
@@ -33,7 +38,7 @@ def clear_dependency_overrides():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_authentication_direct():
+async def test_authentication_direct(mock_db):
     """
     Test that authentication works directly without using the TestClient.
     """
@@ -57,7 +62,11 @@ async def test_authentication_direct():
     }
 
     # Create a mock for get_user function
-    mock_get_user = AsyncMock(return_value=user_data)
+    # Note: We patch auth.get_user, which now expects 'db' as the second arg
+    async def mock_get_user_func(username, db=None): # Add db arg
+        # Optionally check db instance if needed, otherwise ignore
+        return user_data
+    mock_get_user = AsyncMock(side_effect=mock_get_user_func)
 
     # Patch the get_user function
     with patch('auth.get_user', mock_get_user):
@@ -66,23 +75,26 @@ async def test_authentication_direct():
         logger.info("Created token for test user")
 
         # Verify the token works with get_current_user
-        user = await get_current_user(token)
+        # Pass the mock_db fixture instance here
+        user = await get_current_user(token, mock_db)
         assert user is not None
         assert user["username"] == username
         logger.info("Verified token with get_current_user")
 
         # Verify the token works with get_current_active_user
+        # get_current_active_user depends on get_current_user which is already called with db
         active_user = await get_current_active_user(user)
         assert active_user is not None
         assert active_user["username"] == username
         logger.info("Verified token with get_current_active_user")
 
     # Verify the mock was called correctly
-    mock_get_user.assert_called_with(username=username)
+    # It should be called with username and the mock_db instance
+    mock_get_user.assert_called_with(username=username, db=mock_db)
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_authentication_direct_disabled_user():
+async def test_authentication_direct_disabled_user(mock_db):
     """
     Test that authentication fails for a disabled user.
     """
@@ -98,7 +110,9 @@ async def test_authentication_direct_disabled_user():
     }
 
     # Create a mock for get_user function
-    mock_get_user = AsyncMock(return_value=user_data)
+    async def mock_get_user_func(username, db=None): # Add db arg
+        return user_data
+    mock_get_user = AsyncMock(side_effect=mock_get_user_func)
 
     # Patch the get_user function
     with patch('auth.get_user', mock_get_user):
@@ -106,18 +120,20 @@ async def test_authentication_direct_disabled_user():
         token = create_access_token(data={"sub": username}, expires_delta=timedelta(days=1))
 
         # Verify the token works with get_current_user
-        user = await get_current_user(token)
+        # Pass the mock_db fixture instance here
+        user = await get_current_user(token, mock_db)
         assert user is not None
         assert user["username"] == username
 
         # Verify get_current_active_user raises an exception for disabled user
         with pytest.raises(Exception) as excinfo:
+             # get_current_active_user depends on get_current_user which is already called with db
             await get_current_active_user(user)
 
         assert "Inactive user" in str(excinfo.value)
 
     # Verify the mock was called correctly
-    mock_get_user.assert_called_with(username=username)
+    mock_get_user.assert_called_with(username=username, db=mock_db)
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -155,66 +171,70 @@ async def test_password_hashing():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_authenticate_user():
+async def test_authenticate_user(mock_db):
     """Test authenticating a user."""
     username = "testuser"
     password = "password123"
 
     # Mock the get_user function
-    mock_user = {
+    async def mock_get_user_func(username, db=None): # Add db arg
+        return {
+            "username": username,
+            "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"  # hashed version of password123
+        }
+    mock_user_return = {
         "username": username,
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"  # hashed version of password123
+        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
     }
 
     # Also need to mock verify_password to ensure it returns True
-    with patch("auth.get_user", AsyncMock(return_value=mock_user)), \
+    with patch("auth.get_user", AsyncMock(side_effect=lambda u, d: mock_user_return)), \
          patch("auth.verify_password", return_value=True):
-        # Authenticate the user
-        user = await authenticate_user(username, password)
+        # Authenticate the user, passing mock_db
+        user = await authenticate_user(username, password, mock_db)
         assert user is not None
         assert user["username"] == username
 
     # Try with wrong password by mocking verify_password to return False
-    with patch("auth.get_user", AsyncMock(return_value=mock_user)), \
+    with patch("auth.get_user", AsyncMock(side_effect=lambda u, d: mock_user_return)), \
          patch("auth.verify_password", return_value=False):
-        user = await authenticate_user(username, "wrongpassword")
+        # Pass mock_db
+        user = await authenticate_user(username, "wrongpassword", mock_db)
         assert user is None  # Should return None, not False
 
     # Try with non-existent user
     with patch("auth.get_user", AsyncMock(return_value=None)):
-        user = await authenticate_user("nonexistentuser", password)
+        # Pass mock_db
+        user = await authenticate_user("nonexistentuser", password, mock_db)
         assert user is None  # Should return None, not False
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_get_user():
+async def test_get_user(mock_db):
     """Test getting a user."""
     username = "testuser"
 
-    # Mock the database
-    mock_db = MagicMock()
+    # Configure the mock_db fixture instance
     mock_db.users = MagicMock()
     mock_db.users.find_one = AsyncMock(return_value={
         "username": username,
         "email": f"{username}@example.com",
         "first_name": "Test",
-"last_name": "User",
+        "last_name": "User",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
         "disabled": False
     })
 
-    # Patch the database directly
-    with patch("auth._db", mock_db):
-        # Get the user
-        user = await get_user(username)
-        assert user is not None
-        assert user["username"] == username
-        assert "email" in user
-        assert "first_name" in user
-        assert "last_name" in user
-        assert "hashed_password" in user
+    # Get the user, passing the mock_db instance
+    user = await get_user(username, mock_db)
+    assert user is not None
+    assert user["username"] == username
+    assert "email" in user
+    assert "first_name" in user
+    assert "last_name" in user
+    assert "hashed_password" in user
 
-        # Try with non-existent user
-        mock_db.users.find_one = AsyncMock(return_value=None)
-        user = await get_user("nonexistentuser")
-        assert user is None
+    # Try with non-existent user
+    mock_db.users.find_one = AsyncMock(return_value=None)
+    user = await get_user("nonexistentuser", mock_db)
+    assert user is None
