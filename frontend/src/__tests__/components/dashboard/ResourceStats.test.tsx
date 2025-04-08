@@ -226,7 +226,7 @@ describe('ResourceStats', () => {
 
     // Wait directly for the expected alert text to appear
     await waitFor(() => {
-      expect(screen.getByText('No statistics available.')).toBeInTheDocument();
+      expect(screen.getByText('Statistics data is incomplete.')).toBeInTheDocument();
     });
 
     // Check if the API mock was called

@@ -569,28 +569,46 @@ async def get_all_user_resources_grouped(
     db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
     current_user: Annotated[dict, Depends(get_current_active_user)]
 ):
-    """Get all resources *added by* the current user, grouped by type."""
+    """Get all resources *added by* the current user, grouped by type (plural keys)."""
     username = get_username(current_user)
     try:
         user = await db.users.find_one({"username": username})
         if not user:
             logger.warning(f"User {username} not found for grouped resources.")
-            return {"articles": [], "videos": [], "courses": [], "books": []} # Return empty structure
+            # Return structure with plural keys and empty lists
+            return {"articles": [], "videos": [], "courses": [], "books": []}
 
-        user_resources = user.get("resources", {})
+        user_resources_data = user.get("resources", {})
+        # Fetch using singular keys, map to plural keys in response
         grouped_resources = {
-            "articles": user_resources.get("articles", []),
-            "videos": user_resources.get("videos", []),
-            "courses": user_resources.get("courses", []),
-            "books": user_resources.get("books", [])
+            "articles": user_resources_data.get("article", []), # Fetch singular, return plural
+            "videos": user_resources_data.get("video", []),   # Fetch singular, return plural
+            "courses": user_resources_data.get("course", []),  # Fetch singular, return plural
+            "books": user_resources_data.get("book", [])      # Fetch singular, return plural
         }
 
-        # Ensure all resources have the 'type' field
-        for type_key, resources_list in grouped_resources.items():
-            for resource_dict in resources_list:
-                resource_dict['type'] = type_key
+        # Validate resources within each list against UserResource model
+        # and add the correct plural type field for response
+        validated_grouped_resources = {}
+        for plural_type_key, resources_list in grouped_resources.items():
+            validated_list = []
+            if isinstance(resources_list, list):
+                for resource_dict in resources_list:
+                    if isinstance(resource_dict, dict):
+                        # Add missing optional fields if needed before validation
+                        resource_dict.setdefault('notes', '')
+                        resource_dict.setdefault('priority', 'medium')
+                        resource_dict.setdefault('source', 'web') # Assuming default is 'web' or 'user'?
+                        resource_dict.setdefault('completion_date', None)
+                        # Add the PLURAL type key for the response model
+                        resource_dict['type'] = plural_type_key
+                        try:
+                            validated_list.append(UserResource(**resource_dict))
+                        except Exception as e:
+                            logger.error(f"Validation error for resource in {plural_type_key}: {resource_dict.get('id')} - {e}")
+            validated_grouped_resources[plural_type_key] = validated_list
 
-        return grouped_resources
+        return validated_grouped_resources
     except Exception as e:
         logger.error(f"Error fetching grouped resources for user {username}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error fetching resources")

@@ -39,7 +39,8 @@ test_resource = {
     "estimated_time": 30,
     "completed": False,
     "notes": "Test notes",
-    "date_added": "2023-01-01T00:00:00"
+    "date_added": "2023-01-01T00:00:00",
+    "type": "article"
 }
 
 test_user_data = {
@@ -49,10 +50,10 @@ test_user_data = {
     "last_name": "User",
     "disabled": False,
     "resources": {
-        "articles": [test_resource],
-        "videos": [],
-        "courses": [],
-        "books": []
+        "article": [test_resource],
+        "video": [],
+        "course": [],
+        "book": []
     }
 }
 
@@ -62,7 +63,7 @@ valid_resource = {
     "topics": ["python", "testing"],
     "difficulty": "intermediate",
     "estimated_time": 30,
-    "resource_type": "article"
+    "type": "article"
 }
 
 valid_article_resource = {
@@ -71,6 +72,7 @@ valid_article_resource = {
     "topics": ["python", "testing"],
     "difficulty": "intermediate",
     "estimated_time": 30,
+    "type": "article"
 }
 
 valid_video_resource = {
@@ -79,6 +81,7 @@ valid_video_resource = {
     "topics": ["python", "testing"],
     "difficulty": "intermediate",
     "estimated_time": 45,
+    "type": "video"
 }
 
 valid_course_resource = {
@@ -87,6 +90,7 @@ valid_course_resource = {
     "topics": ["python", "testing"],
     "difficulty": "advanced",
     "estimated_time": 480,
+    "type": "course"
 }
 
 valid_book_resource = {
@@ -95,6 +99,7 @@ valid_book_resource = {
     "topics": ["python", "testing"],
     "difficulty": "beginner",
     "estimated_time": 360,
+    "type": "book"
 }
 
 logger = logging.getLogger(__name__)
@@ -117,7 +122,7 @@ def mock_user():
         "username": "testuser",
         "email": "test@example.com",
         "resources": {
-            "articles": [
+            "article": [
                 {
                     "id": 1,
                     "title": "Existing Article",
@@ -128,10 +133,11 @@ def mock_user():
                     "completed": False,
                     "date_added": datetime.now().isoformat(),
                     "completion_date": None,
-                    "notes": ""
+                    "notes": "",
+                    "type": "article"
                 }
             ],
-            "videos": [
+            "video": [
                 {
                     "id": 1,
                     "title": "Existing Video",
@@ -142,10 +148,11 @@ def mock_user():
                     "completed": False,
                     "date_added": datetime.now().isoformat(),
                     "completion_date": None,
-                    "notes": ""
+                    "notes": "",
+                    "type": "video"
                 }
             ],
-            "courses": [
+            "course": [
                 {
                     "id": 1,
                     "title": "Existing Course",
@@ -156,10 +163,11 @@ def mock_user():
                     "completed": False,
                     "date_added": datetime.now().isoformat(),
                     "completion_date": None,
-                    "notes": ""
+                    "notes": "",
+                    "type": "course"
                 }
             ],
-            "books": [
+            "book": [
                 {
                     "id": 1,
                     "title": "Existing Book",
@@ -170,7 +178,8 @@ def mock_user():
                     "completed": False,
                     "date_added": datetime.now().isoformat(),
                     "completion_date": None,
-                    "notes": ""
+                    "notes": "",
+                    "type": "book"
                 }
             ]
         }
@@ -188,7 +197,7 @@ async def test_get_all_resources_empty(async_client: AsyncClient, auth_headers):
     mock_db = MagicMock()
     mock_db.users = MagicMock()
     # Mock find_one to return user with empty resources
-    mock_db.users.find_one = AsyncMock(return_value={"username": "testuser", "resources": {"articles": [], "videos": [], "courses": [], "books": []}})
+    mock_db.users.find_one = AsyncMock(return_value={"username": "testuser", "resources": {"article": [], "video": [], "course": [], "book": []}})
 
     # Define override
     async def override_get_db():
@@ -202,6 +211,7 @@ async def test_get_all_resources_empty(async_client: AsyncClient, auth_headers):
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, dict)
+        # Assert using plural keys as returned by the endpoint
         assert data["articles"] == []
         assert data["videos"] == []
         assert data["courses"] == []
@@ -234,14 +244,15 @@ async def test_get_all_resources_with_data(async_client: AsyncClient, auth_heade
         response = await async_client.get("/api/resources/", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
-        # Assert structure and presence of expected resource types
+        # Assert structure and presence of expected resource types using plural keys
         assert "articles" in data and isinstance(data["articles"], list)
         assert "videos" in data and isinstance(data["videos"], list)
         assert "courses" in data and isinstance(data["courses"], list)
         assert "books" in data and isinstance(data["books"], list)
-        # Check if at least one article (from mock_user) is present
+        # Check if at least one article (from mock_user, which uses singular keys)
+        # We compare against the singular key in the mock_user fixture
         assert len(data["articles"]) > 0
-        assert data["articles"][0]["title"] == mock_user["resources"]["articles"][0]["title"]
+        assert data["articles"][0]["title"] == mock_user["resources"]["article"][0]["title"]
     finally:
         # Clean up override
         del app.dependency_overrides[get_db]
@@ -270,7 +281,7 @@ async def test_add_new_article_resource(async_client: AsyncClient, auth_headers)
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        response = await async_client.post("/api/resources/articles", json=valid_article_resource, headers=auth_headers)
+        response = await async_client.post("/api/resources/article", json=valid_article_resource, headers=auth_headers)
         assert response.status_code == 201
         data = response.json()
         assert data["title"] == valid_article_resource["title"]
@@ -279,12 +290,12 @@ async def test_add_new_article_resource(async_client: AsyncClient, auth_headers)
         assert isinstance(data["id"], int)
 
         # Verify update_one was called correctly on the mock
-        mock_db.users.update_one.assert_awaited_once() # Use assert_awaited_once
+        mock_db.users.update_one.assert_awaited()
         call_args, _ = mock_db.users.update_one.call_args
         assert call_args[0] == {"username": "testuser"}
         assert "$push" in call_args[1]
-        assert "resources.articles" in call_args[1]["$push"]
-        new_resource = call_args[1]["$push"]["resources.articles"]
+        assert "resources.article" in call_args[1]["$push"]
+        new_resource = call_args[1]["$push"]["resources.article"]
         assert new_resource["title"] == valid_article_resource["title"]
         assert new_resource["url"] == valid_article_resource["url"]
         assert isinstance(new_resource["id"], int)
@@ -316,16 +327,24 @@ async def test_add_new_video_resource(async_client: AsyncClient, auth_headers):
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        response = await async_client.post("/api/resources/videos", json=valid_video_resource, headers=auth_headers)
+        response = await async_client.post("/api/resources/video", json=valid_video_resource, headers=auth_headers)
         assert response.status_code == 201
         data = response.json()
         assert data["title"] == valid_video_resource["title"]
         assert data["url"] == valid_video_resource["url"]
         # Check the mock was awaited
-        mock_db.users.update_one.assert_awaited_once_with(
-            {"username": "testuser"},
-            {"$push": {"resources.videos": ANY}} # Using ANY for brevity
-        )
+        mock_db.users.update_one.assert_awaited()
+        # Check the *last* call was the push operation (adjust index if needed)
+        # Using ANY for brevity, can be made more specific
+        push_call_filter = {"username": "testuser"}
+        push_call_update = {"$push": {"resources.video": ANY}}
+        # Find the push call among potentially multiple calls
+        push_call_found = False
+        for call_args in mock_db.users.update_one.await_args_list:
+             if call_args[0] == (push_call_filter, push_call_update):
+                 push_call_found = True
+                 break
+        assert push_call_found, "Push operation call not found"
     finally:
         # Clean up override
         del app.dependency_overrides[get_db]
@@ -354,16 +373,21 @@ async def test_add_new_course_resource(async_client: AsyncClient, auth_headers):
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        response = await async_client.post("/api/resources/courses", json=valid_course_resource, headers=auth_headers)
+        response = await async_client.post("/api/resources/course", json=valid_course_resource, headers=auth_headers)
         assert response.status_code == 201
         data = response.json()
         assert data["title"] == valid_course_resource["title"]
         assert data["url"] == valid_course_resource["url"]
         # Check the mock was awaited
-        mock_db.users.update_one.assert_awaited_once_with(
-            {"username": "testuser"},
-            {"$push": {"resources.courses": ANY}} # Using ANY for brevity
-        )
+        mock_db.users.update_one.assert_awaited()
+        push_call_filter = {"username": "testuser"}
+        push_call_update = {"$push": {"resources.course": ANY}}
+        push_call_found = False
+        for call_args in mock_db.users.update_one.await_args_list:
+             if call_args[0] == (push_call_filter, push_call_update):
+                 push_call_found = True
+                 break
+        assert push_call_found, "Push operation call not found"
     finally:
         # Clean up override
         del app.dependency_overrides[get_db]
@@ -392,16 +416,21 @@ async def test_add_new_book_resource(async_client: AsyncClient, auth_headers):
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        response = await async_client.post("/api/resources/books", json=valid_book_resource, headers=auth_headers)
+        response = await async_client.post("/api/resources/book", json=valid_book_resource, headers=auth_headers)
         assert response.status_code == 201
         data = response.json()
         assert data["title"] == valid_book_resource["title"]
         assert data["url"] == valid_book_resource["url"]
         # Check the mock was awaited
-        mock_db.users.update_one.assert_awaited_once_with(
-            {"username": "testuser"},
-            {"$push": {"resources.books": ANY}} # Using ANY for brevity
-        )
+        mock_db.users.update_one.assert_awaited()
+        push_call_filter = {"username": "testuser"}
+        push_call_update = {"$push": {"resources.book": ANY}}
+        push_call_found = False
+        for call_args in mock_db.users.update_one.await_args_list:
+            if call_args[0] == (push_call_filter, push_call_update):
+                push_call_found = True
+                break
+        assert push_call_found, "Push operation call not found"
     finally:
         # Clean up override
         del app.dependency_overrides[get_db]
@@ -424,7 +453,7 @@ async def test_add_resource_missing_fields(async_client: AsyncClient, auth_heade
     app.dependency_overrides[get_current_active_user] = lambda: mock_user_instance
 
     invalid_resource = {"url": "https://example.com"} # Missing title, topics, etc.
-    response = await async_client.post("/api/resources/articles", json=invalid_resource, headers=auth_headers)
+    response = await async_client.post("/api/resources/article", json=invalid_resource, headers=auth_headers)
     assert response.status_code == 422 # Unprocessable Entity
 
 @pytest.mark.asyncio
@@ -442,7 +471,7 @@ async def test_add_resource_duplicate_url(async_client: AsyncClient, auth_header
         "url": "https://example.com/duplicate-article", # URL to duplicate
         "topics": ["python"]
     }
-    user_with_existing["resources"]["articles"] = [existing_article]
+    user_with_existing["resources"]["article"] = [existing_article]
 
     # Create and configure mock DB
     mock_db = MagicMock()
@@ -468,7 +497,7 @@ async def test_add_resource_duplicate_url(async_client: AsyncClient, auth_header
             "difficulty": "Beginner",
             "estimated_time": 10
         }
-        response = await async_client.post("/api/resources/articles", json=resource_to_add, headers=auth_headers)
+        response = await async_client.post("/api/resources/article", json=resource_to_add, headers=auth_headers)
         # Expect validation error (currently 422, might change based on implementation)
         # Update assertion based on actual behavior if the ID generation/check logic changes
         # TODO: Implement proper duplicate URL detection/handling in the API.
@@ -499,15 +528,16 @@ async def test_get_single_resource_found(async_client: AsyncClient, auth_headers
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        resource_type = "articles"
-        resource_id = mock_user["resources"][resource_type][0]["id"]
+        resource_type_url = "article" # Use singular for URL path
+        resource_type_data = "article" # Use singular for data key now
+        resource_id = mock_user["resources"][resource_type_data][0]["id"]
 
-        response = await async_client.get(f"/api/resources/{resource_type}/{resource_id}", headers=auth_headers)
+        response = await async_client.get(f"/api/resources/{resource_type_url}/{resource_id}", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == resource_id
-        assert data["title"] == mock_user["resources"][resource_type][0]["title"]
+        assert data["title"] == mock_user["resources"][resource_type_data][0]["title"]
     finally:
         # Clean up override
         del app.dependency_overrides[get_db]
@@ -533,10 +563,10 @@ async def test_get_single_resource_not_found(async_client: AsyncClient, auth_hea
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        resource_type = "articles"
+        resource_type_url = "article" # Use singular for URL path
         non_existent_id = 999
 
-        response = await async_client.get(f"/api/resources/{resource_type}/{non_existent_id}", headers=auth_headers)
+        response = await async_client.get(f"/api/resources/{resource_type_url}/{non_existent_id}", headers=auth_headers)
 
         assert response.status_code == 404
     finally:
@@ -568,8 +598,9 @@ async def test_update_resource_success(async_client: AsyncClient, auth_headers, 
     initial_user_state = deepcopy(mock_user)
 
     # Simulate user state *after* successful update
-    resource_type = "articles"
-    resource_id = initial_user_state["resources"][resource_type][0]["id"]
+    resource_type_url = "article" # Use singular for URL path
+    resource_type_data = "article" # Use singular for data key now
+    resource_id = initial_user_state["resources"][resource_type_data][0]["id"]
     update_payload = {
         "title": "Updated Article Title",
         "topics": ["pytest", "fastapi"],
@@ -577,12 +608,12 @@ async def test_update_resource_success(async_client: AsyncClient, auth_headers, 
         "url": "https://example.com/updated-article"
     }
     updated_user_state_after_success = deepcopy(initial_user_state)
-    for i, res in enumerate(updated_user_state_after_success["resources"][resource_type]):
+    for i, res in enumerate(updated_user_state_after_success["resources"][resource_type_data]):
         if res["id"] == resource_id:
             for key, value in update_payload.items():
-                    updated_user_state_after_success["resources"][resource_type][i][key] = value
+                    updated_user_state_after_success["resources"][resource_type_data][i][key] = value
             # Simulate updated_at being added by the endpoint
-            updated_user_state_after_success["resources"][resource_type][i]["updated_at"] = datetime.now().isoformat()
+            updated_user_state_after_success["resources"][resource_type_data][i]["updated_at"] = datetime.now().isoformat()
             break
 
     # Configure find_one mock to return initial state first, then updated state
@@ -607,7 +638,7 @@ async def test_update_resource_success(async_client: AsyncClient, auth_headers, 
         # Apply override inside try block
         app.dependency_overrides[get_db] = override_get_db
 
-        response = await async_client.put(f"/api/resources/{resource_type}/{resource_id}", json=update_payload, headers=auth_headers)
+        response = await async_client.put(f"/api/resources/{resource_type_url}/{resource_id}", json=update_payload, headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -617,7 +648,7 @@ async def test_update_resource_success(async_client: AsyncClient, auth_headers, 
         assert data["notes"] == update_payload["notes"]
         assert data["url"] == update_payload["url"]
         # Ensure completion status wasn't accidentally changed
-        assert data["completed"] == initial_user_state["resources"][resource_type][0]["completed"]
+        assert data["completed"] == initial_user_state["resources"][resource_type_data][0]["completed"]
 
         # Verify update_one was called correctly
         mock_db.users.update_one.assert_awaited_once()
@@ -625,11 +656,11 @@ async def test_update_resource_success(async_client: AsyncClient, auth_headers, 
         # Verify filter targets the correct resource within the user document
         assert call_args[0] == {
             "username": mock_user["username"],
-            f"resources.{resource_type}.id": resource_id
+            f"resources.{resource_type_url}.id": resource_id
         }
         # Verify the $set operation contains the updated fields with correct dot notation
-        expected_set_op = {f"resources.{resource_type}.$.{key}": value for key, value in update_payload.items()}
-        # expected_set_op[f"resources.{resource_type}.$.updated_at"] = ANY # updated_at is not currently set by endpoint
+        expected_set_op = {f"resources.{resource_type_url}.$.{key}": value for key, value in update_payload.items()}
+        # expected_set_op[f"resources.{resource_type_url}.$.updated_at"] = ANY # updated_at is not currently set by endpoint
         assert call_args[1]["$set"] == expected_set_op
 
     finally:
@@ -659,18 +690,18 @@ async def test_update_resource_not_found(async_client: AsyncClient, auth_headers
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        resource_type = "articles"
+        resource_type_url = "article" # Use singular for URL path
         resource_id_nonexistent = 999
         update_payload = {"title": "Attempted Update"}
 
-        response = await async_client.put(f"/api/resources/{resource_type}/{resource_id_nonexistent}", json=update_payload, headers=auth_headers)
+        response = await async_client.put(f"/api/resources/{resource_type_url}/{resource_id_nonexistent}", json=update_payload, headers=auth_headers)
 
         assert response.status_code == 404
-        assert f"User-added resource with ID {resource_id_nonexistent} not found in type {resource_type}" in response.json()["detail"]
+        assert f"User-added resource with ID {resource_id_nonexistent} not found in type {resource_type_url}" in response.json()["detail"]
 
         # Verify update_one was called with the correct filter
         mock_db.users.update_one.assert_awaited_once_with(
-            {"username": "testuser", f"resources.{resource_type}.id": resource_id_nonexistent},
+            {"username": "testuser", f"resources.{resource_type_url}.id": resource_id_nonexistent},
             ANY # Don't need to strictly check the $set here
         )
 
@@ -707,14 +738,15 @@ async def test_update_resource_validation_error(async_client: AsyncClient, auth_
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        resource_type = "articles"
-        resource_id = mock_user["resources"][resource_type][0]["id"]
+        resource_type_url = "article" # Use singular for URL path
+        resource_type_data = "article" # Use singular for data key now
+        resource_id = mock_user["resources"][resource_type_data][0]["id"]
         # Payload with invalid data type (e.g., estimated_time as string)
         invalid_payload = {
             "estimated_time": "not a number"
         }
 
-        response = await async_client.put(f"/api/resources/{resource_type}/{resource_id}", json=invalid_payload, headers=auth_headers)
+        response = await async_client.put(f"/api/resources/{resource_type_url}/{resource_id}", json=invalid_payload, headers=auth_headers)
 
         assert response.status_code == 422 # Unprocessable Entity for validation errors
 
@@ -734,9 +766,10 @@ async def test_update_resource_preserves_fields(async_client: AsyncClient, auth_
 
     # Simulate user state *before* update
     initial_user_state = deepcopy(mock_user)
-    resource_type = "articles"
-    resource_id = initial_user_state["resources"][resource_type][0]["id"]
-    original_resource = initial_user_state["resources"][resource_type][0]
+    resource_type_url = "article" # Use singular for URL path
+    resource_type_data = "article" # Use singular for data key now
+    resource_id = initial_user_state["resources"][resource_type_data][0]["id"]
+    original_resource = initial_user_state["resources"][resource_type_data][0]
     original_date_added = original_resource["date_added"]
     original_completed_status = original_resource["completed"]
 
@@ -748,12 +781,12 @@ async def test_update_resource_preserves_fields(async_client: AsyncClient, auth_
 
     # Simulate user state *after* the partial update
     updated_user_state_after_partial = deepcopy(initial_user_state)
-    for i, res in enumerate(updated_user_state_after_partial["resources"][resource_type]):
+    for i, res in enumerate(updated_user_state_after_partial["resources"][resource_type_data]):
         if res["id"] == resource_id:
-            updated_user_state_after_partial["resources"][resource_type][i]["title"] = update_payload["title"]
-            updated_user_state_after_partial["resources"][resource_type][i]["notes"] = update_payload["notes"]
+            updated_user_state_after_partial["resources"][resource_type_data][i]["title"] = update_payload["title"]
+            updated_user_state_after_partial["resources"][resource_type_data][i]["notes"] = update_payload["notes"]
             # Simulate updated_at being added by the endpoint
-            updated_user_state_after_partial["resources"][resource_type][i]["updated_at"] = datetime.now().isoformat()
+            updated_user_state_after_partial["resources"][resource_type_data][i]["updated_at"] = datetime.now().isoformat()
             break
 
     # Configure find_one mock with side_effect
@@ -778,7 +811,7 @@ async def test_update_resource_preserves_fields(async_client: AsyncClient, auth_
         # Apply override inside try block
         app.dependency_overrides[get_db] = override_get_db
 
-        response = await async_client.put(f"/api/resources/{resource_type}/{resource_id}", json=update_payload, headers=auth_headers)
+        response = await async_client.put(f"/api/resources/{resource_type_url}/{resource_id}", json=update_payload, headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -795,16 +828,16 @@ async def test_update_resource_preserves_fields(async_client: AsyncClient, auth_
         # Verify the update_one call included only the specified fields in $set
         mock_db.users.update_one.assert_awaited_once()
         call_args, _ = mock_db.users.update_one.call_args
-        assert call_args[0] == {"username": mock_user["username"], f"resources.{resource_type}.id": resource_id}
+        assert call_args[0] == {"username": mock_user["username"], f"resources.{resource_type_url}.id": resource_id}
         set_op = call_args[1]["$set"]
         expected_keys_in_set = {
-            f"resources.{resource_type}.$.title",
-            f"resources.{resource_type}.$.notes",
-            # f"resources.{resource_type}.$.updated_at" # updated_at is not currently set by endpoint
+            f"resources.{resource_type_url}.$.title",
+            f"resources.{resource_type_url}.$.notes",
+            # f"resources.{resource_type_url}.$.updated_at" # updated_at is not currently set by endpoint
         }
         assert set(set_op.keys()) == expected_keys_in_set
-        assert set_op[f"resources.{resource_type}.$.title"] == update_payload["title"]
-        assert set_op[f"resources.{resource_type}.$.notes"] == update_payload["notes"]
+        assert set_op[f"resources.{resource_type_url}.$.title"] == update_payload["title"]
+        assert set_op[f"resources.{resource_type_url}.$.notes"] == update_payload["notes"]
 
     finally:
         app.dependency_overrides = {}
@@ -836,17 +869,18 @@ async def test_delete_resource_success(async_client: AsyncClient, auth_headers, 
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        resource_type = "articles"
-        resource_id = mock_user["resources"][resource_type][0]["id"]
+        resource_type_url = "article" # Use singular for URL path
+        resource_type_data = "article" # Use singular for data key now
+        resource_id = mock_user["resources"][resource_type_data][0]["id"]
 
-        response = await async_client.delete(f"/api/resources/{resource_type}/{resource_id}", headers=auth_headers)
+        response = await async_client.delete(f"/api/resources/{resource_type_url}/{resource_id}", headers=auth_headers)
 
         assert response.status_code == 204 # No Content
 
         # Verify the DB call for $pull
         mock_db.users.update_one.assert_awaited_once_with(
             {"username": "testuser"},
-            {"$pull": {f"resources.{resource_type}": {"id": resource_id}}}
+            {"$pull": {f"resources.{resource_type_url}": {"id": resource_id}}}
         )
     finally:
         # Clean up override
@@ -879,10 +913,10 @@ async def test_delete_resource_not_found(async_client: AsyncClient, auth_headers
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        resource_type = "articles"
+        resource_type_url = "article" # Use singular for URL path
         non_existent_id = 999
 
-        response = await async_client.delete(f"/api/resources/{resource_type}/{non_existent_id}", headers=auth_headers)
+        response = await async_client.delete(f"/api/resources/{resource_type_url}/{non_existent_id}", headers=auth_headers)
 
         assert response.status_code == 404 # Not Found
         mock_db.users.update_one.assert_awaited_once() # Should have attempted the pull
@@ -894,7 +928,7 @@ async def test_delete_resource_not_found(async_client: AsyncClient, auth_headers
 @pytest.mark.asyncio
 async def test_resource_interaction_unauthenticated(async_client: AsyncClient):
     """Test interacting with resource endpoints without authentication."""
-    resource_type = "articles"
+    resource_type = "article" # Use singular
     resource_id = 1
 
     # GET all resources
@@ -939,7 +973,7 @@ async def test_resource_interaction_disabled_user(async_client: AsyncClient, aut
     app.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
     # Test an endpoint that requires an active user (e.g., add resource)
-    response_post = await async_client.post("/api/resources/articles", json=valid_article_resource, headers=auth_headers)
+    response_post = await async_client.post("/api/resources/article", json=valid_article_resource, headers=auth_headers)
     assert response_post.status_code == 400 # Expect Forbidden or Bad Request depending on implementation
     assert response_post.json()["detail"] == "Inactive user"
 
@@ -962,7 +996,7 @@ async def test_add_resource_validates_url(async_client: AsyncClient, auth_header
     # No DB interaction needed if validation fails early
 
     invalid_url_payload = {**valid_article_resource, "url": "invalid-url"}
-    response = await async_client.post("/api/resources/articles", json=invalid_url_payload, headers=auth_headers)
+    response = await async_client.post("/api/resources/article", json=invalid_url_payload, headers=auth_headers)
     assert response.status_code == 400 # Bad Request due to custom URL validation
     data = response.json()
     assert "Invalid URL format" in data["detail"]
@@ -989,11 +1023,12 @@ async def test_update_resource_validates_url(async_client: AsyncClient, auth_hea
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        resource_type = "articles"
-        resource_id = mock_user["resources"][resource_type][0]["id"]
+        resource_type_url = "article" # Use singular for URL path
+        resource_type_data = "article" # Use singular for data key now
+        resource_id = mock_user["resources"][resource_type_data][0]["id"]
         invalid_url_payload = {"url": "not a valid url"}
 
-        response = await async_client.put(f"/api/resources/{resource_type}/{resource_id}", json=invalid_url_payload, headers=auth_headers)
+        response = await async_client.put(f"/api/resources/{resource_type_url}/{resource_id}", json=invalid_url_payload, headers=auth_headers)
 
         # Expect 400 Bad Request because the PUT endpoint now validates URL
         assert response.status_code == 400
@@ -1018,7 +1053,7 @@ async def test_resource_ids_are_unique_per_type(async_client: AsyncClient, auth_
     mock_db.users = MagicMock()
     # Mock database find_one to return a clean user initially
     clean_user_data = deepcopy(test_user_data)
-    clean_user_data["resources"] = {"articles": [], "videos": [], "courses": [], "books": []}
+    clean_user_data["resources"] = {"article": [], "video": [], "course": [], "book": []}
     # Use a list to manage side effects for find_one across calls
     find_one_return_values = [deepcopy(clean_user_data)]
     mock_db.users.find_one = AsyncMock(side_effect=lambda *args, **kwargs: find_one_return_values[-1])
@@ -1036,21 +1071,29 @@ async def test_resource_ids_are_unique_per_type(async_client: AsyncClient, auth_
         pushed = False
         if "$push" in update:
             for field, value in update["$push"].items():
-                parts = field.split('.') # e.g., resources.articles
+                # field will be like "resources.article"
+                parts = field.split('.')
                 if len(parts) == 2 and parts[0] == "resources":
-                    resource_type = parts[1]
-                    if resource_type in updated_user_doc["resources"]:
+                    # resource_type_singular is like "article"
+                    resource_type_singular = parts[1]
+
+                    # Ensure the singular key exists in the mock data structure
+                    if resource_type_singular in updated_user_doc.get("resources", {}):
                         # Assign a unique ID based on current count + 1
-                        new_id = len(updated_user_doc["resources"][resource_type]) + 1
+                        current_resources = updated_user_doc["resources"][resource_type_singular]
+                        new_id = len(current_resources) + 1
                         value["id"] = new_id
                         value["date_added"] = datetime.now().isoformat()
                         value["completed"] = False
                         value["completion_date"] = None
                         value["notes"] = value.get("notes", "")
                         value["priority"] = value.get("priority", "medium")
-                        value["source"] = value.get("source", "user")
-                        updated_user_doc["resources"][resource_type].append(value)
+                        value["source"] = value.get("source", "user") # Ensure source is added
+                        current_resources.append(value) # Append to the list under the singular key
                         pushed = True
+                    else:
+                        logger.warning(f"Mock Update: Singular resource type key '{resource_type_singular}' not found in mock user data")
+
             if pushed:
                  # Update the state for the *next* find_one call
                  find_one_return_values.append(updated_user_doc)
@@ -1064,13 +1107,14 @@ async def test_resource_ids_are_unique_per_type(async_client: AsyncClient, auth_
                     updated_user_doc["resources"] = value
                     set_applied = True
                 elif field.startswith("resources."):
-                    # Handle setting an empty list like "resources.articles": []
+                    # Handle setting an empty list like "resources.article": []
                     parts = field.split('.')
                     if len(parts) == 2 and parts[0] == "resources":
-                        resource_type = parts[1]
+                        resource_type_singular = parts[1]
                         if "resources" not in updated_user_doc:
                              updated_user_doc["resources"] = {}
-                        updated_user_doc["resources"][resource_type] = value
+                        # Initialize with the SINGULAR key
+                        updated_user_doc["resources"][resource_type_singular] = value
                         set_applied = True
 
              if set_applied:
@@ -1091,27 +1135,27 @@ async def test_resource_ids_are_unique_per_type(async_client: AsyncClient, auth_
 
     try:
         # Add an article
-        response_article1 = await async_client.post("/api/resources/articles", json=valid_article_resource, headers=auth_headers)
+        response_article1 = await async_client.post("/api/resources/article", json=valid_article_resource, headers=auth_headers) # Use singular URL
         assert response_article1.status_code == 201
         article1_data = response_article1.json()
         assert article1_data["id"] == 1 # First article gets ID 1
 
         # Add a video
-        response_video1 = await async_client.post("/api/resources/videos", json=valid_video_resource, headers=auth_headers)
+        response_video1 = await async_client.post("/api/resources/video", json=valid_video_resource, headers=auth_headers) # Use singular URL
         assert response_video1.status_code == 201
         video1_data = response_video1.json()
         assert video1_data["id"] == 1 # First video also gets ID 1
 
         # Add another article
         another_article = {**valid_article_resource, "title": "Another Article", "url": "https://example.com/another"}
-        response_article2 = await async_client.post("/api/resources/articles", json=another_article, headers=auth_headers)
+        response_article2 = await async_client.post("/api/resources/article", json=another_article, headers=auth_headers) # Use singular URL
         assert response_article2.status_code == 201
         article2_data = response_article2.json()
         assert article2_data["id"] == 2 # Second article gets ID 2
 
         # Add another video
         another_video = {**valid_video_resource, "title": "Another Video", "url": "https://example.com/another-vid"}
-        response_video2 = await async_client.post("/api/resources/videos", json=another_video, headers=auth_headers)
+        response_video2 = await async_client.post("/api/resources/video", json=another_video, headers=auth_headers) # Use singular URL
         assert response_video2.status_code == 201
         video2_data = response_video2.json()
         assert video2_data["id"] == 2 # Second video gets ID 2

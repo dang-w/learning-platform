@@ -303,7 +303,7 @@ describe('LibraryPage', () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/resources/library?topics=react&page=1&limit=')
+        expect.stringContaining('/api/resources/library?topic=react&page=1&limit=10')
       );
     });
 
@@ -318,10 +318,10 @@ describe('LibraryPage', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       // Note: The order of params might vary, stringContaining is safer
       expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('topics=react')
+        expect.stringContaining('topic=react')
       );
       expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('types=article')
+        expect.stringContaining('type=article')
       );
        expect(fetchSpy).toHaveBeenCalledWith(
         expect.stringContaining('page=1')
@@ -336,10 +336,10 @@ describe('LibraryPage', () => {
        expect(fetchSpy).toHaveBeenCalledTimes(1);
        // Should only have type filter now
        expect(fetchSpy).toHaveBeenCalledWith(
-         expect.stringContaining('/api/resources/library?types=article&page=1&limit=')
+         expect.stringContaining('/api/resources/library?type=article&page=1&limit=')
        );
        expect(fetchSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('topics=react')
+        expect.stringContaining('topic=react')
        );
      });
   });

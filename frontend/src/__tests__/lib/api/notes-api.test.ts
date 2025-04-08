@@ -47,7 +47,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.getNotes();
       expect(result).toEqual(mockResponse.data);
-      expect(mockGet).toHaveBeenCalledWith('/api/notes?skip=0&limit=20');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes/?skip=0&limit=20');
     });
 
     it('should fetch notes with custom pagination', async () => {
@@ -61,7 +61,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.getNotes(undefined, 10, 5);
       expect(result).toEqual(mockResponse.data);
-      expect(mockGet).toHaveBeenCalledWith('/api/notes?skip=10&limit=5');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes/?skip=10&limit=5');
     });
 
     it('should fetch notes with tag filter and pagination', async () => {
@@ -75,7 +75,7 @@ describe('Notes API', () => {
 
       const result = await notesApi.getNotes('test', 0, 20);
       expect(result).toEqual(mockResponse.data);
-      expect(mockGet).toHaveBeenCalledWith('/api/notes?tag=test&skip=0&limit=20');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes/?tag=test&skip=0&limit=20');
     });
 
     it('should handle error when fetching notes', async () => {
@@ -84,7 +84,7 @@ describe('Notes API', () => {
       mockGet.mockRejectedValueOnce(error);
 
       await expect(notesApi.getNotes()).rejects.toThrow(`Failed to get notes: ${errorDetail}`);
-      expect(mockGet).toHaveBeenCalledWith('/api/notes?skip=0&limit=20');
+      expect(mockGet).toHaveBeenCalledWith('/api/notes/?skip=0&limit=20');
     });
   });
 
